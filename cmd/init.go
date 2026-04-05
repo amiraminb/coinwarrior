@@ -20,6 +20,20 @@ func ensureFile(path string, content []byte) (bool, error) {
 	return true, nil
 }
 
+func createConfigFile(configPath string, content []byte) error {
+	created, err := ensureFile(configPath, content)
+	if err != nil {
+		return err
+	}
+	if created {
+		fmt.Printf("created %s\n", configPath)
+	} else {
+		fmt.Printf("%s exists\n", configPath)
+	}
+
+	return nil
+}
+
 var initCmd = &cobra.Command{
 	Use:   "init",
 	Short: "Initialize coinwarrior data",
@@ -36,22 +50,42 @@ var initCmd = &cobra.Command{
 
 		fmt.Printf("data dir ready: %s\n", dir)
 
-		configPath := filepath.Join(dir, "config.json")
-		configContent := []byte(`{
+		err = createConfigFile(filepath.Join(dir, "config.json"), []byte(`{
 		  "schema_version": 1,
 		  "default_currency": "CAD",
 		  "timezone": "Local",
 		  "date_format": "2006-01-02"
 		}
-		`)
-		created, err := ensureFile(configPath, configContent)
+		`))
 		if err != nil {
 			return err
 		}
-		if created {
-			fmt.Println("created config.json")
-		} else {
-			fmt.Println("config.json exists")
+
+		err = createConfigFile(filepath.Join(dir, "transactions.json"), []byte(`{
+		  "schema_version": 1,
+		  "transactions": []
+		}
+		`))
+		if err != nil {
+			return err
+		}
+
+		err = createConfigFile(filepath.Join(dir, "budgets.json"), []byte(`{
+		  "schema_version": 1,
+		  "budgets": []
+		}
+		`))
+		if err != nil {
+			return err
+		}
+
+		err = createConfigFile(filepath.Join(dir, "recurring.json"), []byte(`{
+		  "schema_version": 1,
+		  "recurring_rules": []
+		}
+		`))
+		if err != nil {
+			return err
 		}
 
 		return nil

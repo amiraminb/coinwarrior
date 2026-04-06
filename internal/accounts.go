@@ -119,3 +119,84 @@ func ApplyTransactionToAccount(accountName, currency string, deltaMinor int64) e
 
 	return SaveAccountsFile(path, accountsFile)
 }
+
+func AddAccount(name, currency, openingBalanceInput string) (model.Account, error) {
+	accountName := strings.TrimSpace(name)
+	cur := strings.ToUpper(strings.TrimSpace(currency))
+	if accountName == "" {
+		return model.Account{}, fmt.Errorf("account name is required")
+	}
+	if cur == "" {
+		return model.Account{}, fmt.Errorf("currency is required")
+	}
+
+	balanceMinor, err := ParseAmount(openingBalanceInput)
+	if err != nil {
+		return model.Account{}, err
+	}
+
+	path, err := FilePath(AccountsFileName)
+	if err != nil {
+		return model.Account{}, err
+	}
+
+	accountsFile, err := LoadAccountsFile(path)
+	if err != nil {
+		return model.Account{}, err
+	}
+
+	for _, existing := range accountsFile.Accounts {
+		if strings.EqualFold(existing.Name, accountName) {
+			return model.Account{}, fmt.Errorf("account '%s' already exists", existing.Name)
+		}
+	}
+
+	account := model.Account{
+		Name:         accountName,
+		Currency:     cur,
+		BalanceMinor: balanceMinor,
+		UpdatedAt:    time.Now().UTC().Format(time.RFC3339),
+	}
+
+	accountsFile.Accounts = append(accountsFile.Accounts, account)
+	if err := SaveAccountsFile(path, accountsFile); err != nil {
+		return model.Account{}, err
+	}
+
+	return account, nil
+}
+
+func UpdateAccountBalance(name, amountInput string) (model.Account, error) {
+	accountName := strings.TrimSpace(name)
+	if accountName == "" {
+		return model.Account{}, fmt.Errorf("account name is required")
+	}
+
+	balanceMinor, err := ParseAmount(amountInput)
+	if err != nil {
+		return model.Account{}, err
+	}
+
+	path, err := FilePath(AccountsFileName)
+	if err != nil {
+		return model.Account{}, err
+	}
+
+	accountsFile, err := LoadAccountsFile(path)
+	if err != nil {
+		return model.Account{}, err
+	}
+
+	for i := range accountsFile.Accounts {
+		if strings.EqualFold(accountsFile.Accounts[i].Name, accountName) {
+			accountsFile.Accounts[i].BalanceMinor = balanceMinor
+			accountsFile.Accounts[i].UpdatedAt = time.Now().UTC().Format(time.RFC3339)
+			if err := SaveAccountsFile(path, accountsFile); err != nil {
+				return model.Account{}, err
+			}
+			return accountsFile.Accounts[i], nil
+		}
+	}
+
+	return model.Account{}, fmt.Errorf("account '%s' not found", accountName)
+}

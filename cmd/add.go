@@ -2,22 +2,38 @@ package cmd
 
 import (
 	"fmt"
+	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
 )
 
+type addStep int
+
+const (
+	stepType addStep = iota
+	stepAmount
+	stepCurrency
+	stepDone
+)
+
 type addModel struct {
+	step addStep
+
 	cursor   int
 	choices  []string
 	selected string
-	done     bool
+
+	amountInput   string
+	currencyInput string
 }
 
 func newAddModel() addModel {
 	return addModel{
-		cursor:  0,
-		choices: []string{"expense", "income"},
+		step:          stepType,
+		cursor:        0,
+		choices:       []string{"expense", "income"},
+		currencyInput: "CAD",
 	}
 }
 
@@ -31,36 +47,89 @@ func (m addModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "ctrl+c", "q":
 			return m, tea.Quit
-		case "up", "k":
-			if m.cursor > 0 {
-				m.cursor--
+		}
+		switch m.step {
+		case stepType:
+			switch msg.String() {
+			case "up", "k":
+				if m.cursor > 0 {
+					m.cursor--
+				}
+			case "down", "j":
+				if m.cursor < len(m.choices)-1 {
+					m.cursor++
+				}
+			case "enter":
+				m.selected = m.choices[m.cursor]
+				m.step = stepAmount
 			}
-		case "down", "j":
-			if m.cursor < len(m.choices)-1 {
-				m.cursor++
+		case stepAmount:
+			switch msg.String() {
+			case "enter":
+				if m.amountInput != "" {
+					m.step = stepCurrency
+				}
+			case "backspace":
+				if len(m.amountInput) > 0 {
+					m.amountInput = m.amountInput[:len(m.amountInput)-1]
+				}
+			default:
+				if len(msg.String()) == 1 {
+					ch := msg.String()
+					if (ch >= "0" && ch <= "9") || ch == "." {
+						m.amountInput += ch
+					}
+				}
 			}
-		case "enter":
-			m.selected = m.choices[m.cursor]
-			m.done = true
-			return m, tea.Quit
+		case stepCurrency:
+			switch msg.String() {
+			case "enter":
+				if m.currencyInput != "" {
+					m.step = stepDone
+					return m, tea.Quit
+				}
+			case "backspace":
+				if len(m.currencyInput) > 0 {
+					m.currencyInput = m.currencyInput[:len(m.currencyInput)-1]
+				}
+			default:
+				if len(msg.String()) == 1 {
+					ch := strings.ToUpper(msg.String())
+					if (ch >= "a" && ch <= "z") || (ch >= "A" && ch <= "Z") {
+						m.currencyInput += ch
+					}
+				}
+			}
 		}
 	}
 	return m, nil
 }
 
 func (m addModel) View() string {
-	if m.done {
-		return "selected type: " + m.selected + "\n"
-	}
-	s := "coinw add\n\nSelect type:\n\n"
-	for i, c := range m.choices {
-		prefix := "  "
-		if i == m.cursor {
-			prefix = "> "
+	s := "coinw add\n\n"
+	switch m.step {
+	case stepType:
+		s += "Select type:\n\n"
+		for i, c := range m.choices {
+			prefix := "  "
+			if i == m.cursor {
+				prefix = "> "
+			}
+			s += prefix + c + "\n"
 		}
-		s += prefix + c + "\n"
+		s += "\n(use ↑/↓ and enter, q to quit)\n"
+	case stepAmount:
+		s += "Type selected: " + m.selected + "\n\n"
+		s += "Enter amount: " + m.amountInput + "\n"
+		s += "(press enter to continue, q to quit)\n"
+	case stepCurrency:
+		s += "Type selected: " + m.selected + "\n"
+		s += "Amount: " + m.amountInput + "\n\n"
+		s += "Enter currency: " + m.currencyInput + "\n"
+		s += "(press enter to continue, q to quit)\n"
+	case stepDone:
+		s += "Done\n"
 	}
-	s += "\n(use ↑/↓ and enter, q to quit)\n"
 	return s
 }
 
@@ -75,11 +144,11 @@ var addCmd = &cobra.Command{
 			return err
 		}
 		result := finalModel.(addModel)
-		if result.selected == "" {
+		if result.selected == "" || result.amountInput == "" || result.currencyInput == "" {
 			fmt.Println("add cancelled")
 			return nil
 		}
-		fmt.Printf("type selected: %s\n", result.selected)
+		fmt.Printf("type: %s, amount: %s, currency: %s\n", result.selected, result.amountInput, result.currencyInput)
 		return nil
 	},
 }

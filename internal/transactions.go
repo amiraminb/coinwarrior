@@ -17,6 +17,15 @@ func ParseAmount(input string) (int64, error) {
 		return 0, fmt.Errorf("amount cannot be empty")
 	}
 
+	negative := false
+	if strings.HasPrefix(amount, "-") {
+		negative = true
+		amount = strings.TrimSpace(strings.TrimPrefix(amount, "-"))
+		if amount == "" {
+			return 0, fmt.Errorf("invalid amount: %s", input)
+		}
+	}
+
 	parts := strings.Split(amount, ".")
 	if len(parts) > 2 {
 		return 0, fmt.Errorf("invalid amount format: %s", input)
@@ -51,7 +60,12 @@ func ParseAmount(input string) (int64, error) {
 		return 0, fmt.Errorf("invalid amount: %s", input)
 	}
 
-	return wholeValue*100 + fracValue, nil
+	result := wholeValue*100 + fracValue
+	if negative {
+		result = -result
+	}
+
+	return result, nil
 }
 
 func NewTransactionID(now time.Time) string {
@@ -101,6 +115,9 @@ func AddTransaction(txType, amountInput, currency, dateValue, category, account,
 	amountMinor, err := ParseAmount(amountInput)
 	if err != nil {
 		return model.Transaction{}, err
+	}
+	if amountMinor <= 0 {
+		return model.Transaction{}, fmt.Errorf("amount must be greater than zero")
 	}
 
 	if txType != TransactionTypeExpense && txType != TransactionTypeIncome {
@@ -172,10 +189,30 @@ func FormatMinor(amountMinor int64) string {
 
 	whole := amountMinor / 100
 	fraction := amountMinor % 100
+	wholeFormatted := formatWithCommas(whole)
 
 	if negative {
-		return fmt.Sprintf("-%d.%02d", whole, fraction)
+		return fmt.Sprintf("-%s.%02d", wholeFormatted, fraction)
 	}
 
-	return fmt.Sprintf("%d.%02d", whole, fraction)
+	return fmt.Sprintf("%s.%02d", wholeFormatted, fraction)
+}
+
+func formatWithCommas(n int64) string {
+	s := strconv.FormatInt(n, 10)
+	if len(s) <= 3 {
+		return s
+	}
+
+	first := len(s) % 3
+	if first == 0 {
+		first = 3
+	}
+
+	result := s[:first]
+	for i := first; i < len(s); i += 3 {
+		result += "," + s[i:i+3]
+	}
+
+	return result
 }

@@ -36,7 +36,7 @@ func newAccountAddModel() accountAddModel {
 	return accountAddModel{
 		step:                accountStepName,
 		currencyInput:       "CAD",
-		openingBalanceInput: "0",
+		openingBalanceInput: "",
 	}
 }
 

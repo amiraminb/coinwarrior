@@ -134,3 +134,19 @@ func AddTransaction(txType, amountInput, currency, category, account string) (mo
 
 	return tx, nil
 }
+
+func FormatMinor(amountMinor int64) string {
+	negative := amountMinor < 0
+	if negative {
+		amountMinor = -amountMinor
+	}
+
+	whole := amountMinor / 100
+	fraction := amountMinor % 100
+
+	if negative {
+		return fmt.Sprintf("-%d.%02d", whole, fraction)
+	}
+
+	return fmt.Sprintf("%d.%02d", whole, fraction)
+}

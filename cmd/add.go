@@ -1,9 +1,12 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 
+	"github.com/amiraminb/coinwarrior/internal/app"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
 )
@@ -14,6 +17,9 @@ const (
 	stepType addStep = iota
 	stepAmount
 	stepCurrency
+	stepCategorySelect
+	stepCategoryInput
+	stepCategoryConfirm
 	stepDone
 )
 
@@ -26,14 +32,22 @@ type addModel struct {
 
 	amountInput   string
 	currencyInput string
+	categoryInput string
+
+	categories      []string
+	categoryCursor  int
+	categoryDraft   string
+	pendingCategory string
+	confirmCursor   int
 }
 
-func newAddModel() addModel {
+func newAddModel(categories []string) addModel {
 	return addModel{
 		step:          stepType,
 		cursor:        0,
 		choices:       []string{"expense", "income"},
 		currencyInput: "CAD",
+		categories:    categories,
 	}
 }
 
@@ -85,8 +99,7 @@ func (m addModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			switch msg.String() {
 			case "enter":
 				if m.currencyInput != "" {
-					m.step = stepDone
-					return m, tea.Quit
+					m.step = stepCategorySelect
 				}
 			case "backspace":
 				if len(m.currencyInput) > 0 {
@@ -95,10 +108,70 @@ func (m addModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			default:
 				if len(msg.String()) == 1 {
 					ch := strings.ToUpper(msg.String())
-					if (ch >= "a" && ch <= "z") || (ch >= "A" && ch <= "Z") {
+					if len(m.currencyInput) < 3 && ((ch >= "A" && ch <= "Z") || (ch >= "a" && ch <= "z")) {
 						m.currencyInput += ch
 					}
 				}
+			}
+		case stepCategorySelect:
+			maxCursor := len(m.categories)
+			switch msg.String() {
+			case "up", "k":
+				if m.categoryCursor > 0 {
+					m.categoryCursor--
+				}
+			case "down", "j":
+				if m.categoryCursor < maxCursor {
+					m.categoryCursor++
+				}
+			case "enter":
+				if m.categoryCursor < len(m.categories) {
+					m.categoryInput = m.categories[m.categoryCursor]
+					m.step = stepDone
+					return m, tea.Quit
+				}
+				m.step = stepCategoryInput
+			}
+		case stepCategoryInput:
+			switch msg.String() {
+			case "enter":
+				draft := strings.TrimSpace(m.categoryDraft)
+				if draft != "" {
+					if categoryExists(m.categories, draft) {
+						m.categoryInput = draft
+						m.step = stepDone
+						return m, tea.Quit
+					}
+					m.pendingCategory = draft
+					m.confirmCursor = 0
+					m.step = stepCategoryConfirm
+				}
+			case "esc":
+				m.step = stepCategorySelect
+			case "backspace":
+				if len(m.categoryDraft) > 0 {
+					m.categoryDraft = m.categoryDraft[:len(m.categoryDraft)-1]
+				}
+			default:
+				if len(msg.String()) == 1 {
+					m.categoryDraft += msg.String()
+				}
+			}
+		case stepCategoryConfirm:
+			switch msg.String() {
+			case "left", "h", "up", "k":
+				m.confirmCursor = 0
+			case "right", "l", "down", "j":
+				m.confirmCursor = 1
+			case "enter":
+				if m.confirmCursor == 0 {
+					m.categoryInput = m.pendingCategory
+					m.step = stepDone
+					return m, tea.Quit
+				}
+				m.step = stepCategoryInput
+			case "esc":
+				m.step = stepCategoryInput
 			}
 		}
 	}
@@ -127,6 +200,45 @@ func (m addModel) View() string {
 		s += "Amount: " + m.amountInput + "\n\n"
 		s += "Enter currency: " + m.currencyInput + "\n"
 		s += "(press enter to continue, q to quit)\n"
+	case stepCategorySelect:
+		s += "Type selected: " + m.selected + "\n"
+		s += "Amount: " + m.amountInput + "\n"
+		s += "Currency: " + m.currencyInput + "\n\n"
+		s += "Select category:\n\n"
+		for i, c := range m.categories {
+			prefix := "  "
+			if i == m.categoryCursor {
+				prefix = "> "
+			}
+			s += prefix + c + "\n"
+		}
+		newOptionPrefix := "  "
+		if m.categoryCursor == len(m.categories) {
+			newOptionPrefix = "> "
+		}
+		s += newOptionPrefix + "[New category]\n"
+		s += "\n(use ↑/↓ and enter, q to quit)\n"
+	case stepCategoryInput:
+		s += "Type selected: " + m.selected + "\n"
+		s += "Amount: " + m.amountInput + "\n"
+		s += "Currency: " + m.currencyInput + "\n\n"
+		s += "Enter category: " + m.categoryDraft + "\n"
+		s += "(enter to continue, esc to go back, q to quit)\n"
+	case stepCategoryConfirm:
+		s += "Type selected: " + m.selected + "\n"
+		s += "Amount: " + m.amountInput + "\n"
+		s += "Currency: " + m.currencyInput + "\n\n"
+		s += "Category '" + m.pendingCategory + "' is new. Create it?\n\n"
+		yesPrefix := "  "
+		noPrefix := "  "
+		if m.confirmCursor == 0 {
+			yesPrefix = "> "
+		} else {
+			noPrefix = "> "
+		}
+		s += yesPrefix + "Yes\n"
+		s += noPrefix + "No\n"
+		s += "\n(use ←/→ or ↑/↓ and enter)\n"
 	case stepDone:
 		s += "Done\n"
 	}
@@ -137,20 +249,67 @@ var addCmd = &cobra.Command{
 	Use:   "add",
 	Short: "Add a transaction",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		m := newAddModel()
+		categories, err := loadCategories()
+		if err != nil {
+			return err
+		}
+
+		m := newAddModel(categories)
 		p := tea.NewProgram(m)
 		finalModel, err := p.Run()
 		if err != nil {
 			return err
 		}
 		result := finalModel.(addModel)
-		if result.selected == "" || result.amountInput == "" || result.currencyInput == "" {
+		if result.selected == "" || result.amountInput == "" || result.currencyInput == "" || result.categoryInput == "" {
 			fmt.Println("add cancelled")
 			return nil
 		}
-		fmt.Printf("type: %s, amount: %s, currency: %s\n", result.selected, result.amountInput, result.currencyInput)
+		fmt.Printf("type: %s, amount: %s, currency: %s, category: %s\n", result.selected, result.amountInput, result.currencyInput, result.categoryInput)
 		return nil
 	},
+}
+
+func loadCategories() ([]string, error) {
+	path, err := app.FilePath(app.TransactionsFileName)
+	if err != nil {
+		return nil, err
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return []string{}, nil
+		}
+		return nil, err
+	}
+
+	var file struct {
+		Transactions []struct {
+			Category string `json:"category"`
+		} `json:"transactions"`
+	}
+
+	if err := json.Unmarshal(data, &file); err != nil {
+		return nil, err
+	}
+
+	result := make([]string, 0)
+	for _, tx := range file.Transactions {
+		category := tx.Category
+		result = append(result, category)
+	}
+
+	return result, nil
+}
+
+func categoryExists(categories []string, category string) bool {
+	for _, existing := range categories {
+		if strings.EqualFold(existing, category) {
+			return true
+		}
+	}
+	return false
 }
 
 func init() {

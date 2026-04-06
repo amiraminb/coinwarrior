@@ -1,0 +1,17 @@
+# macOS
+.DS_Store
+
+# Build artifacts
+/coinw
+/coinwarrior
+/bin/
+/dist/
+/vendor/
+
+# Go coverage
+*.out
+coverage.txt
+
+# Local environment files
+.env
+.env.*

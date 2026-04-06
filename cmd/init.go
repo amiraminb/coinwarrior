@@ -3,8 +3,8 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 
+	"github.com/amiraminb/coinwarrior/internal/app"
 	"github.com/spf13/cobra"
 )
 
@@ -38,19 +38,23 @@ var initCmd = &cobra.Command{
 	Use:   "init",
 	Short: "Initialize coinwarrior data",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		home, err := os.UserHomeDir()
+		dir, err := app.DataDir()
 		if err != nil {
 			return err
 		}
 
-		dir := filepath.Join(home, "Documents", ".coinwarrior")
 		if err := os.MkdirAll(dir, 0o755); err != nil {
 			return err
 		}
 
 		fmt.Printf("data dir ready: %s\n", dir)
 
-		err = createConfigFile(filepath.Join(dir, "config.json"), []byte(`{
+		configPath, err := app.FilePath(app.ConfigFileName)
+		if err != nil {
+			return err
+		}
+
+		err = createConfigFile(configPath, []byte(`{
 		  "schema_version": 1,
 		  "default_currency": "CAD",
 		  "timezone": "Local",
@@ -61,7 +65,12 @@ var initCmd = &cobra.Command{
 			return err
 		}
 
-		err = createConfigFile(filepath.Join(dir, "transactions.json"), []byte(`{
+		transactionsPath, err := app.FilePath(app.TransactionsFileName)
+		if err != nil {
+			return err
+		}
+
+		err = createConfigFile(transactionsPath, []byte(`{
 		  "schema_version": 1,
 		  "transactions": []
 		}
@@ -70,7 +79,12 @@ var initCmd = &cobra.Command{
 			return err
 		}
 
-		err = createConfigFile(filepath.Join(dir, "budgets.json"), []byte(`{
+		budgetsPath, err := app.FilePath(app.BudgetsFileName)
+		if err != nil {
+			return err
+		}
+
+		err = createConfigFile(budgetsPath, []byte(`{
 		  "schema_version": 1,
 		  "budgets": []
 		}
@@ -79,7 +93,12 @@ var initCmd = &cobra.Command{
 			return err
 		}
 
-		err = createConfigFile(filepath.Join(dir, "recurring.json"), []byte(`{
+		recurringPath, err := app.FilePath(app.RecurringFileName)
+		if err != nil {
+			return err
+		}
+
+		err = createConfigFile(recurringPath, []byte(`{
 		  "schema_version": 1,
 		  "recurring_rules": []
 		}

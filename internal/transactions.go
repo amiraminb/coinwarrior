@@ -97,7 +97,7 @@ func SaveTransactions(path string, file model.TransactionsFile) error {
 	return os.Rename(tmpPath, path)
 }
 
-func AddTransaction(txType, amountInput, currency, category string) (model.Transaction, error) {
+func AddTransaction(txType, amountInput, currency, category, account string) (model.Transaction, error) {
 	amountMinor, err := ParseAmount(amountInput)
 	if err != nil {
 		return model.Transaction{}, err
@@ -121,7 +121,7 @@ func AddTransaction(txType, amountInput, currency, category string) (model.Trans
 		Currency:    strings.ToUpper(currency),
 		Date:        now.Format("2006-01-02"),
 		Category:    strings.TrimSpace(category),
-		Account:     "",
+		Account:     strings.TrimSpace(account),
 		CreatedAt:   now.Format(time.RFC3339),
 		UpdatedAt:   now.Format(time.RFC3339),
 		Source:      "manual",

@@ -18,6 +18,9 @@ const (
 	stepCategorySelect
 	stepCategoryInput
 	stepCategoryConfirm
+	stepAccountSelect
+	stepAccountInput
+	stepAccountConfirm
 	stepDone
 )
 
@@ -31,21 +34,29 @@ type addModel struct {
 	amountInput   string
 	currencyInput string
 	categoryInput string
+	accountInput  string
 
 	categories      []string
 	categoryCursor  int
 	categoryDraft   string
 	pendingCategory string
 	confirmCursor   int
+
+	accounts       []string
+	accountCursor  int
+	accountDraft   string
+	pendingAccount string
+	accountConfirm int
 }
 
-func newAddModel(categories []string) addModel {
+func newAddModel(categories []string, accounts []string) addModel {
 	return addModel{
 		step:          stepType,
 		cursor:        0,
 		choices:       []string{"expense", "income"},
 		currencyInput: "CAD",
 		categories:    categories,
+		accounts:      accounts,
 	}
 }
 
@@ -125,8 +136,8 @@ func (m addModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "enter":
 				if m.categoryCursor < len(m.categories) {
 					m.categoryInput = m.categories[m.categoryCursor]
-					m.step = stepDone
-					return m, tea.Quit
+					m.step = stepAccountSelect
+					break
 				}
 				m.step = stepCategoryInput
 			}
@@ -137,8 +148,8 @@ func (m addModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if draft != "" {
 					if coininternal.CategoryExists(m.categories, draft) {
 						m.categoryInput = draft
-						m.step = stepDone
-						return m, tea.Quit
+						m.step = stepAccountSelect
+						break
 					}
 					m.pendingCategory = draft
 					m.confirmCursor = 0
@@ -164,12 +175,72 @@ func (m addModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "enter":
 				if m.confirmCursor == 0 {
 					m.categoryInput = m.pendingCategory
-					m.step = stepDone
-					return m, tea.Quit
+					m.step = stepAccountSelect
+					break
 				}
 				m.step = stepCategoryInput
 			case "esc":
 				m.step = stepCategoryInput
+			}
+		case stepAccountSelect:
+			maxCursor := len(m.accounts)
+			switch msg.String() {
+			case "up", "k":
+				if m.accountCursor > 0 {
+					m.accountCursor--
+				}
+			case "down", "j":
+				if m.accountCursor < maxCursor {
+					m.accountCursor++
+				}
+			case "enter":
+				if m.accountCursor < len(m.accounts) {
+					m.accountInput = m.accounts[m.accountCursor]
+					m.step = stepDone
+					return m, tea.Quit
+				}
+				m.step = stepAccountInput
+			}
+		case stepAccountInput:
+			switch msg.String() {
+			case "enter":
+				draft := strings.TrimSpace(m.accountDraft)
+				if draft != "" {
+					if coininternal.AccountExists(m.accounts, draft) {
+						m.accountInput = draft
+						m.step = stepDone
+						return m, tea.Quit
+					}
+					m.pendingAccount = draft
+					m.accountConfirm = 0
+					m.step = stepAccountConfirm
+				}
+			case "esc":
+				m.step = stepAccountSelect
+			case "backspace":
+				if len(m.accountDraft) > 0 {
+					m.accountDraft = m.accountDraft[:len(m.accountDraft)-1]
+				}
+			default:
+				if len(msg.String()) == 1 {
+					m.accountDraft += msg.String()
+				}
+			}
+		case stepAccountConfirm:
+			switch msg.String() {
+			case "left", "h", "up", "k":
+				m.accountConfirm = 0
+			case "right", "l", "down", "j":
+				m.accountConfirm = 1
+			case "enter":
+				if m.accountConfirm == 0 {
+					m.accountInput = m.pendingAccount
+					m.step = stepDone
+					return m, tea.Quit
+				}
+				m.step = stepAccountInput
+			case "esc":
+				m.step = stepAccountInput
 			}
 		}
 	}
@@ -237,6 +308,48 @@ func (m addModel) View() string {
 		s += yesPrefix + "Yes\n"
 		s += noPrefix + "No\n"
 		s += "\n(use ←/→ or ↑/↓ and enter)\n"
+	case stepAccountSelect:
+		s += "Type selected: " + m.selected + "\n"
+		s += "Amount: " + m.amountInput + "\n"
+		s += "Currency: " + m.currencyInput + "\n"
+		s += "Category: " + m.categoryInput + "\n\n"
+		s += "Select account:\n\n"
+		for i, a := range m.accounts {
+			prefix := "  "
+			if i == m.accountCursor {
+				prefix = "> "
+			}
+			s += prefix + a + "\n"
+		}
+		newOptionPrefix := "  "
+		if m.accountCursor == len(m.accounts) {
+			newOptionPrefix = "> "
+		}
+		s += newOptionPrefix + "[New account]\n"
+		s += "\n(use ↑/↓ and enter, q to quit)\n"
+	case stepAccountInput:
+		s += "Type selected: " + m.selected + "\n"
+		s += "Amount: " + m.amountInput + "\n"
+		s += "Currency: " + m.currencyInput + "\n"
+		s += "Category: " + m.categoryInput + "\n\n"
+		s += "Enter account: " + m.accountDraft + "\n"
+		s += "(enter to continue, esc to go back, q to quit)\n"
+	case stepAccountConfirm:
+		s += "Type selected: " + m.selected + "\n"
+		s += "Amount: " + m.amountInput + "\n"
+		s += "Currency: " + m.currencyInput + "\n"
+		s += "Category: " + m.categoryInput + "\n\n"
+		s += "Account '" + m.pendingAccount + "' is new. Create it?\n\n"
+		yesPrefix := "  "
+		noPrefix := "  "
+		if m.accountConfirm == 0 {
+			yesPrefix = "> "
+		} else {
+			noPrefix = "> "
+		}
+		s += yesPrefix + "Yes\n"
+		s += noPrefix + "No\n"
+		s += "\n(use ←/→ or ↑/↓ and enter)\n"
 	case stepDone:
 		s += "Done\n"
 	}
@@ -251,20 +364,24 @@ var addCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
+		accounts, err := coininternal.LoadAccounts()
+		if err != nil {
+			return err
+		}
 
-		m := newAddModel(categories)
+		m := newAddModel(categories, accounts)
 		p := tea.NewProgram(m)
 		finalModel, err := p.Run()
 		if err != nil {
 			return err
 		}
 		result := finalModel.(addModel)
-		if result.selected == "" || result.amountInput == "" || result.currencyInput == "" || result.categoryInput == "" {
+		if result.selected == "" || result.amountInput == "" || result.currencyInput == "" || result.categoryInput == "" || result.accountInput == "" {
 			fmt.Println("add cancelled")
 			return nil
 		}
 
-		tx, err := coininternal.AddTransaction(result.selected, result.amountInput, result.currencyInput, result.categoryInput)
+		tx, err := coininternal.AddTransaction(result.selected, result.amountInput, result.currencyInput, result.categoryInput, result.accountInput)
 		if err != nil {
 			return err
 		}

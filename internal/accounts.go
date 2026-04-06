@@ -110,14 +110,7 @@ func ApplyTransactionToAccount(accountName, currency string, deltaMinor int64) e
 		}
 	}
 
-	accountsFile.Accounts = append(accountsFile.Accounts, model.Account{
-		Name:         name,
-		Currency:     cur,
-		BalanceMinor: deltaMinor,
-		UpdatedAt:    now,
-	})
-
-	return SaveAccountsFile(path, accountsFile)
+	return fmt.Errorf("account '%s' not found", name)
 }
 
 func AddAccount(name, currency, openingBalanceInput string) (model.Account, error) {

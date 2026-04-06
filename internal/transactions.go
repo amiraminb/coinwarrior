@@ -97,10 +97,27 @@ func SaveTransactions(path string, file model.TransactionsFile) error {
 	return os.Rename(tmpPath, path)
 }
 
-func AddTransaction(txType, amountInput, currency, category, account string) (model.Transaction, error) {
+func AddTransaction(txType, amountInput, currency, dateValue, category, account, note string) (model.Transaction, error) {
 	amountMinor, err := ParseAmount(amountInput)
 	if err != nil {
 		return model.Transaction{}, err
+	}
+
+	if txType != TransactionTypeExpense && txType != TransactionTypeIncome {
+		return model.Transaction{}, fmt.Errorf("invalid transaction type: %s", txType)
+	}
+
+	currency = strings.ToUpper(strings.TrimSpace(currency))
+	if currency == "" {
+		return model.Transaction{}, fmt.Errorf("currency is required")
+	}
+
+	dateValue = strings.TrimSpace(dateValue)
+	if dateValue == "" {
+		dateValue = time.Now().Format("2006-01-02")
+	}
+	if _, err := time.Parse("2006-01-02", dateValue); err != nil {
+		return model.Transaction{}, fmt.Errorf("invalid date format: %s", dateValue)
 	}
 
 	path, err := FilePath(TransactionsFileName)
@@ -119,10 +136,11 @@ func AddTransaction(txType, amountInput, currency, category, account string) (mo
 		ID:          NewTransactionID(utcNow),
 		Type:        txType,
 		AmountMinor: amountMinor,
-		Currency:    strings.ToUpper(currency),
-		Date:        localNow.Format("2006-01-02"),
+		Currency:    currency,
+		Date:        dateValue,
 		Category:    strings.TrimSpace(category),
 		Account:     strings.TrimSpace(account),
+		Note:        strings.TrimSpace(note),
 		CreatedAt:   utcNow.Format(time.RFC3339),
 		UpdatedAt:   utcNow.Format(time.RFC3339),
 		Source:      "manual",

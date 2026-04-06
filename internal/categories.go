@@ -27,28 +27,82 @@ func LoadCategories() ([]string, error) {
 		return nil, err
 	}
 
-	data, err := os.ReadFile(path)
+	categoriesFile, err := loadCategoriesFile(path)
 	if err != nil {
-		if os.IsNotExist(err) {
-			result := make([]string, len(DefaultCategories))
-			copy(result, DefaultCategories)
-			return result, nil
-		}
 		return nil, err
-	}
-
-	var categoriesFile model.CategoriesFile
-	if err := json.Unmarshal(data, &categoriesFile); err != nil {
-		return nil, err
-	}
-
-	if categoriesFile.Categories == nil {
-		return []string{}, nil
 	}
 
 	result := make([]string, len(categoriesFile.Categories))
 	copy(result, categoriesFile.Categories)
 	return result, nil
+}
+
+func AddCategory(category string) error {
+	clean := strings.TrimSpace(category)
+	if clean == "" {
+		return nil
+	}
+
+	path, err := FilePath(CategoriesFileName)
+	if err != nil {
+		return err
+	}
+
+	categoriesFile, err := loadCategoriesFile(path)
+	if err != nil {
+		return err
+	}
+
+	for _, existing := range categoriesFile.Categories {
+		if strings.EqualFold(existing, clean) {
+			return nil
+		}
+	}
+
+	categoriesFile.Categories = append(categoriesFile.Categories, clean)
+	return saveCategoriesFile(path, categoriesFile)
+}
+
+func loadCategoriesFile(path string) (model.CategoriesFile, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			result := make([]string, len(DefaultCategories))
+			copy(result, DefaultCategories)
+			return model.CategoriesFile{SchemaVersion: 1, Categories: result}, nil
+		}
+		return model.CategoriesFile{}, err
+	}
+
+	var categoriesFile model.CategoriesFile
+	if err := json.Unmarshal(data, &categoriesFile); err != nil {
+		return model.CategoriesFile{}, err
+	}
+
+	if categoriesFile.Categories == nil {
+		categoriesFile.Categories = []string{}
+	}
+
+	return categoriesFile, nil
+}
+
+func saveCategoriesFile(path string, categoriesFile model.CategoriesFile) error {
+	if categoriesFile.Categories == nil {
+		categoriesFile.Categories = []string{}
+	}
+
+	data, err := json.MarshalIndent(categoriesFile, "", "  ")
+	if err != nil {
+		return err
+	}
+	data = append(data, '\n')
+
+	tmpPath := path + ".tmp"
+	if err := os.WriteFile(tmpPath, data, 0o644); err != nil {
+		return err
+	}
+
+	return os.Rename(tmpPath, path)
 }
 
 func CategoryExists(categories []string, category string) bool {

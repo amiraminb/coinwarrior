@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	coininternal "github.com/amiraminb/coinwarrior/internal"
 	tea "github.com/charmbracelet/bubbletea"
@@ -21,6 +22,7 @@ type addStep int
 const (
 	stepType addStep = iota
 	stepAmount
+	stepDate
 	stepCurrency
 	stepCategorySelect
 	stepCategoryInput
@@ -28,6 +30,7 @@ const (
 	stepAccountSelect
 	stepAccountInput
 	stepAccountConfirm
+	stepNote
 	stepDone
 )
 
@@ -39,9 +42,11 @@ type addModel struct {
 	selected string
 
 	amountInput   string
+	dateInput     string
 	currencyInput string
 	categoryInput string
 	accountInput  string
+	noteInput     string
 
 	categories      []string
 	categoryCursor  int
@@ -54,6 +59,7 @@ type addModel struct {
 	accountDraft   string
 	pendingAccount string
 	accountConfirm int
+	createAccount  bool
 }
 
 func newAddModel(categories []string, accounts []string) addModel {
@@ -61,6 +67,7 @@ func newAddModel(categories []string, accounts []string) addModel {
 		step:          stepType,
 		cursor:        0,
 		choices:       []string{coininternal.TransactionTypeExpense, coininternal.TransactionTypeIncome},
+		dateInput:     time.Now().Format("2006-01-02"),
 		currencyInput: "CAD",
 		categories:    categories,
 		accounts:      accounts,
@@ -97,7 +104,7 @@ func (m addModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			switch msg.String() {
 			case "enter":
 				if m.amountInput != "" {
-					m.step = stepCurrency
+					m.step = stepDate
 				}
 			case "backspace":
 				if len(m.amountInput) > 0 {
@@ -111,12 +118,34 @@ func (m addModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					}
 				}
 			}
+		case stepDate:
+			switch msg.String() {
+			case "enter":
+				if _, err := time.Parse("2006-01-02", strings.TrimSpace(m.dateInput)); err == nil {
+					m.step = stepCurrency
+				}
+			case "esc":
+				m.step = stepAmount
+			case "backspace":
+				if len(m.dateInput) > 0 {
+					m.dateInput = m.dateInput[:len(m.dateInput)-1]
+				}
+			default:
+				if len(msg.String()) == 1 {
+					ch := msg.String()
+					if (ch >= "0" && ch <= "9") || ch == "-" {
+						m.dateInput += ch
+					}
+				}
+			}
 		case stepCurrency:
 			switch msg.String() {
 			case "enter":
 				if m.currencyInput != "" {
 					m.step = stepCategorySelect
 				}
+			case "esc":
+				m.step = stepDate
 			case "backspace":
 				if len(m.currencyInput) > 0 {
 					m.currencyInput = m.currencyInput[:len(m.currencyInput)-1]
@@ -203,8 +232,9 @@ func (m addModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "enter":
 				if m.accountCursor < len(m.accounts) {
 					m.accountInput = m.accounts[m.accountCursor]
-					m.step = stepDone
-					return m, tea.Quit
+					m.createAccount = false
+					m.step = stepNote
+					break
 				}
 				m.step = stepAccountInput
 			}
@@ -242,12 +272,29 @@ func (m addModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "enter":
 				if m.accountConfirm == 0 {
 					m.accountInput = m.pendingAccount
-					m.step = stepDone
-					return m, tea.Quit
+					m.createAccount = true
+					m.step = stepNote
+					break
 				}
 				m.step = stepAccountInput
 			case "esc":
 				m.step = stepAccountInput
+			}
+		case stepNote:
+			switch msg.String() {
+			case "enter":
+				m.step = stepDone
+				return m, tea.Quit
+			case "esc":
+				m.step = stepAccountSelect
+			case "backspace":
+				if len(m.noteInput) > 0 {
+					m.noteInput = m.noteInput[:len(m.noteInput)-1]
+				}
+			default:
+				if len(msg.String()) == 1 {
+					m.noteInput += msg.String()
+				}
 			}
 		}
 	}
@@ -271,11 +318,16 @@ func (m addModel) View() string {
 		s += "Type selected: " + m.selected + "\n\n"
 		s += "Enter amount: " + m.amountInput + "\n"
 		s += addMutedStyle.Render("(press enter to continue, q to quit)") + "\n"
+	case stepDate:
+		s += "Type selected: " + m.selected + "\n"
+		s += "Amount: " + m.amountInput + "\n\n"
+		s += "Enter date (YYYY-MM-DD): " + m.dateInput + "\n"
+		s += addMutedStyle.Render("(press enter to continue, esc to go back, q to quit)") + "\n"
 	case stepCurrency:
 		s += "Type selected: " + m.selected + "\n"
 		s += "Amount: " + m.amountInput + "\n\n"
 		s += "Enter currency: " + m.currencyInput + "\n"
-		s += addMutedStyle.Render("(press enter to continue, q to quit)") + "\n"
+		s += addMutedStyle.Render("(press enter to continue, esc to go back, q to quit)") + "\n"
 	case stepCategorySelect:
 		s += "Type selected: " + m.selected + "\n"
 		s += "Amount: " + m.amountInput + "\n"
@@ -318,6 +370,7 @@ func (m addModel) View() string {
 	case stepAccountSelect:
 		s += "Type selected: " + m.selected + "\n"
 		s += "Amount: " + m.amountInput + "\n"
+		s += "Date: " + m.dateInput + "\n"
 		s += "Currency: " + m.currencyInput + "\n"
 		s += "Category: " + m.categoryInput + "\n\n"
 		s += "Select account:\n\n"
@@ -337,6 +390,7 @@ func (m addModel) View() string {
 	case stepAccountInput:
 		s += "Type selected: " + m.selected + "\n"
 		s += "Amount: " + m.amountInput + "\n"
+		s += "Date: " + m.dateInput + "\n"
 		s += "Currency: " + m.currencyInput + "\n"
 		s += "Category: " + m.categoryInput + "\n\n"
 		s += "Enter account: " + m.accountDraft + "\n"
@@ -344,6 +398,7 @@ func (m addModel) View() string {
 	case stepAccountConfirm:
 		s += "Type selected: " + m.selected + "\n"
 		s += "Amount: " + m.amountInput + "\n"
+		s += "Date: " + m.dateInput + "\n"
 		s += "Currency: " + m.currencyInput + "\n"
 		s += "Category: " + m.categoryInput + "\n\n"
 		s += addWarnStyle.Render("Account '"+m.pendingAccount+"' is new. Create it?") + "\n\n"
@@ -357,6 +412,15 @@ func (m addModel) View() string {
 		s += yesPrefix + "Yes\n"
 		s += noPrefix + "No\n"
 		s += "\n" + addMutedStyle.Render("(use ←/→ or ↑/↓ and enter)") + "\n"
+	case stepNote:
+		s += "Type selected: " + m.selected + "\n"
+		s += "Amount: " + m.amountInput + "\n"
+		s += "Date: " + m.dateInput + "\n"
+		s += "Currency: " + m.currencyInput + "\n"
+		s += "Category: " + m.categoryInput + "\n"
+		s += "Account: " + m.accountInput + "\n\n"
+		s += "Enter note (optional): " + m.noteInput + "\n"
+		s += addMutedStyle.Render("(enter to save, esc to go back, q to quit)") + "\n"
 	case stepDone:
 		s += addMutedStyle.Render("Done") + "\n"
 	}
@@ -383,12 +447,22 @@ var addCmd = &cobra.Command{
 			return err
 		}
 		result := finalModel.(addModel)
-		if result.selected == "" || result.amountInput == "" || result.currencyInput == "" || result.categoryInput == "" || result.accountInput == "" {
+		if result.selected == "" || result.amountInput == "" || result.currencyInput == "" || result.categoryInput == "" || result.accountInput == "" || result.dateInput == "" {
 			fmt.Println("add cancelled")
 			return nil
 		}
 
-		tx, err := coininternal.AddTransaction(result.selected, result.amountInput, result.currencyInput, result.categoryInput, result.accountInput)
+		if result.createAccount {
+			if _, err := coininternal.AddAccount(result.accountInput, result.currencyInput, "0"); err != nil {
+				return err
+			}
+		}
+
+		if err := coininternal.AddCategory(result.categoryInput); err != nil {
+			return err
+		}
+
+		tx, err := coininternal.AddTransaction(result.selected, result.amountInput, result.currencyInput, result.dateInput, result.categoryInput, result.accountInput, result.noteInput)
 		if err != nil {
 			return err
 		}

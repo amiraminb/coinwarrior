@@ -79,6 +79,20 @@ var initCmd = &cobra.Command{
 			return err
 		}
 
+		accountsPath, err := coininternal.FilePath(coininternal.AccountsFileName)
+		if err != nil {
+			return err
+		}
+
+		err = createConfigFile(accountsPath, []byte(`{
+		  "schema_version": 1,
+		  "accounts": []
+		}
+		`))
+		if err != nil {
+			return err
+		}
+
 		budgetsPath, err := coininternal.FilePath(coininternal.BudgetsFileName)
 		if err != nil {
 			return err

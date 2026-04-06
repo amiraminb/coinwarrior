@@ -60,7 +60,7 @@ func newAddModel(categories []string, accounts []string) addModel {
 	return addModel{
 		step:          stepType,
 		cursor:        0,
-		choices:       []string{"expense", "income"},
+		choices:       []string{coininternal.TransactionTypeExpense, coininternal.TransactionTypeIncome},
 		currencyInput: "CAD",
 		categories:    categories,
 		accounts:      accounts,

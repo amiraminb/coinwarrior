@@ -19,3 +19,15 @@ type TransactionsFile struct {
 	SchemaVersion int           `json:"schema_version"`
 	Transactions  []Transaction `json:"transactions"`
 }
+
+type Account struct {
+	Name         string `json:"name"`
+	Currency     string `json:"currency"`
+	BalanceMinor int64  `json:"balance_minor"`
+	UpdatedAt    string `json:"updated_at"`
+}
+
+type AccountsFile struct {
+	SchemaVersion int       `json:"schema_version"`
+	Accounts      []Account `json:"accounts"`
+}

@@ -8,6 +8,7 @@ import (
 const (
 	ConfigFileName       = "config.json"
 	TransactionsFileName = "transactions.json"
+	AccountsFileName     = "accounts.json"
 	BudgetsFileName      = "budgets.json"
 	RecurringFileName    = "recurring.json"
 )

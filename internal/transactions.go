@@ -128,8 +128,18 @@ func AddTransaction(txType, amountInput, currency, category, account string) (mo
 		Source:      "manual",
 	}
 
+	delta := amountMinor
+	if txType == TransactionTypeExpense {
+		delta = -amountMinor
+	}
+
+	if err := ApplyTransactionToAccount(account, currency, delta); err != nil {
+		return model.Transaction{}, err
+	}
+
 	file.Transactions = append(file.Transactions, tx)
 	if err := SaveTransactions(path, file); err != nil {
+		_ = ApplyTransactionToAccount(account, currency, -delta)
 		return model.Transaction{}, err
 	}
 

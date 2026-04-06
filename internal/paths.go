@@ -1,12 +1,9 @@
-package app
+package internal
 
 import (
 	"os"
 	"path/filepath"
-	"strings"
 )
-
-const DataDirEnv = "COINWARRIOR_DATA_DIR"
 
 const (
 	ConfigFileName       = "config.json"
@@ -16,10 +13,6 @@ const (
 )
 
 func DataDir() (string, error) {
-	if dir := strings.TrimSpace(os.Getenv(DataDirEnv)); dir != "" {
-		return dir, nil
-	}
-
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", err

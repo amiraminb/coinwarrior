@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/amiraminb/coinwarrior/internal/app"
+	coininternal "github.com/amiraminb/coinwarrior/internal"
 	"github.com/spf13/cobra"
 )
 
@@ -38,7 +38,7 @@ var initCmd = &cobra.Command{
 	Use:   "init",
 	Short: "Initialize coinwarrior data",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		dir, err := app.DataDir()
+		dir, err := coininternal.DataDir()
 		if err != nil {
 			return err
 		}
@@ -49,7 +49,7 @@ var initCmd = &cobra.Command{
 
 		fmt.Printf("data dir ready: %s\n", dir)
 
-		configPath, err := app.FilePath(app.ConfigFileName)
+		configPath, err := coininternal.FilePath(coininternal.ConfigFileName)
 		if err != nil {
 			return err
 		}
@@ -65,7 +65,7 @@ var initCmd = &cobra.Command{
 			return err
 		}
 
-		transactionsPath, err := app.FilePath(app.TransactionsFileName)
+		transactionsPath, err := coininternal.FilePath(coininternal.TransactionsFileName)
 		if err != nil {
 			return err
 		}
@@ -79,7 +79,7 @@ var initCmd = &cobra.Command{
 			return err
 		}
 
-		budgetsPath, err := app.FilePath(app.BudgetsFileName)
+		budgetsPath, err := coininternal.FilePath(coininternal.BudgetsFileName)
 		if err != nil {
 			return err
 		}
@@ -93,7 +93,7 @@ var initCmd = &cobra.Command{
 			return err
 		}
 
-		recurringPath, err := app.FilePath(app.RecurringFileName)
+		recurringPath, err := coininternal.FilePath(coininternal.RecurringFileName)
 		if err != nil {
 			return err
 		}

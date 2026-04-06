@@ -1,12 +1,10 @@
 package cmd
 
 import (
-	"encoding/json"
 	"fmt"
-	"os"
 	"strings"
 
-	"github.com/amiraminb/coinwarrior/internal/app"
+	coininternal "github.com/amiraminb/coinwarrior/internal"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
 )
@@ -137,7 +135,7 @@ func (m addModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "enter":
 				draft := strings.TrimSpace(m.categoryDraft)
 				if draft != "" {
-					if categoryExists(m.categories, draft) {
+					if coininternal.CategoryExists(m.categories, draft) {
 						m.categoryInput = draft
 						m.step = stepDone
 						return m, tea.Quit
@@ -249,7 +247,7 @@ var addCmd = &cobra.Command{
 	Use:   "add",
 	Short: "Add a transaction",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		categories, err := loadCategories()
+		categories, err := coininternal.LoadCategories()
 		if err != nil {
 			return err
 		}
@@ -265,51 +263,15 @@ var addCmd = &cobra.Command{
 			fmt.Println("add cancelled")
 			return nil
 		}
-		fmt.Printf("type: %s, amount: %s, currency: %s, category: %s\n", result.selected, result.amountInput, result.currencyInput, result.categoryInput)
+
+		tx, err := coininternal.AddTransaction(result.selected, result.amountInput, result.currencyInput, result.categoryInput)
+		if err != nil {
+			return err
+		}
+
+		fmt.Printf("saved transaction: %s\n", tx.ID)
 		return nil
 	},
-}
-
-func loadCategories() ([]string, error) {
-	path, err := app.FilePath(app.TransactionsFileName)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := os.ReadFile(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return []string{}, nil
-		}
-		return nil, err
-	}
-
-	var file struct {
-		Transactions []struct {
-			Category string `json:"category"`
-		} `json:"transactions"`
-	}
-
-	if err := json.Unmarshal(data, &file); err != nil {
-		return nil, err
-	}
-
-	result := make([]string, 0)
-	for _, tx := range file.Transactions {
-		category := tx.Category
-		result = append(result, category)
-	}
-
-	return result, nil
-}
-
-func categoryExists(categories []string, category string) bool {
-	for _, existing := range categories {
-		if strings.EqualFold(existing, category) {
-			return true
-		}
-	}
-	return false
 }
 
 func init() {

@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"sort"
+	"time"
 
 	coininternal "github.com/amiraminb/coinwarrior/internal"
 	"github.com/amiraminb/coinwarrior/internal/model"
@@ -12,8 +13,9 @@ import (
 )
 
 var listCmd = &cobra.Command{
-	Use:   "list",
+	Use:   "list [range]",
 	Short: "List transactions",
+	Args:  cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		path, err := coininternal.FilePath(coininternal.TransactionsFileName)
 		if err != nil {
@@ -32,6 +34,31 @@ var listCmd = &cobra.Command{
 
 		items := make([]model.Transaction, len(transactions.Transactions))
 		copy(items, transactions.Transactions)
+
+		if len(args) == 1 {
+			start, end, err := coininternal.ResolveDateRange(args[0], time.Now())
+			if err != nil {
+				return err
+			}
+
+			filtered := make([]model.Transaction, 0, len(items))
+			for _, tx := range items {
+				inRange, err := coininternal.TransactionInRange(tx.Date, start, end)
+				if err != nil {
+					return fmt.Errorf("invalid transaction date '%s' for %s", tx.Date, tx.ID)
+				}
+				if inRange {
+					filtered = append(filtered, tx)
+				}
+			}
+
+			items = filtered
+		}
+
+		if len(items) == 0 {
+			fmt.Println("no transactions")
+			return nil
+		}
 
 		sort.Slice(items, func(i, j int) bool {
 			if items[i].Date == items[j].Date {

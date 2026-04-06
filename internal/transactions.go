@@ -113,17 +113,18 @@ func AddTransaction(txType, amountInput, currency, category, account string) (mo
 		return model.Transaction{}, err
 	}
 
-	now := time.Now().UTC()
+	localNow := time.Now()
+	utcNow := localNow.UTC()
 	tx := model.Transaction{
-		ID:          NewTransactionID(now),
+		ID:          NewTransactionID(utcNow),
 		Type:        txType,
 		AmountMinor: amountMinor,
 		Currency:    strings.ToUpper(currency),
-		Date:        now.Format("2006-01-02"),
+		Date:        localNow.Format("2006-01-02"),
 		Category:    strings.TrimSpace(category),
 		Account:     strings.TrimSpace(account),
-		CreatedAt:   now.Format(time.RFC3339),
-		UpdatedAt:   now.Format(time.RFC3339),
+		CreatedAt:   utcNow.Format(time.RFC3339),
+		UpdatedAt:   utcNow.Format(time.RFC3339),
 		Source:      "manual",
 	}
 

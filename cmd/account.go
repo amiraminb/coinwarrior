@@ -149,38 +149,8 @@ var accountAddCmd = &cobra.Command{
 	Use:   "add",
 	Short: "Add a new account",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		model := newAccountAddModel()
-		p := tea.NewProgram(model)
-
-		finalModel, err := p.Run()
-		if err != nil {
-			return err
-		}
-
-		result := finalModel.(accountAddModel)
-		name := strings.TrimSpace(result.nameInput)
-		if name == "" {
-			fmt.Println("account add cancelled")
-			return nil
-		}
-
-		currency := strings.TrimSpace(result.currencyInput)
-		if currency == "" {
-			currency = "CAD"
-		}
-
-		openingBalance := strings.TrimSpace(result.openingBalanceInput)
-		if openingBalance == "" {
-			openingBalance = "0"
-		}
-
-		account, err := coininternal.AddAccount(name, currency, openingBalance)
-		if err != nil {
-			return err
-		}
-
-		fmt.Printf("account created: %s (%s %s)\n", account.Name, account.Currency, coininternal.FormatMinor(account.BalanceMinor))
-		return nil
+		_, err := runAccountAddInteractive()
+		return err
 	},
 }
 
@@ -203,4 +173,39 @@ func init() {
 	accountCmd.AddCommand(accountAddCmd)
 	accountCmd.AddCommand(accountUpdateCmd)
 	rootCmd.AddCommand(accountCmd)
+}
+
+func runAccountAddInteractive() (bool, error) {
+	model := newAccountAddModel()
+	p := tea.NewProgram(model)
+
+	finalModel, err := p.Run()
+	if err != nil {
+		return false, err
+	}
+
+	result := finalModel.(accountAddModel)
+	name := strings.TrimSpace(result.nameInput)
+	if name == "" {
+		fmt.Println("account add cancelled")
+		return false, nil
+	}
+
+	currency := strings.TrimSpace(result.currencyInput)
+	if currency == "" {
+		currency = "CAD"
+	}
+
+	openingBalance := strings.TrimSpace(result.openingBalanceInput)
+	if openingBalance == "" {
+		openingBalance = "0"
+	}
+
+	account, err := coininternal.AddAccount(name, currency, openingBalance)
+	if err != nil {
+		return false, err
+	}
+
+	fmt.Printf("account created: %s (%s %s)\n", account.Name, account.Currency, coininternal.FormatMinor(account.BalanceMinor))
+	return true, nil
 }

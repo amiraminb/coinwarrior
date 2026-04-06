@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	coininternal "github.com/amiraminb/coinwarrior/internal"
@@ -19,10 +20,14 @@ var (
 )
 
 var reportCmd = &cobra.Command{
-	Use:   "report <range>",
-	Short: "Show range category activity",
+	Use:   "report <range|account>",
+	Short: "Show reports",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		if strings.EqualFold(args[0], "account") {
+			return runAccountReport()
+		}
+
 		start, end, err := coininternal.ResolveDateRange(args[0], time.Now())
 		if err != nil {
 			return err
@@ -44,6 +49,88 @@ var reportCmd = &cobra.Command{
 
 		return nil
 	},
+}
+
+func runAccountReport() error {
+	accountsPath, err := coininternal.FilePath(coininternal.AccountsFileName)
+	if err != nil {
+		return err
+	}
+
+	accountsFile, err := coininternal.LoadAccountsFile(accountsPath)
+	if err != nil {
+		return err
+	}
+
+	headerStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("250"))
+	fmt.Println(headerStyle.Render("account report"))
+	fmt.Println()
+	printAccountBalancesReport(accountsFile.Accounts)
+	fmt.Println()
+	printTotalBalancesReport(accountsFile.Accounts)
+	fmt.Println()
+
+	return nil
+}
+
+func printAccountBalancesReport(accounts []model.Account) {
+	fmt.Println(reportSubSectionStyle.Render("Account Balances"))
+	if len(accounts) == 0 {
+		fmt.Println("  no accounts")
+		return
+	}
+
+	items := make([]model.Account, len(accounts))
+	copy(items, accounts)
+	sort.Slice(items, func(i, j int) bool {
+		return items[i].Name < items[j].Name
+	})
+
+	rows := make([]table.Row, 0, len(items))
+	for _, account := range items {
+		rows = append(rows, table.Row{account.Name, account.Currency, coininternal.FormatMinor(account.BalanceMinor)})
+	}
+
+	renderTable(
+		[]table.Column{
+			{Title: "ACCOUNT", Width: 24},
+			{Title: "CUR", Width: 5},
+			{Title: "BALANCE", Width: 14},
+		},
+		rows,
+	)
+}
+
+func printTotalBalancesReport(accounts []model.Account) {
+	fmt.Println(reportSubSectionStyle.Render("Total Balances"))
+	if len(accounts) == 0 {
+		fmt.Println("  no balances")
+		return
+	}
+
+	totals := make(map[string]int64)
+	for _, account := range accounts {
+		totals[account.Currency] += account.BalanceMinor
+	}
+
+	currencies := make([]string, 0, len(totals))
+	for currency := range totals {
+		currencies = append(currencies, currency)
+	}
+	sort.Strings(currencies)
+
+	rows := make([]table.Row, 0, len(currencies))
+	for _, currency := range currencies {
+		rows = append(rows, table.Row{currency, coininternal.FormatMinor(totals[currency])})
+	}
+
+	renderTable(
+		[]table.Column{
+			{Title: "CUR", Width: 5},
+			{Title: "TOTAL", Width: 14},
+		},
+		rows,
+	)
 }
 
 func printCategorySection(transactions []model.Transaction, start, end time.Time) {

@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"sort"
+	"strconv"
 	"time"
 
 	coininternal "github.com/amiraminb/coinwarrior/internal"
@@ -10,6 +11,11 @@ import (
 	"github.com/charmbracelet/bubbles/table"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/spf13/cobra"
+)
+
+var (
+	reportSectionStyle    = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("111"))
+	reportSubSectionStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("150"))
 )
 
 var reportCmd = &cobra.Command{
@@ -41,7 +47,7 @@ var reportCmd = &cobra.Command{
 }
 
 func printCategorySection(transactions []model.Transaction, start, end time.Time) {
-	fmt.Println("Range Categories")
+	fmt.Println(reportSectionStyle.Render("Range Categories"))
 	fmt.Println()
 
 	byCategory := make(map[string][]model.Transaction)
@@ -67,12 +73,21 @@ func printCategorySection(transactions []model.Transaction, start, end time.Time
 	}
 	sort.Strings(categories)
 
-	for i, category := range categories {
-		if i > 0 {
-			fmt.Println()
+	fmt.Println(reportSubSectionStyle.Render("Category Totals (Range)"))
+	fmt.Println()
+	totalRows := make([]table.Row, 0)
+	currencyIncome := make(map[string]int64)
+	currencyExpense := make(map[string]int64)
+	for _, category := range categories {
+		items := byCategory[category]
+		for _, tx := range items {
+			if tx.Type == coininternal.TransactionTypeExpense {
+				currencyExpense[tx.Currency] += tx.AmountMinor
+			} else if tx.Type == coininternal.TransactionTypeIncome {
+				currencyIncome[tx.Currency] += tx.AmountMinor
+			}
 		}
 
-		items := byCategory[category]
 		totals := make(map[string]int64)
 		for _, tx := range items {
 			delta := tx.AmountMinor
@@ -82,31 +97,85 @@ func printCategorySection(transactions []model.Transaction, start, end time.Time
 			totals[tx.Currency] += delta
 		}
 
-		displayCategory := category
-		if displayCategory == "" {
-			displayCategory = "(no category)"
-		}
-		categoryStyle := categoryHeadingStyle(i)
-		fmt.Printf("%s\n\n", categoryStyle.Render("- "+displayCategory))
-
 		currencies := make([]string, 0, len(totals))
 		for currency := range totals {
 			currencies = append(currencies, currency)
 		}
 		sort.Strings(currencies)
 
-		totalRows := make([]table.Row, 0, len(currencies))
-		for _, currency := range currencies {
-			totalRows = append(totalRows, table.Row{currency, coininternal.FormatMinor(totals[currency])})
+		displayCategory := category
+		if displayCategory == "" {
+			displayCategory = "(no category)"
 		}
+
+		for _, currency := range currencies {
+			totalRows = append(totalRows, table.Row{displayCategory, currency, coininternal.FormatMinor(totals[currency]), strconv.Itoa(len(items))})
+		}
+	}
+
+	renderTable(
+		[]table.Column{
+			{Title: "CATEGORY", Width: 20},
+			{Title: "CUR", Width: 5},
+			{Title: "TOTAL", Width: 14},
+			{Title: "TXNS", Width: 6},
+		},
+		totalRows,
+	)
+
+	summaryRows := make([]table.Row, 0)
+	allCurrenciesMap := make(map[string]bool)
+	for c := range currencyIncome {
+		allCurrenciesMap[c] = true
+	}
+	for c := range currencyExpense {
+		allCurrenciesMap[c] = true
+	}
+	allCurrencies := make([]string, 0, len(allCurrenciesMap))
+	for c := range allCurrenciesMap {
+		allCurrencies = append(allCurrencies, c)
+	}
+	sort.Strings(allCurrencies)
+
+	for _, c := range allCurrencies {
+		income := currencyIncome[c]
+		expense := currencyExpense[c]
+		net := income - expense
+		summaryRows = append(summaryRows, table.Row{c, coininternal.FormatMinor(income), coininternal.FormatMinor(expense), coininternal.FormatMinor(net)})
+	}
+
+	if len(summaryRows) > 0 {
+		fmt.Println()
+		fmt.Println(reportSubSectionStyle.Render("Income / Expense Summary"))
+		fmt.Println()
 		renderTable(
 			[]table.Column{
 				{Title: "CUR", Width: 5},
-				{Title: "CATEGORY TOTAL", Width: 18},
+				{Title: "INCOME", Width: 14},
+				{Title: "EXPENSE", Width: 14},
+				{Title: "NET", Width: 14},
 			},
-			totalRows,
+			summaryRows,
 		)
-		fmt.Println()
+	}
+
+	fmt.Println()
+	fmt.Println(reportSubSectionStyle.Render("Transactions By Category"))
+	fmt.Println()
+
+	for i, category := range categories {
+		if i > 0 {
+			fmt.Println()
+		}
+
+		items := byCategory[category]
+
+		displayCategory := category
+		if displayCategory == "" {
+			displayCategory = "(no category)"
+		}
+		categoryStyle := categoryHeadingStyle(i)
+		fmt.Printf("%s\n\n", categoryStyle.Render("- "+displayCategory))
 
 		sort.Slice(items, func(i, j int) bool {
 			if items[i].Date == items[j].Date {
@@ -137,12 +206,13 @@ func printCategorySection(transactions []model.Transaction, start, end time.Time
 			rows,
 		)
 	}
+
+	fmt.Println()
 }
 
 func categoryHeadingStyle(index int) lipgloss.Style {
-	palette := []string{"81", "110", "150", "180", "117", "73"}
-	color := palette[index%len(palette)]
-	return lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color(color))
+	_ = index
+	return lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("180"))
 }
 
 func renderTable(columns []table.Column, rows []table.Row) {

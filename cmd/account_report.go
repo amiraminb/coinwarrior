@@ -7,7 +7,13 @@ import (
 	coininternal "github.com/amiraminb/coinwarrior/internal"
 	"github.com/amiraminb/coinwarrior/internal/model"
 	"github.com/charmbracelet/bubbles/table"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/spf13/cobra"
+)
+
+var (
+	accountReportHeaderStyle  = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("250"))
+	accountReportSectionStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("150"))
 )
 
 var accountReportCmd = &cobra.Command{
@@ -24,18 +30,19 @@ var accountReportCmd = &cobra.Command{
 			return err
 		}
 
-		fmt.Println("account report")
+		fmt.Println(accountReportHeaderStyle.Render("account report"))
 		fmt.Println()
 		printAccountBalances(accountsFile.Accounts)
 		fmt.Println()
 		printTotalBalances(accountsFile.Accounts)
+		fmt.Println()
 
 		return nil
 	},
 }
 
 func printAccountBalances(accounts []model.Account) {
-	fmt.Println("Account Balances")
+	fmt.Println(accountReportSectionStyle.Render("Account Balances"))
 	if len(accounts) == 0 {
 		fmt.Println("  no accounts")
 		return
@@ -63,7 +70,7 @@ func printAccountBalances(accounts []model.Account) {
 }
 
 func printTotalBalances(accounts []model.Account) {
-	fmt.Println("Total Balances")
+	fmt.Println(accountReportSectionStyle.Render("Total Balances"))
 	if len(accounts) == 0 {
 		fmt.Println("  no balances")
 		return

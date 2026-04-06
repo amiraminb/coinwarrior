@@ -31,3 +31,8 @@ type AccountsFile struct {
 	SchemaVersion int       `json:"schema_version"`
 	Accounts      []Account `json:"accounts"`
 }
+
+type CategoriesFile struct {
+	SchemaVersion int      `json:"schema_version"`
+	Categories    []string `json:"categories"`
+}

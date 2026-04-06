@@ -9,6 +9,7 @@ const (
 	ConfigFileName       = "config.json"
 	TransactionsFileName = "transactions.json"
 	AccountsFileName     = "accounts.json"
+	CategoriesFileName   = "categories.json"
 	BudgetsFileName      = "budgets.json"
 	RecurringFileName    = "recurring.json"
 )

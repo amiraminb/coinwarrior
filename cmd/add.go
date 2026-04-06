@@ -6,7 +6,14 @@ import (
 
 	coininternal "github.com/amiraminb/coinwarrior/internal"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/spf13/cobra"
+)
+
+var (
+	addFocusStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("42"))
+	addMutedStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("245"))
+	addWarnStyle  = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("214"))
 )
 
 type addStep int
@@ -248,66 +255,66 @@ func (m addModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m addModel) View() string {
-	s := "coinw add\n\n"
+	s := ""
 	switch m.step {
 	case stepType:
 		s += "Select type:\n\n"
 		for i, c := range m.choices {
-			prefix := "  "
+			line := "  " + c
 			if i == m.cursor {
-				prefix = "> "
+				line = addFocusStyle.Render("> " + c)
 			}
-			s += prefix + c + "\n"
+			s += line + "\n"
 		}
-		s += "\n(use ↑/↓ and enter, q to quit)\n"
+		s += "\n" + addMutedStyle.Render("(use ↑/↓ and enter, q to quit)") + "\n"
 	case stepAmount:
 		s += "Type selected: " + m.selected + "\n\n"
 		s += "Enter amount: " + m.amountInput + "\n"
-		s += "(press enter to continue, q to quit)\n"
+		s += addMutedStyle.Render("(press enter to continue, q to quit)") + "\n"
 	case stepCurrency:
 		s += "Type selected: " + m.selected + "\n"
 		s += "Amount: " + m.amountInput + "\n\n"
 		s += "Enter currency: " + m.currencyInput + "\n"
-		s += "(press enter to continue, q to quit)\n"
+		s += addMutedStyle.Render("(press enter to continue, q to quit)") + "\n"
 	case stepCategorySelect:
 		s += "Type selected: " + m.selected + "\n"
 		s += "Amount: " + m.amountInput + "\n"
 		s += "Currency: " + m.currencyInput + "\n\n"
 		s += "Select category:\n\n"
 		for i, c := range m.categories {
-			prefix := "  "
+			line := "  " + c
 			if i == m.categoryCursor {
-				prefix = "> "
+				line = addFocusStyle.Render("> " + c)
 			}
-			s += prefix + c + "\n"
+			s += line + "\n"
 		}
-		newOptionPrefix := "  "
+		newOptionLine := "  [New category]"
 		if m.categoryCursor == len(m.categories) {
-			newOptionPrefix = "> "
+			newOptionLine = addFocusStyle.Render("> [New category]")
 		}
-		s += newOptionPrefix + "[New category]\n"
-		s += "\n(use ↑/↓ and enter, q to quit)\n"
+		s += newOptionLine + "\n"
+		s += "\n" + addMutedStyle.Render("(use ↑/↓ and enter, q to quit)") + "\n"
 	case stepCategoryInput:
 		s += "Type selected: " + m.selected + "\n"
 		s += "Amount: " + m.amountInput + "\n"
 		s += "Currency: " + m.currencyInput + "\n\n"
 		s += "Enter category: " + m.categoryDraft + "\n"
-		s += "(enter to continue, esc to go back, q to quit)\n"
+		s += addMutedStyle.Render("(enter to continue, esc to go back, q to quit)") + "\n"
 	case stepCategoryConfirm:
 		s += "Type selected: " + m.selected + "\n"
 		s += "Amount: " + m.amountInput + "\n"
 		s += "Currency: " + m.currencyInput + "\n\n"
-		s += "Category '" + m.pendingCategory + "' is new. Create it?\n\n"
+		s += addWarnStyle.Render("Category '"+m.pendingCategory+"' is new. Create it?") + "\n\n"
 		yesPrefix := "  "
 		noPrefix := "  "
 		if m.confirmCursor == 0 {
-			yesPrefix = "> "
+			yesPrefix = addFocusStyle.Render("> ")
 		} else {
-			noPrefix = "> "
+			noPrefix = addFocusStyle.Render("> ")
 		}
 		s += yesPrefix + "Yes\n"
 		s += noPrefix + "No\n"
-		s += "\n(use ←/→ or ↑/↓ and enter)\n"
+		s += "\n" + addMutedStyle.Render("(use ←/→ or ↑/↓ and enter)") + "\n"
 	case stepAccountSelect:
 		s += "Type selected: " + m.selected + "\n"
 		s += "Amount: " + m.amountInput + "\n"
@@ -315,43 +322,43 @@ func (m addModel) View() string {
 		s += "Category: " + m.categoryInput + "\n\n"
 		s += "Select account:\n\n"
 		for i, a := range m.accounts {
-			prefix := "  "
+			line := "  " + a
 			if i == m.accountCursor {
-				prefix = "> "
+				line = addFocusStyle.Render("> " + a)
 			}
-			s += prefix + a + "\n"
+			s += line + "\n"
 		}
-		newOptionPrefix := "  "
+		newOptionLine := "  [New account]"
 		if m.accountCursor == len(m.accounts) {
-			newOptionPrefix = "> "
+			newOptionLine = addFocusStyle.Render("> [New account]")
 		}
-		s += newOptionPrefix + "[New account]\n"
-		s += "\n(use ↑/↓ and enter, q to quit)\n"
+		s += newOptionLine + "\n"
+		s += "\n" + addMutedStyle.Render("(use ↑/↓ and enter, q to quit)") + "\n"
 	case stepAccountInput:
 		s += "Type selected: " + m.selected + "\n"
 		s += "Amount: " + m.amountInput + "\n"
 		s += "Currency: " + m.currencyInput + "\n"
 		s += "Category: " + m.categoryInput + "\n\n"
 		s += "Enter account: " + m.accountDraft + "\n"
-		s += "(enter to continue, esc to go back, q to quit)\n"
+		s += addMutedStyle.Render("(enter to continue, esc to go back, q to quit)") + "\n"
 	case stepAccountConfirm:
 		s += "Type selected: " + m.selected + "\n"
 		s += "Amount: " + m.amountInput + "\n"
 		s += "Currency: " + m.currencyInput + "\n"
 		s += "Category: " + m.categoryInput + "\n\n"
-		s += "Account '" + m.pendingAccount + "' is new. Create it?\n\n"
+		s += addWarnStyle.Render("Account '"+m.pendingAccount+"' is new. Create it?") + "\n\n"
 		yesPrefix := "  "
 		noPrefix := "  "
 		if m.accountConfirm == 0 {
-			yesPrefix = "> "
+			yesPrefix = addFocusStyle.Render("> ")
 		} else {
-			noPrefix = "> "
+			noPrefix = addFocusStyle.Render("> ")
 		}
 		s += yesPrefix + "Yes\n"
 		s += noPrefix + "No\n"
-		s += "\n(use ←/→ or ↑/↓ and enter)\n"
+		s += "\n" + addMutedStyle.Render("(use ←/→ or ↑/↓ and enter)") + "\n"
 	case stepDone:
-		s += "Done\n"
+		s += addMutedStyle.Render("Done") + "\n"
 	}
 	return s
 }

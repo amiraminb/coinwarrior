@@ -113,6 +113,67 @@ func ApplyTransactionToAccount(accountName, currency string, deltaMinor int64) e
 	return fmt.Errorf("account '%s' not found", name)
 }
 
+func TransferBetweenAccounts(fromAccount, toAccount, currency string, amountMinor int64) error {
+	from := strings.TrimSpace(fromAccount)
+	to := strings.TrimSpace(toAccount)
+	cur := strings.ToUpper(strings.TrimSpace(currency))
+
+	if from == "" || to == "" {
+		return fmt.Errorf("both source and destination accounts are required")
+	}
+	if strings.EqualFold(from, to) {
+		return fmt.Errorf("source and destination accounts must be different")
+	}
+	if amountMinor <= 0 {
+		return fmt.Errorf("transfer amount must be greater than zero")
+	}
+
+	path, err := FilePath(AccountsFileName)
+	if err != nil {
+		return err
+	}
+
+	accountsFile, err := LoadAccountsFile(path)
+	if err != nil {
+		return err
+	}
+
+	fromIdx := -1
+	toIdx := -1
+	for i := range accountsFile.Accounts {
+		if strings.EqualFold(accountsFile.Accounts[i].Name, from) {
+			fromIdx = i
+		}
+		if strings.EqualFold(accountsFile.Accounts[i].Name, to) {
+			toIdx = i
+		}
+	}
+
+	if fromIdx == -1 {
+		return fmt.Errorf("account '%s' not found", from)
+	}
+	if toIdx == -1 {
+		return fmt.Errorf("account '%s' not found", to)
+	}
+
+	fromCurrency := strings.ToUpper(strings.TrimSpace(accountsFile.Accounts[fromIdx].Currency))
+	toCurrency := strings.ToUpper(strings.TrimSpace(accountsFile.Accounts[toIdx].Currency))
+	if fromCurrency != cur {
+		return fmt.Errorf("account '%s' uses currency %s, got %s", accountsFile.Accounts[fromIdx].Name, fromCurrency, cur)
+	}
+	if toCurrency != cur {
+		return fmt.Errorf("account '%s' uses currency %s, got %s", accountsFile.Accounts[toIdx].Name, toCurrency, cur)
+	}
+
+	now := time.Now().UTC().Format(time.RFC3339)
+	accountsFile.Accounts[fromIdx].BalanceMinor -= amountMinor
+	accountsFile.Accounts[toIdx].BalanceMinor += amountMinor
+	accountsFile.Accounts[fromIdx].UpdatedAt = now
+	accountsFile.Accounts[toIdx].UpdatedAt = now
+
+	return SaveAccountsFile(path, accountsFile)
+}
+
 func AddAccount(name, currency, openingBalanceInput string) (model.Account, error) {
 	accountName := strings.TrimSpace(name)
 	cur := strings.ToUpper(strings.TrimSpace(currency))

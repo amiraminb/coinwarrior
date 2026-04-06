@@ -46,6 +46,9 @@ func printCategorySection(transactions []model.Transaction, start, end time.Time
 
 	byCategory := make(map[string][]model.Transaction)
 	for _, tx := range transactions {
+		if tx.Type == coininternal.TransactionTypeTransfer {
+			continue
+		}
 		inRange, err := coininternal.TransactionInRange(tx.Date, start, end)
 		if err != nil || !inRange {
 			continue

@@ -1,6 +1,7 @@
 package internal
 
 const (
-	TransactionTypeExpense = "expense"
-	TransactionTypeIncome  = "income"
+	TransactionTypeExpense  = "expense"
+	TransactionTypeIncome   = "income"
+	TransactionTypeTransfer = "transfer"
 )

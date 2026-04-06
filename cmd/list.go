@@ -79,6 +79,10 @@ var listCmd = &cobra.Command{
 
 		rows := make([]table.Row, 0, len(items))
 		for _, tx := range items {
+			account := tx.Account
+			if tx.Type == coininternal.TransactionTypeTransfer {
+				account = tx.Account + " -> " + tx.ToAccount
+			}
 			rows = append(rows, table.Row{
 				tx.ID,
 				tx.Date,
@@ -86,7 +90,7 @@ var listCmd = &cobra.Command{
 				coininternal.FormatMinor(tx.AmountMinor),
 				tx.Currency,
 				tx.Category,
-				tx.Account,
+				account,
 			})
 		}
 

@@ -30,6 +30,7 @@ const (
 	stepAccountSelect
 	stepAccountInput
 	stepAccountConfirm
+	stepTransferToAccountSelect
 	stepNote
 	stepDone
 )
@@ -41,12 +42,13 @@ type addModel struct {
 	choices  []string
 	selected string
 
-	amountInput   string
-	dateInput     string
-	currencyInput string
-	categoryInput string
-	accountInput  string
-	noteInput     string
+	amountInput    string
+	dateInput      string
+	currencyInput  string
+	categoryInput  string
+	accountInput   string
+	toAccountInput string
+	noteInput      string
 
 	categories      []string
 	categoryCursor  int
@@ -66,7 +68,7 @@ func newAddModel(categories []string, accounts []string) addModel {
 	return addModel{
 		step:          stepType,
 		cursor:        0,
-		choices:       []string{coininternal.TransactionTypeExpense, coininternal.TransactionTypeIncome},
+		choices:       []string{coininternal.TransactionTypeExpense, coininternal.TransactionTypeIncome, coininternal.TransactionTypeTransfer},
 		dateInput:     time.Now().Format("2006-01-02"),
 		currencyInput: "CAD",
 		categories:    categories,
@@ -142,7 +144,11 @@ func (m addModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			switch msg.String() {
 			case "enter":
 				if m.currencyInput != "" {
-					m.step = stepCategorySelect
+					if m.selected == coininternal.TransactionTypeTransfer {
+						m.step = stepAccountSelect
+					} else {
+						m.step = stepCategorySelect
+					}
 				}
 			case "esc":
 				m.step = stepDate
@@ -220,6 +226,13 @@ func (m addModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		case stepAccountSelect:
 			maxCursor := len(m.accounts)
+			if m.selected == coininternal.TransactionTypeTransfer {
+				if len(m.accounts) == 0 {
+					maxCursor = 0
+				} else {
+					maxCursor = len(m.accounts) - 1
+				}
+			}
 			switch msg.String() {
 			case "up", "k":
 				if m.accountCursor > 0 {
@@ -233,10 +246,16 @@ func (m addModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if m.accountCursor < len(m.accounts) {
 					m.accountInput = m.accounts[m.accountCursor]
 					m.createAccount = false
-					m.step = stepNote
+					if m.selected == coininternal.TransactionTypeTransfer {
+						m.step = stepTransferToAccountSelect
+					} else {
+						m.step = stepNote
+					}
 					break
 				}
-				m.step = stepAccountInput
+				if m.selected != coininternal.TransactionTypeTransfer {
+					m.step = stepAccountInput
+				}
 			}
 		case stepAccountInput:
 			switch msg.String() {
@@ -280,13 +299,40 @@ func (m addModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "esc":
 				m.step = stepAccountInput
 			}
+		case stepTransferToAccountSelect:
+			switch msg.String() {
+			case "up", "k":
+				if m.accountCursor > 0 {
+					m.accountCursor--
+				}
+			case "down", "j":
+				if m.accountCursor < len(m.accounts)-1 {
+					m.accountCursor++
+				}
+			case "enter":
+				if len(m.accounts) == 0 {
+					break
+				}
+				candidate := m.accounts[m.accountCursor]
+				if strings.EqualFold(candidate, m.accountInput) {
+					break
+				}
+				m.toAccountInput = candidate
+				m.step = stepNote
+			case "esc":
+				m.step = stepAccountSelect
+			}
 		case stepNote:
 			switch msg.String() {
 			case "enter":
 				m.step = stepDone
 				return m, tea.Quit
 			case "esc":
-				m.step = stepAccountSelect
+				if m.selected == coininternal.TransactionTypeTransfer {
+					m.step = stepTransferToAccountSelect
+				} else {
+					m.step = stepAccountSelect
+				}
 			case "backspace":
 				if len(m.noteInput) > 0 {
 					m.noteInput = m.noteInput[:len(m.noteInput)-1]
@@ -372,8 +418,12 @@ func (m addModel) View() string {
 		s += "Amount: " + m.amountInput + "\n"
 		s += "Date: " + m.dateInput + "\n"
 		s += "Currency: " + m.currencyInput + "\n"
-		s += "Category: " + m.categoryInput + "\n\n"
-		s += "Select account:\n\n"
+		if m.selected != coininternal.TransactionTypeTransfer {
+			s += "Category: " + m.categoryInput + "\n\n"
+			s += "Select account:\n\n"
+		} else {
+			s += "\nSelect from account:\n\n"
+		}
 		for i, a := range m.accounts {
 			line := "  " + a
 			if i == m.accountCursor {
@@ -381,11 +431,13 @@ func (m addModel) View() string {
 			}
 			s += line + "\n"
 		}
-		newOptionLine := "  [New account]"
-		if m.accountCursor == len(m.accounts) {
-			newOptionLine = addFocusStyle.Render("> [New account]")
+		if m.selected != coininternal.TransactionTypeTransfer {
+			newOptionLine := "  [New account]"
+			if m.accountCursor == len(m.accounts) {
+				newOptionLine = addFocusStyle.Render("> [New account]")
+			}
+			s += newOptionLine + "\n"
 		}
-		s += newOptionLine + "\n"
 		s += "\n" + addMutedStyle.Render("(use ↑/↓ and enter, q to quit)") + "\n"
 	case stepAccountInput:
 		s += "Type selected: " + m.selected + "\n"
@@ -395,6 +447,27 @@ func (m addModel) View() string {
 		s += "Category: " + m.categoryInput + "\n\n"
 		s += "Enter account: " + m.accountDraft + "\n"
 		s += addMutedStyle.Render("(enter to continue, esc to go back, q to quit)") + "\n"
+	case stepTransferToAccountSelect:
+		s += "Type selected: " + m.selected + "\n"
+		s += "Amount: " + m.amountInput + "\n"
+		s += "Date: " + m.dateInput + "\n"
+		s += "Currency: " + m.currencyInput + "\n"
+		s += "From account: " + m.accountInput + "\n\n"
+		s += "Select to account:\n\n"
+		for i, a := range m.accounts {
+			line := "  " + a
+			if strings.EqualFold(a, m.accountInput) {
+				line = addMutedStyle.Render("  " + a + " (same account)")
+			}
+			if i == m.accountCursor {
+				line = addFocusStyle.Render("> " + a)
+				if strings.EqualFold(a, m.accountInput) {
+					line = addWarnStyle.Render("> " + a + " (same account not allowed)")
+				}
+			}
+			s += line + "\n"
+		}
+		s += "\n" + addMutedStyle.Render("(use ↑/↓ and enter, esc to go back, q to quit)") + "\n"
 	case stepAccountConfirm:
 		s += "Type selected: " + m.selected + "\n"
 		s += "Amount: " + m.amountInput + "\n"
@@ -417,8 +490,14 @@ func (m addModel) View() string {
 		s += "Amount: " + m.amountInput + "\n"
 		s += "Date: " + m.dateInput + "\n"
 		s += "Currency: " + m.currencyInput + "\n"
-		s += "Category: " + m.categoryInput + "\n"
-		s += "Account: " + m.accountInput + "\n\n"
+		if m.selected != coininternal.TransactionTypeTransfer {
+			s += "Category: " + m.categoryInput + "\n"
+			s += "Account: " + m.accountInput + "\n\n"
+		} else {
+			s += "From account: " + m.accountInput + "\n"
+			s += "To account: " + m.toAccountInput + "\n"
+			s += "Category: Transfer\n\n"
+		}
 		s += "Enter note (optional): " + m.noteInput + "\n"
 		s += addMutedStyle.Render("(enter to save, esc to go back, q to quit)") + "\n"
 	case stepDone:
@@ -447,22 +526,32 @@ var addCmd = &cobra.Command{
 			return err
 		}
 		result := finalModel.(addModel)
-		if result.selected == "" || result.amountInput == "" || result.currencyInput == "" || result.categoryInput == "" || result.accountInput == "" || result.dateInput == "" {
+		if result.selected == "" || result.amountInput == "" || result.currencyInput == "" || result.accountInput == "" || result.dateInput == "" {
+			fmt.Println("add cancelled")
+			return nil
+		}
+		if result.selected != coininternal.TransactionTypeTransfer && result.categoryInput == "" {
+			fmt.Println("add cancelled")
+			return nil
+		}
+		if result.selected == coininternal.TransactionTypeTransfer && (result.toAccountInput == "" || strings.EqualFold(result.accountInput, result.toAccountInput)) {
 			fmt.Println("add cancelled")
 			return nil
 		}
 
-		if result.createAccount {
+		if result.createAccount && result.selected != coininternal.TransactionTypeTransfer {
 			if _, err := coininternal.AddAccount(result.accountInput, result.currencyInput, "0"); err != nil {
 				return err
 			}
 		}
 
-		if err := coininternal.AddCategory(result.categoryInput); err != nil {
-			return err
+		if result.selected != coininternal.TransactionTypeTransfer {
+			if err := coininternal.AddCategory(result.categoryInput); err != nil {
+				return err
+			}
 		}
 
-		tx, err := coininternal.AddTransaction(result.selected, result.amountInput, result.currencyInput, result.dateInput, result.categoryInput, result.accountInput, result.noteInput)
+		tx, err := coininternal.AddTransaction(result.selected, result.amountInput, result.currencyInput, result.dateInput, result.categoryInput, result.accountInput, result.toAccountInput, result.noteInput)
 		if err != nil {
 			return err
 		}

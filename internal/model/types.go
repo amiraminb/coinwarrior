@@ -8,6 +8,7 @@ type Transaction struct {
 	Date        string   `json:"date"`
 	Category    string   `json:"category"`
 	Account     string   `json:"account"`
+	ToAccount   string   `json:"to_account,omitempty"`
 	Tags        []string `json:"tags,omitempty"`
 	Note        string   `json:"note,omitempty"`
 	CreatedAt   string   `json:"created_at"`

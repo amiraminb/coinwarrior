@@ -111,7 +111,7 @@ func SaveTransactions(path string, file model.TransactionsFile) error {
 	return os.Rename(tmpPath, path)
 }
 
-func AddTransaction(txType, amountInput, currency, dateValue, category, account, note string) (model.Transaction, error) {
+func AddTransaction(txType, amountInput, currency, dateValue, category, account, toAccount, note string) (model.Transaction, error) {
 	amountMinor, err := ParseAmount(amountInput)
 	if err != nil {
 		return model.Transaction{}, err
@@ -120,7 +120,7 @@ func AddTransaction(txType, amountInput, currency, dateValue, category, account,
 		return model.Transaction{}, fmt.Errorf("amount must be greater than zero")
 	}
 
-	if txType != TransactionTypeExpense && txType != TransactionTypeIncome {
+	if txType != TransactionTypeExpense && txType != TransactionTypeIncome && txType != TransactionTypeTransfer {
 		return model.Transaction{}, fmt.Errorf("invalid transaction type: %s", txType)
 	}
 
@@ -135,6 +135,19 @@ func AddTransaction(txType, amountInput, currency, dateValue, category, account,
 	}
 	if _, err := time.Parse("2006-01-02", dateValue); err != nil {
 		return model.Transaction{}, fmt.Errorf("invalid date format: %s", dateValue)
+	}
+
+	category = strings.TrimSpace(category)
+	account = strings.TrimSpace(account)
+	toAccount = strings.TrimSpace(toAccount)
+	if txType == TransactionTypeTransfer {
+		if category == "" {
+			category = "Transfer"
+		}
+	} else {
+		if account == "" {
+			return model.Transaction{}, fmt.Errorf("account is required")
+		}
 	}
 
 	path, err := FilePath(TransactionsFileName)
@@ -155,26 +168,41 @@ func AddTransaction(txType, amountInput, currency, dateValue, category, account,
 		AmountMinor: amountMinor,
 		Currency:    currency,
 		Date:        dateValue,
-		Category:    strings.TrimSpace(category),
-		Account:     strings.TrimSpace(account),
+		Category:    category,
+		Account:     account,
+		ToAccount:   toAccount,
 		Note:        strings.TrimSpace(note),
 		CreatedAt:   utcNow.Format(time.RFC3339),
 		UpdatedAt:   utcNow.Format(time.RFC3339),
 		Source:      "manual",
 	}
 
-	delta := amountMinor
-	if txType == TransactionTypeExpense {
-		delta = -amountMinor
-	}
+	if txType == TransactionTypeTransfer {
+		if err := TransferBetweenAccounts(account, toAccount, currency, amountMinor); err != nil {
+			return model.Transaction{}, err
+		}
+	} else {
+		delta := amountMinor
+		if txType == TransactionTypeExpense {
+			delta = -amountMinor
+		}
 
-	if err := ApplyTransactionToAccount(account, currency, delta); err != nil {
-		return model.Transaction{}, err
+		if err := ApplyTransactionToAccount(account, currency, delta); err != nil {
+			return model.Transaction{}, err
+		}
 	}
 
 	file.Transactions = append(file.Transactions, tx)
 	if err := SaveTransactions(path, file); err != nil {
-		_ = ApplyTransactionToAccount(account, currency, -delta)
+		if txType == TransactionTypeTransfer {
+			_ = TransferBetweenAccounts(toAccount, account, currency, amountMinor)
+		} else {
+			delta := amountMinor
+			if txType == TransactionTypeExpense {
+				delta = -amountMinor
+			}
+			_ = ApplyTransactionToAccount(account, currency, -delta)
+		}
 		return model.Transaction{}, err
 	}
 

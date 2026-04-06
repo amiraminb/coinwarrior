@@ -154,49 +154,71 @@ func printCategorySection(transactions []model.Transaction, start, end time.Time
 		return
 	}
 
-	categories := make([]string, 0, len(byCategory))
-	for category := range byCategory {
-		categories = append(categories, category)
+	type categoryReport struct {
+		name              string
+		items             []model.Transaction
+		totalsByCurrency  map[string]int64
+		expenseByCurrency map[string]int64
+		totalExpenseMinor int64
 	}
-	sort.Strings(categories)
 
 	fmt.Println(reportSubSectionStyle.Render("Category Totals (Range)"))
 	fmt.Println()
 	totalRows := make([]table.Row, 0)
 	currencyIncome := make(map[string]int64)
 	currencyExpense := make(map[string]int64)
-	for _, category := range categories {
-		items := byCategory[category]
+	categoryReports := make([]categoryReport, 0, len(byCategory))
+	for category, items := range byCategory {
+		report := categoryReport{
+			name:              category,
+			items:             items,
+			totalsByCurrency:  make(map[string]int64),
+			expenseByCurrency: make(map[string]int64),
+		}
+
 		for _, tx := range items {
 			if tx.Type == coininternal.TransactionTypeExpense {
 				currencyExpense[tx.Currency] += tx.AmountMinor
+				report.expenseByCurrency[tx.Currency] += tx.AmountMinor
+				report.totalExpenseMinor += tx.AmountMinor
 			} else if tx.Type == coininternal.TransactionTypeIncome {
 				currencyIncome[tx.Currency] += tx.AmountMinor
 			}
-		}
 
-		totals := make(map[string]int64)
-		for _, tx := range items {
 			delta := tx.AmountMinor
 			if tx.Type == coininternal.TransactionTypeExpense {
 				delta = -tx.AmountMinor
 			}
-			totals[tx.Currency] += delta
+			report.totalsByCurrency[tx.Currency] += delta
 		}
+		categoryReports = append(categoryReports, report)
+	}
 
-		currencies := make([]string, 0, len(totals))
-		for currency := range totals {
+	sort.Slice(categoryReports, func(i, j int) bool {
+		if categoryReports[i].totalExpenseMinor == categoryReports[j].totalExpenseMinor {
+			return categoryReports[i].name < categoryReports[j].name
+		}
+		return categoryReports[i].totalExpenseMinor > categoryReports[j].totalExpenseMinor
+	})
+
+	for _, report := range categoryReports {
+		currencies := make([]string, 0, len(report.totalsByCurrency))
+		for currency := range report.totalsByCurrency {
 			currencies = append(currencies, currency)
 		}
 		sort.Strings(currencies)
 
-		displayCategory := category
+		displayCategory := report.name
 		if displayCategory == "" {
 			displayCategory = "(no category)"
 		}
 
 		for _, currency := range currencies {
-			totalRows = append(totalRows, table.Row{displayCategory, currency, coininternal.FormatMinor(totals[currency]), strconv.Itoa(len(items))})
+			expenseShare := "-"
+			if totalExpense := currencyExpense[currency]; totalExpense > 0 {
+				expenseShare = formatPercent(report.expenseByCurrency[currency], totalExpense)
+			}
+			totalRows = append(totalRows, table.Row{displayCategory, currency, coininternal.FormatMinor(report.totalsByCurrency[currency]), strconv.Itoa(len(report.items)), expenseShare})
 		}
 	}
 
@@ -206,6 +228,7 @@ func printCategorySection(transactions []model.Transaction, start, end time.Time
 			{Title: "CUR", Width: 5},
 			{Title: "TOTAL", Width: 14},
 			{Title: "TXNS", Width: 6},
+			{Title: "% EXP", Width: 8},
 		},
 		totalRows,
 	)
@@ -250,14 +273,14 @@ func printCategorySection(transactions []model.Transaction, start, end time.Time
 	fmt.Println(reportSubSectionStyle.Render("Transactions By Category"))
 	fmt.Println()
 
-	for i, category := range categories {
+	for i, report := range categoryReports {
 		if i > 0 {
 			fmt.Println()
 		}
 
-		items := byCategory[category]
+		items := report.items
 
-		displayCategory := category
+		displayCategory := report.name
 		if displayCategory == "" {
 			displayCategory = "(no category)"
 		}
@@ -300,6 +323,13 @@ func printCategorySection(transactions []model.Transaction, start, end time.Time
 func categoryHeadingStyle(index int) lipgloss.Style {
 	_ = index
 	return lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("180"))
+}
+
+func formatPercent(part, total int64) string {
+	if total <= 0 {
+		return "-"
+	}
+	return fmt.Sprintf("%.1f%%", (float64(part)*100)/float64(total))
 }
 
 func renderTable(columns []table.Column, rows []table.Row) {

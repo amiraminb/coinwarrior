@@ -75,6 +75,7 @@ var listCmd = &cobra.Command{
 			{Title: "CUR", Width: 5},
 			{Title: "CATEGORY", Width: 16},
 			{Title: "ACCOUNT", Width: 16},
+			{Title: "NOTE", Width: 20},
 		}
 
 		rows := make([]table.Row, 0, len(items))
@@ -91,6 +92,7 @@ var listCmd = &cobra.Command{
 				tx.Currency,
 				tx.Category,
 				account,
+				tx.Note,
 			})
 		}
 

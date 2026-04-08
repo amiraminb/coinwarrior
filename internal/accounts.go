@@ -98,19 +98,11 @@ func ApplyTransactionToAccount(accountName, currency string, deltaMinor int64) e
 	}
 
 	now := time.Now().UTC().Format(time.RFC3339)
-
-	for i := range accountsFile.Accounts {
-		if strings.EqualFold(accountsFile.Accounts[i].Name, name) {
-			if !strings.EqualFold(accountsFile.Accounts[i].Currency, cur) {
-				return fmt.Errorf("account '%s' uses currency %s, got %s", accountsFile.Accounts[i].Name, accountsFile.Accounts[i].Currency, cur)
-			}
-			accountsFile.Accounts[i].BalanceMinor += deltaMinor
-			accountsFile.Accounts[i].UpdatedAt = now
-			return SaveAccountsFile(path, accountsFile)
-		}
+	if err := applyAccountDeltaToFile(&accountsFile, name, cur, deltaMinor, now); err != nil {
+		return err
 	}
 
-	return fmt.Errorf("account '%s' not found", name)
+	return SaveAccountsFile(path, accountsFile)
 }
 
 func TransferBetweenAccounts(fromAccount, toAccount, currency string, amountMinor int64) error {
@@ -138,38 +130,10 @@ func TransferBetweenAccounts(fromAccount, toAccount, currency string, amountMino
 		return err
 	}
 
-	fromIdx := -1
-	toIdx := -1
-	for i := range accountsFile.Accounts {
-		if strings.EqualFold(accountsFile.Accounts[i].Name, from) {
-			fromIdx = i
-		}
-		if strings.EqualFold(accountsFile.Accounts[i].Name, to) {
-			toIdx = i
-		}
-	}
-
-	if fromIdx == -1 {
-		return fmt.Errorf("account '%s' not found", from)
-	}
-	if toIdx == -1 {
-		return fmt.Errorf("account '%s' not found", to)
-	}
-
-	fromCurrency := strings.ToUpper(strings.TrimSpace(accountsFile.Accounts[fromIdx].Currency))
-	toCurrency := strings.ToUpper(strings.TrimSpace(accountsFile.Accounts[toIdx].Currency))
-	if fromCurrency != cur {
-		return fmt.Errorf("account '%s' uses currency %s, got %s", accountsFile.Accounts[fromIdx].Name, fromCurrency, cur)
-	}
-	if toCurrency != cur {
-		return fmt.Errorf("account '%s' uses currency %s, got %s", accountsFile.Accounts[toIdx].Name, toCurrency, cur)
-	}
-
 	now := time.Now().UTC().Format(time.RFC3339)
-	accountsFile.Accounts[fromIdx].BalanceMinor -= amountMinor
-	accountsFile.Accounts[toIdx].BalanceMinor += amountMinor
-	accountsFile.Accounts[fromIdx].UpdatedAt = now
-	accountsFile.Accounts[toIdx].UpdatedAt = now
+	if err := transferBetweenAccountsInFile(&accountsFile, from, to, cur, amountMinor, now); err != nil {
+		return err
+	}
 
 	return SaveAccountsFile(path, accountsFile)
 }
@@ -253,4 +217,78 @@ func UpdateAccountBalance(name, amountInput string) (model.Account, error) {
 	}
 
 	return model.Account{}, fmt.Errorf("account '%s' not found", accountName)
+}
+
+func applyAccountDeltaToFile(accountsFile *model.AccountsFile, accountName, currency string, deltaMinor int64, now string) error {
+	name := strings.TrimSpace(accountName)
+	cur := strings.ToUpper(strings.TrimSpace(currency))
+	if name == "" {
+		return fmt.Errorf("account is required")
+	}
+	if cur == "" {
+		return fmt.Errorf("currency is required")
+	}
+
+	for i := range accountsFile.Accounts {
+		if strings.EqualFold(accountsFile.Accounts[i].Name, name) {
+			if !strings.EqualFold(accountsFile.Accounts[i].Currency, cur) {
+				return fmt.Errorf("account '%s' uses currency %s, got %s", accountsFile.Accounts[i].Name, accountsFile.Accounts[i].Currency, cur)
+			}
+			accountsFile.Accounts[i].BalanceMinor += deltaMinor
+			accountsFile.Accounts[i].UpdatedAt = now
+			return nil
+		}
+	}
+
+	return fmt.Errorf("account '%s' not found", name)
+}
+
+func transferBetweenAccountsInFile(accountsFile *model.AccountsFile, fromAccount, toAccount, currency string, amountMinor int64, now string) error {
+	from := strings.TrimSpace(fromAccount)
+	to := strings.TrimSpace(toAccount)
+	cur := strings.ToUpper(strings.TrimSpace(currency))
+
+	if from == "" || to == "" {
+		return fmt.Errorf("both source and destination accounts are required")
+	}
+	if strings.EqualFold(from, to) {
+		return fmt.Errorf("source and destination accounts must be different")
+	}
+	if amountMinor <= 0 {
+		return fmt.Errorf("transfer amount must be greater than zero")
+	}
+
+	fromIdx := -1
+	toIdx := -1
+	for i := range accountsFile.Accounts {
+		if strings.EqualFold(accountsFile.Accounts[i].Name, from) {
+			fromIdx = i
+		}
+		if strings.EqualFold(accountsFile.Accounts[i].Name, to) {
+			toIdx = i
+		}
+	}
+
+	if fromIdx == -1 {
+		return fmt.Errorf("account '%s' not found", from)
+	}
+	if toIdx == -1 {
+		return fmt.Errorf("account '%s' not found", to)
+	}
+
+	fromCurrency := strings.ToUpper(strings.TrimSpace(accountsFile.Accounts[fromIdx].Currency))
+	toCurrency := strings.ToUpper(strings.TrimSpace(accountsFile.Accounts[toIdx].Currency))
+	if fromCurrency != cur {
+		return fmt.Errorf("account '%s' uses currency %s, got %s", accountsFile.Accounts[fromIdx].Name, fromCurrency, cur)
+	}
+	if toCurrency != cur {
+		return fmt.Errorf("account '%s' uses currency %s, got %s", accountsFile.Accounts[toIdx].Name, toCurrency, cur)
+	}
+
+	accountsFile.Accounts[fromIdx].BalanceMinor -= amountMinor
+	accountsFile.Accounts[toIdx].BalanceMinor += amountMinor
+	accountsFile.Accounts[fromIdx].UpdatedAt = now
+	accountsFile.Accounts[toIdx].UpdatedAt = now
+
+	return nil
 }

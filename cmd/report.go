@@ -17,6 +17,7 @@ import (
 var (
 	reportSectionStyle    = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("111"))
 	reportSubSectionStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("150"))
+	reportShowDetails     bool
 )
 
 var reportCmd = &cobra.Command{
@@ -45,7 +46,7 @@ var reportCmd = &cobra.Command{
 		headerStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("250"))
 		fmt.Println(headerStyle.Render(fmt.Sprintf("report %s..%s", start.Format("2006-01-02"), end.Format("2006-01-02"))))
 		fmt.Println()
-		printCategorySection(transactionsFile.Transactions, start, end)
+		printCategorySection(transactionsFile.Transactions, start, end, reportShowDetails)
 
 		return nil
 	},
@@ -133,7 +134,7 @@ func printTotalBalancesReport(accounts []model.Account) {
 	)
 }
 
-func printCategorySection(transactions []model.Transaction, start, end time.Time) {
+func printCategorySection(transactions []model.Transaction, start, end time.Time, showDetails bool) {
 	fmt.Println(reportSectionStyle.Render("Range Categories"))
 	fmt.Println()
 
@@ -152,14 +153,6 @@ func printCategorySection(transactions []model.Transaction, start, end time.Time
 	if len(byCategory) == 0 {
 		fmt.Println("  no transactions in range")
 		return
-	}
-
-	type categoryReport struct {
-		name              string
-		items             []model.Transaction
-		totalsByCurrency  map[string]int64
-		expenseByCurrency map[string]int64
-		totalExpenseMinor int64
 	}
 
 	fmt.Println(reportSubSectionStyle.Render("Category Totals (Range)"))
@@ -272,6 +265,16 @@ func printCategorySection(transactions []model.Transaction, start, end time.Time
 	fmt.Println()
 	fmt.Println(reportSubSectionStyle.Render("Transactions By Category"))
 	fmt.Println()
+	if showDetails {
+		renderSeparateCategoryDetails(categoryReports)
+	} else {
+		renderCompactCategoryDetails(categoryReports)
+	}
+
+	fmt.Println()
+}
+
+func renderCompactCategoryDetails(categoryReports []categoryReport) {
 
 	detailRows := make([]table.Row, 0)
 	for _, report := range categoryReports {
@@ -316,8 +319,66 @@ func printCategorySection(transactions []model.Transaction, start, end time.Time
 		},
 		detailRows,
 	)
+}
 
-	fmt.Println()
+func renderSeparateCategoryDetails(categoryReports []categoryReport) {
+	for i, report := range categoryReports {
+		if i > 0 {
+			fmt.Println()
+		}
+
+		items := make([]model.Transaction, len(report.items))
+		copy(items, report.items)
+
+		sort.Slice(items, func(i, j int) bool {
+			if items[i].Date == items[j].Date {
+				return items[i].CreatedAt > items[j].CreatedAt
+			}
+			return items[i].Date > items[j].Date
+		})
+
+		displayCategory := report.name
+		if displayCategory == "" {
+			displayCategory = "(no category)"
+		}
+
+		fmt.Println(categoryHeadingStyle(i).Render("- " + displayCategory))
+		fmt.Println()
+
+		rows := make([]table.Row, 0, len(items))
+		for _, tx := range items {
+			amount := coininternal.FormatMinor(tx.AmountMinor)
+			if tx.Type == coininternal.TransactionTypeExpense {
+				amount = "-" + amount
+			}
+
+			rows = append(rows, table.Row{tx.Date, amount, tx.Currency, tx.Account, tx.Note})
+		}
+
+		renderTable(
+			[]table.Column{
+				{Title: "DATE", Width: 10},
+				{Title: "AMOUNT", Width: 12},
+				{Title: "CUR", Width: 5},
+				{Title: "ACCOUNT", Width: 18},
+				{Title: "NOTE", Width: 36},
+			},
+			rows,
+		)
+	}
+}
+
+type categoryReport struct {
+	name              string
+	items             []model.Transaction
+	totalsByCurrency  map[string]int64
+	expenseByCurrency map[string]int64
+	totalExpenseMinor int64
+}
+
+func categoryHeadingStyle(index int) lipgloss.Style {
+	_ = index
+	return lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("180"))
 }
 
 func formatPercent(part, total int64) string {
@@ -348,5 +409,6 @@ func renderTable(columns []table.Column, rows []table.Row) {
 }
 
 func init() {
+	reportCmd.Flags().BoolVar(&reportShowDetails, "details", false, "Show detailed transactions separated by category")
 	rootCmd.AddCommand(reportCmd)
 }

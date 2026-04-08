@@ -222,6 +222,10 @@ func EditTransaction(id string, edits TransactionEdits) (model.Transaction, erro
 	return editTransactionWithNow(id, edits, time.Now())
 }
 
+func DeleteTransaction(id string) (model.Transaction, error) {
+	return deleteTransactionWithNow(id, time.Now())
+}
+
 func editTransactionWithNow(id string, edits TransactionEdits, now time.Time) (model.Transaction, error) {
 	txID := strings.TrimSpace(id)
 	if txID == "" {
@@ -294,6 +298,63 @@ func editTransactionWithNow(id string, edits TransactionEdits, now time.Time) (m
 	}
 
 	return updated, nil
+}
+
+func deleteTransactionWithNow(id string, now time.Time) (model.Transaction, error) {
+	txID := strings.TrimSpace(id)
+	if txID == "" {
+		return model.Transaction{}, fmt.Errorf("transaction id is required")
+	}
+
+	transactionsPath, err := FilePath(TransactionsFileName)
+	if err != nil {
+		return model.Transaction{}, err
+	}
+	accountsPath, err := FilePath(AccountsFileName)
+	if err != nil {
+		return model.Transaction{}, err
+	}
+
+	transactionsFile, err := LoadTransactions(transactionsPath)
+	if err != nil {
+		return model.Transaction{}, err
+	}
+	accountsFile, err := LoadAccountsFile(accountsPath)
+	if err != nil {
+		return model.Transaction{}, err
+	}
+
+	index := -1
+	for i := range transactionsFile.Transactions {
+		if transactionsFile.Transactions[i].ID == txID {
+			index = i
+			break
+		}
+	}
+	if index == -1 {
+		return model.Transaction{}, fmt.Errorf("transaction '%s' not found", txID)
+	}
+
+	deleted := transactionsFile.Transactions[index]
+	originalAccounts := cloneAccountsFile(accountsFile)
+	nowUTC := now.UTC().Format(time.RFC3339)
+
+	if err := applyTransactionEffectToAccounts(&accountsFile, deleted, nowUTC, true); err != nil {
+		return model.Transaction{}, err
+	}
+
+	transactionsFile.Transactions = append(transactionsFile.Transactions[:index], transactionsFile.Transactions[index+1:]...)
+	if err := SaveAccountsFile(accountsPath, accountsFile); err != nil {
+		return model.Transaction{}, err
+	}
+	if err := SaveTransactions(transactionsPath, transactionsFile); err != nil {
+		if rollbackErr := SaveAccountsFile(accountsPath, originalAccounts); rollbackErr != nil {
+			return model.Transaction{}, fmt.Errorf("save transactions: %w; rollback accounts: %v", err, rollbackErr)
+		}
+		return model.Transaction{}, err
+	}
+
+	return deleted, nil
 }
 
 func applyTransactionEdits(tx model.Transaction, edits TransactionEdits, now time.Time) (model.Transaction, bool, error) {

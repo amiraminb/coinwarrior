@@ -178,6 +178,150 @@ func TestEditTransactionRollbackOnInvalidAccountChange(t *testing.T) {
 	}
 }
 
+func TestDeleteTransactionReversesExpenseBalance(t *testing.T) {
+	setupTransactionTestData(t,
+		[]model.Account{{Name: "Checking", Currency: "CAD", BalanceMinor: 90000, UpdatedAt: "2026-04-01T00:00:00Z"}},
+		[]model.Transaction{{
+			ID:          "tx-delete-expense",
+			Type:        TransactionTypeExpense,
+			AmountMinor: 10000,
+			Currency:    "CAD",
+			Date:        "2026-04-01",
+			Category:    "Groceries",
+			Account:     "Checking",
+			CreatedAt:   "2026-04-01T00:00:00Z",
+			UpdatedAt:   "2026-04-01T00:00:00Z",
+			Source:      "manual",
+		}},
+	)
+
+	now := time.Date(2026, 4, 7, 12, 0, 0, 0, time.UTC)
+	tx, err := deleteTransactionWithNow("tx-delete-expense", now)
+	if err != nil {
+		t.Fatalf("deleteTransactionWithNow returned error: %v", err)
+	}
+	if tx.ID != "tx-delete-expense" {
+		t.Fatalf("expected deleted transaction id tx-delete-expense, got %s", tx.ID)
+	}
+
+	accountsFile, transactionsFile := loadTransactionTestState(t)
+	if got := accountBalance(t, accountsFile.Accounts, "Checking"); got != 100000 {
+		t.Fatalf("expected checking balance 100000, got %d", got)
+	}
+	if len(transactionsFile.Transactions) != 0 {
+		t.Fatalf("expected 0 transactions, got %d", len(transactionsFile.Transactions))
+	}
+}
+
+func TestDeleteTransactionReversesIncomeBalance(t *testing.T) {
+	setupTransactionTestData(t,
+		[]model.Account{{Name: "Checking", Currency: "CAD", BalanceMinor: 120000, UpdatedAt: "2026-04-01T00:00:00Z"}},
+		[]model.Transaction{{
+			ID:          "tx-delete-income",
+			Type:        TransactionTypeIncome,
+			AmountMinor: 20000,
+			Currency:    "CAD",
+			Date:        "2026-04-01",
+			Category:    "Income",
+			Account:     "Checking",
+			CreatedAt:   "2026-04-01T00:00:00Z",
+			UpdatedAt:   "2026-04-01T00:00:00Z",
+			Source:      "manual",
+		}},
+	)
+
+	now := time.Date(2026, 4, 7, 12, 0, 0, 0, time.UTC)
+	_, err := deleteTransactionWithNow("tx-delete-income", now)
+	if err != nil {
+		t.Fatalf("deleteTransactionWithNow returned error: %v", err)
+	}
+
+	accountsFile, transactionsFile := loadTransactionTestState(t)
+	if got := accountBalance(t, accountsFile.Accounts, "Checking"); got != 100000 {
+		t.Fatalf("expected checking balance 100000, got %d", got)
+	}
+	if len(transactionsFile.Transactions) != 0 {
+		t.Fatalf("expected 0 transactions, got %d", len(transactionsFile.Transactions))
+	}
+}
+
+func TestDeleteTransactionReversesTransferBalances(t *testing.T) {
+	setupTransactionTestData(t,
+		[]model.Account{
+			{Name: "Checking", Currency: "CAD", BalanceMinor: 90000, UpdatedAt: "2026-04-01T00:00:00Z"},
+			{Name: "Travel", Currency: "CAD", BalanceMinor: 110000, UpdatedAt: "2026-04-01T00:00:00Z"},
+		},
+		[]model.Transaction{{
+			ID:          "tx-delete-transfer",
+			Type:        TransactionTypeTransfer,
+			AmountMinor: 10000,
+			Currency:    "CAD",
+			Date:        "2026-04-01",
+			Category:    "Transfer",
+			Account:     "Checking",
+			ToAccount:   "Travel",
+			CreatedAt:   "2026-04-01T00:00:00Z",
+			UpdatedAt:   "2026-04-01T00:00:00Z",
+			Source:      "manual",
+		}},
+	)
+
+	now := time.Date(2026, 4, 7, 12, 0, 0, 0, time.UTC)
+	_, err := deleteTransactionWithNow("tx-delete-transfer", now)
+	if err != nil {
+		t.Fatalf("deleteTransactionWithNow returned error: %v", err)
+	}
+
+	accountsFile, transactionsFile := loadTransactionTestState(t)
+	if got := accountBalance(t, accountsFile.Accounts, "Checking"); got != 100000 {
+		t.Fatalf("expected checking balance 100000, got %d", got)
+	}
+	if got := accountBalance(t, accountsFile.Accounts, "Travel"); got != 100000 {
+		t.Fatalf("expected travel balance 100000, got %d", got)
+	}
+	if len(transactionsFile.Transactions) != 0 {
+		t.Fatalf("expected 0 transactions, got %d", len(transactionsFile.Transactions))
+	}
+}
+
+func TestDeleteTransactionLeavesFilesUnchangedOnReverseFailure(t *testing.T) {
+	setupTransactionTestData(t,
+		[]model.Account{{Name: "Savings", Currency: "CAD", BalanceMinor: 50000, UpdatedAt: "2026-04-01T00:00:00Z"}},
+		[]model.Transaction{{
+			ID:          "tx-delete-fail",
+			Type:        TransactionTypeExpense,
+			AmountMinor: 10000,
+			Currency:    "CAD",
+			Date:        "2026-04-01",
+			Category:    "Groceries",
+			Account:     "Checking",
+			CreatedAt:   "2026-04-01T00:00:00Z",
+			UpdatedAt:   "2026-04-01T00:00:00Z",
+			Source:      "manual",
+		}},
+	)
+
+	now := time.Date(2026, 4, 7, 12, 0, 0, 0, time.UTC)
+	_, err := deleteTransactionWithNow("tx-delete-fail", now)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if !strings.Contains(err.Error(), "account 'Checking' not found") {
+		t.Fatalf("expected missing account error, got %v", err)
+	}
+
+	accountsFile, transactionsFile := loadTransactionTestState(t)
+	if got := accountBalance(t, accountsFile.Accounts, "Savings"); got != 50000 {
+		t.Fatalf("expected savings balance 50000, got %d", got)
+	}
+	if len(transactionsFile.Transactions) != 1 {
+		t.Fatalf("expected 1 transaction, got %d", len(transactionsFile.Transactions))
+	}
+	if transactionsFile.Transactions[0].ID != "tx-delete-fail" {
+		t.Fatalf("expected transaction to remain, got %s", transactionsFile.Transactions[0].ID)
+	}
+}
+
 func setupTransactionTestData(t *testing.T, accounts []model.Account, transactions []model.Transaction) {
 	t.Helper()
 

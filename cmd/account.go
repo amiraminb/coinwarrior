@@ -50,9 +50,11 @@ type accountUpdateModel struct {
 }
 
 var (
-	accountFocusStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("42"))
-	accountMutedStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("245"))
-	accountWarnStyle  = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("214"))
+	accountFocusStyle  = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("42"))
+	accountMutedStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("245"))
+	accountWarnStyle   = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("214"))
+	accountValueStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("111"))
+	accountCursorStyle = lipgloss.NewStyle().Background(lipgloss.Color("42")).Foreground(lipgloss.Color("0"))
 )
 
 func newAccountAddModel() accountAddModel {
@@ -229,23 +231,23 @@ func (m accountAddModel) View() string {
 
 	s += "Add Account\n\n"
 
-	name := m.nameInput
 	if m.step == accountStepName {
-		name = accountFocusStyle.Render(name)
+		s += renderActiveAccountField("Account name: ", m.nameInput) + "\n"
+	} else {
+		s += renderAccountField("Account name: ", m.nameInput) + "\n"
 	}
-	s += "Account name: " + name + "\n"
 
-	currency := m.currencyInput
 	if m.step == accountStepCurrency {
-		currency = accountFocusStyle.Render(currency)
+		s += renderActiveAccountField("Currency: ", m.currencyInput) + "\n"
+	} else {
+		s += renderAccountField("Currency: ", m.currencyInput) + "\n"
 	}
-	s += "Currency: " + currency + "\n"
 
-	balance := m.openingBalanceInput
 	if m.step == accountStepOpeningBalance {
-		balance = accountFocusStyle.Render(balance)
+		s += renderActiveAccountField("Opening balance: ", m.openingBalanceInput) + "\n\n"
+	} else {
+		s += renderAccountField("Opening balance: ", m.openingBalanceInput) + "\n\n"
 	}
-	s += "Opening balance: " + balance + "\n\n"
 
 	s += accountMutedStyle.Render("(enter to continue, esc to go back, q to quit)") + "\n"
 
@@ -267,25 +269,20 @@ func (m accountUpdateModel) View() string {
 		}
 		s += "\n" + accountMutedStyle.Render("(use ↑/↓ and enter, q to quit)") + "\n"
 	case accountUpdateStepAmount:
-		s += fmt.Sprintf("Account: %s\n", m.selectedAccount.Name)
-		s += fmt.Sprintf("Currency: %s\n", m.selectedAccount.Currency)
-		s += fmt.Sprintf("Current balance: %s\n\n", coininternal.FormatMinor(m.selectedAccount.BalanceMinor))
-
-		amount := m.amountInput
-		if amount == "" {
-			amount = " "
-		}
-		s += "Enter new balance: " + accountFocusStyle.Render(amount) + "\n"
+		s += renderAccountField("Account: ", m.selectedAccount.Name) + "\n"
+		s += renderAccountField("Currency: ", m.selectedAccount.Currency) + "\n"
+		s += renderAccountField("Current balance: ", coininternal.FormatMinor(m.selectedAccount.BalanceMinor)) + "\n\n"
+		s += renderActiveAccountField("Enter new balance: ", m.amountInput) + "\n"
 		if m.errMessage != "" {
 			s += accountWarnStyle.Render(m.errMessage) + "\n"
 		}
 		s += "\n" + accountMutedStyle.Render("(enter to continue, esc to go back, q to quit)") + "\n"
 	case accountUpdateStepConfirm:
 		newBalanceMinor, _ := coininternal.ParseAmount(m.amountInput)
-		s += fmt.Sprintf("Account: %s\n", m.selectedAccount.Name)
-		s += fmt.Sprintf("Currency: %s\n", m.selectedAccount.Currency)
-		s += fmt.Sprintf("Current balance: %s\n", coininternal.FormatMinor(m.selectedAccount.BalanceMinor))
-		s += fmt.Sprintf("New balance: %s\n\n", coininternal.FormatMinor(newBalanceMinor))
+		s += renderAccountField("Account: ", m.selectedAccount.Name) + "\n"
+		s += renderAccountField("Currency: ", m.selectedAccount.Currency) + "\n"
+		s += renderAccountField("Current balance: ", coininternal.FormatMinor(m.selectedAccount.BalanceMinor)) + "\n"
+		s += renderAccountField("New balance: ", coininternal.FormatMinor(newBalanceMinor)) + "\n\n"
 		s += accountWarnStyle.Render("Confirm account balance update?") + "\n\n"
 
 		yes := "  Yes"
@@ -304,6 +301,23 @@ func (m accountUpdateModel) View() string {
 	}
 
 	return s
+}
+
+func renderAccountField(label, value string) string {
+	return label + accountValueStyle.Render(value)
+}
+
+func renderActiveAccountField(label, value string) string {
+	return label + renderAccountCursor(value)
+}
+
+func renderAccountCursor(value string) string {
+	rendered := ""
+	if value != "" {
+		rendered = accountValueStyle.Render(value)
+	}
+
+	return rendered + accountCursorStyle.Render(" ")
 }
 
 var accountCmd = &cobra.Command{

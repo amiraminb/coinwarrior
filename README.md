@@ -6,7 +6,7 @@ Local-first CLI tool for tracking personal finances.
 
 - Interactive transaction entry: `coinw add`
 - Interactive account setup: `coinw account add`
-- Update account balance: `coinw account update <account> <amount>`
+- Update account balance: `coinw account update`
 - List transactions: `coinw list [range]`
 - Range report (balances + category): `coinw report <range>`
 

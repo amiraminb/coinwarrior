@@ -5,18 +5,27 @@ import (
 	"strings"
 
 	coininternal "github.com/amiraminb/coinwarrior/internal"
+	"github.com/amiraminb/coinwarrior/internal/model"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/spf13/cobra"
 )
 
 type accountAddStep int
+type accountUpdateStep int
 
 const (
 	accountStepName accountAddStep = iota
 	accountStepCurrency
 	accountStepOpeningBalance
 	accountStepDone
+)
+
+const (
+	accountUpdateStepSelect accountUpdateStep = iota
+	accountUpdateStepAmount
+	accountUpdateStepConfirm
+	accountUpdateStepDone
 )
 
 type accountAddModel struct {
@@ -27,9 +36,23 @@ type accountAddModel struct {
 	openingBalanceInput string
 }
 
+type accountUpdateModel struct {
+	step accountUpdateStep
+
+	accounts []model.Account
+	cursor   int
+
+	selectedAccount model.Account
+	amountInput     string
+	confirmCursor   int
+	confirmed       bool
+	errMessage      string
+}
+
 var (
 	accountFocusStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("42"))
 	accountMutedStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("245"))
+	accountWarnStyle  = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("214"))
 )
 
 func newAccountAddModel() accountAddModel {
@@ -40,7 +63,18 @@ func newAccountAddModel() accountAddModel {
 	}
 }
 
+func newAccountUpdateModel(accounts []model.Account) accountUpdateModel {
+	return accountUpdateModel{
+		step:     accountUpdateStepSelect,
+		accounts: accounts,
+	}
+}
+
 func (m accountAddModel) Init() tea.Cmd {
+	return nil
+}
+
+func (m accountUpdateModel) Init() tea.Cmd {
 	return nil
 }
 
@@ -112,6 +146,84 @@ func (m accountAddModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+func (m accountUpdateModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "ctrl+c", "q":
+			return m, tea.Quit
+		}
+
+		switch m.step {
+		case accountUpdateStepSelect:
+			switch msg.String() {
+			case "up", "k":
+				if m.cursor > 0 {
+					m.cursor--
+				}
+			case "down", "j":
+				if m.cursor < len(m.accounts)-1 {
+					m.cursor++
+				}
+			case "enter":
+				if len(m.accounts) == 0 {
+					break
+				}
+				m.selectedAccount = m.accounts[m.cursor]
+				m.amountInput = ""
+				m.confirmCursor = 0
+				m.errMessage = ""
+				m.step = accountUpdateStepAmount
+			}
+		case accountUpdateStepAmount:
+			switch msg.String() {
+			case "enter":
+				if _, err := coininternal.ParseAmount(m.amountInput); err != nil {
+					m.errMessage = err.Error()
+					break
+				}
+				m.errMessage = ""
+				m.confirmCursor = 0
+				m.step = accountUpdateStepConfirm
+			case "esc":
+				m.errMessage = ""
+				m.step = accountUpdateStepSelect
+			case "backspace":
+				m.errMessage = ""
+				if len(m.amountInput) > 0 {
+					m.amountInput = m.amountInput[:len(m.amountInput)-1]
+				}
+			default:
+				if len(msg.String()) == 1 {
+					ch := msg.String()
+					if (ch >= "0" && ch <= "9") || ch == "." || ch == "-" {
+						m.amountInput += ch
+						m.errMessage = ""
+					}
+				}
+			}
+		case accountUpdateStepConfirm:
+			switch msg.String() {
+			case "left", "h", "up", "k":
+				m.confirmCursor = 0
+			case "right", "l", "down", "j":
+				m.confirmCursor = 1
+			case "enter":
+				if m.confirmCursor == 0 {
+					m.confirmed = true
+					m.step = accountUpdateStepDone
+					return m, tea.Quit
+				}
+				m.step = accountUpdateStepAmount
+			case "esc":
+				m.step = accountUpdateStepAmount
+			}
+		}
+	}
+
+	return m, nil
+}
+
 func (m accountAddModel) View() string {
 	s := ""
 
@@ -140,6 +252,60 @@ func (m accountAddModel) View() string {
 	return s
 }
 
+func (m accountUpdateModel) View() string {
+	s := "Update Account Balance\n\n"
+
+	switch m.step {
+	case accountUpdateStepSelect:
+		s += "Select account:\n\n"
+		for i, account := range m.accounts {
+			line := fmt.Sprintf("  %s (%s %s)", account.Name, account.Currency, coininternal.FormatMinor(account.BalanceMinor))
+			if i == m.cursor {
+				line = accountFocusStyle.Render(fmt.Sprintf("> %s (%s %s)", account.Name, account.Currency, coininternal.FormatMinor(account.BalanceMinor)))
+			}
+			s += line + "\n"
+		}
+		s += "\n" + accountMutedStyle.Render("(use ↑/↓ and enter, q to quit)") + "\n"
+	case accountUpdateStepAmount:
+		s += fmt.Sprintf("Account: %s\n", m.selectedAccount.Name)
+		s += fmt.Sprintf("Currency: %s\n", m.selectedAccount.Currency)
+		s += fmt.Sprintf("Current balance: %s\n\n", coininternal.FormatMinor(m.selectedAccount.BalanceMinor))
+
+		amount := m.amountInput
+		if amount == "" {
+			amount = " "
+		}
+		s += "Enter new balance: " + accountFocusStyle.Render(amount) + "\n"
+		if m.errMessage != "" {
+			s += accountWarnStyle.Render(m.errMessage) + "\n"
+		}
+		s += "\n" + accountMutedStyle.Render("(enter to continue, esc to go back, q to quit)") + "\n"
+	case accountUpdateStepConfirm:
+		newBalanceMinor, _ := coininternal.ParseAmount(m.amountInput)
+		s += fmt.Sprintf("Account: %s\n", m.selectedAccount.Name)
+		s += fmt.Sprintf("Currency: %s\n", m.selectedAccount.Currency)
+		s += fmt.Sprintf("Current balance: %s\n", coininternal.FormatMinor(m.selectedAccount.BalanceMinor))
+		s += fmt.Sprintf("New balance: %s\n\n", coininternal.FormatMinor(newBalanceMinor))
+		s += accountWarnStyle.Render("Confirm account balance update?") + "\n\n"
+
+		yes := "  Yes"
+		no := "  No"
+		if m.confirmCursor == 0 {
+			yes = accountFocusStyle.Render("> Yes")
+		} else {
+			no = accountFocusStyle.Render("> No")
+		}
+
+		s += yes + "\n"
+		s += no + "\n\n"
+		s += accountMutedStyle.Render("(use ←/→ or ↑/↓, enter to confirm, esc to go back, q to quit)") + "\n"
+	case accountUpdateStepDone:
+		s += accountMutedStyle.Render("Done") + "\n"
+	}
+
+	return s
+}
+
 var accountCmd = &cobra.Command{
 	Use:   "account",
 	Short: "Manage accounts",
@@ -155,17 +321,12 @@ var accountAddCmd = &cobra.Command{
 }
 
 var accountUpdateCmd = &cobra.Command{
-	Use:   "update <account> <amount>",
+	Use:   "update",
 	Short: "Update account balance",
-	Args:  cobra.ExactArgs(2),
+	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		account, err := coininternal.UpdateAccountBalance(args[0], args[1])
-		if err != nil {
-			return err
-		}
-
-		fmt.Printf("account updated: %s (%s %s)\n", account.Name, account.Currency, coininternal.FormatMinor(account.BalanceMinor))
-		return nil
+		_, err := runAccountUpdateInteractive()
+		return err
 	},
 }
 
@@ -207,5 +368,40 @@ func runAccountAddInteractive() (bool, error) {
 	}
 
 	fmt.Printf("account created: %s (%s %s)\n", account.Name, account.Currency, coininternal.FormatMinor(account.BalanceMinor))
+	return true, nil
+}
+
+func runAccountUpdateInteractive() (bool, error) {
+	accountsPath, err := coininternal.FilePath(coininternal.AccountsFileName)
+	if err != nil {
+		return false, err
+	}
+
+	accountsFile, err := coininternal.LoadAccountsFile(accountsPath)
+	if err != nil {
+		return false, err
+	}
+	if len(accountsFile.Accounts) == 0 {
+		return false, fmt.Errorf("no accounts available; add one with 'coinw account add'")
+	}
+
+	p := tea.NewProgram(newAccountUpdateModel(accountsFile.Accounts))
+	finalModel, err := p.Run()
+	if err != nil {
+		return false, err
+	}
+
+	result := finalModel.(accountUpdateModel)
+	if !result.confirmed || strings.TrimSpace(result.selectedAccount.Name) == "" {
+		fmt.Println("account update cancelled")
+		return false, nil
+	}
+
+	account, err := coininternal.UpdateAccountBalance(result.selectedAccount.Name, result.amountInput)
+	if err != nil {
+		return false, err
+	}
+
+	fmt.Printf("account updated: %s (%s %s)\n", account.Name, account.Currency, coininternal.FormatMinor(account.BalanceMinor))
 	return true, nil
 }

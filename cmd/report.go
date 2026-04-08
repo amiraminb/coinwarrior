@@ -273,19 +273,10 @@ func printCategorySection(transactions []model.Transaction, start, end time.Time
 	fmt.Println(reportSubSectionStyle.Render("Transactions By Category"))
 	fmt.Println()
 
-	for i, report := range categoryReports {
-		if i > 0 {
-			fmt.Println()
-		}
-
-		items := report.items
-
-		displayCategory := report.name
-		if displayCategory == "" {
-			displayCategory = "(no category)"
-		}
-		categoryStyle := categoryHeadingStyle(i)
-		fmt.Printf("%s\n\n", categoryStyle.Render("- "+displayCategory))
+	detailRows := make([]table.Row, 0)
+	for _, report := range categoryReports {
+		items := make([]model.Transaction, len(report.items))
+		copy(items, report.items)
 
 		sort.Slice(items, func(i, j int) bool {
 			if items[i].Date == items[j].Date {
@@ -294,35 +285,39 @@ func printCategorySection(transactions []model.Transaction, start, end time.Time
 			return items[i].Date > items[j].Date
 		})
 
-		rows := make([]table.Row, 0, len(items))
-		for _, tx := range items {
+		displayCategory := report.name
+		if displayCategory == "" {
+			displayCategory = "(no category)"
+		}
+
+		for idx, tx := range items {
 			amount := coininternal.FormatMinor(tx.AmountMinor)
 			if tx.Type == coininternal.TransactionTypeExpense {
 				amount = "-" + amount
 			}
-			rows = append(rows, table.Row{tx.Date, tx.Type, amount, tx.Currency, tx.Account, tx.Note, tx.ID})
-		}
 
-		renderTable(
-			[]table.Column{
-				{Title: "DATE", Width: 10},
-				{Title: "TYPE", Width: 8},
-				{Title: "AMOUNT", Width: 12},
-				{Title: "CUR", Width: 5},
-				{Title: "ACCOUNT", Width: 18},
-				{Title: "NOTE", Width: 20},
-				{Title: "ID", Width: 24},
-			},
-			rows,
-		)
+			categoryCell := ""
+			if idx == 0 {
+				categoryCell = displayCategory
+			}
+
+			detailRows = append(detailRows, table.Row{categoryCell, tx.Date, amount, tx.Currency, tx.Account, tx.Note})
+		}
 	}
 
-	fmt.Println()
-}
+	renderTable(
+		[]table.Column{
+			{Title: "CATEGORY", Width: 18},
+			{Title: "DATE", Width: 10},
+			{Title: "AMOUNT", Width: 12},
+			{Title: "CUR", Width: 5},
+			{Title: "ACCOUNT", Width: 18},
+			{Title: "NOTE", Width: 36},
+		},
+		detailRows,
+	)
 
-func categoryHeadingStyle(index int) lipgloss.Style {
-	_ = index
-	return lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("180"))
+	fmt.Println()
 }
 
 func formatPercent(part, total int64) string {

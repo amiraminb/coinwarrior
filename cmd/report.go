@@ -46,7 +46,9 @@ var reportCmd = &cobra.Command{
 		headerStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("250"))
 		fmt.Println(headerStyle.Render(fmt.Sprintf("report %s..%s", start.Format("2006-01-02"), end.Format("2006-01-02"))))
 		fmt.Println()
-		printCategorySection(transactionsFile.Transactions, start, end, reportShowDetails)
+		if err := printCategorySection(transactionsFile.Transactions, start, end, reportShowDetails, time.Now()); err != nil {
+			return err
+		}
 
 		return nil
 	},
@@ -134,9 +136,12 @@ func printTotalBalancesReport(accounts []model.Account) {
 	)
 }
 
-func printCategorySection(transactions []model.Transaction, start, end time.Time, showDetails bool) {
+func printCategorySection(transactions []model.Transaction, start, end time.Time, showDetails bool, now time.Time) error {
 	fmt.Println(reportSectionStyle.Render("Range Categories"))
 	fmt.Println()
+	if err := printMonthlyBudgetSection(start, end, now); err != nil {
+		return err
+	}
 
 	byCategory := make(map[string][]model.Transaction)
 	for _, tx := range transactions {
@@ -152,7 +157,7 @@ func printCategorySection(transactions []model.Transaction, start, end time.Time
 
 	if len(byCategory) == 0 {
 		fmt.Println("  no transactions in range")
-		return
+		return nil
 	}
 
 	fmt.Println(reportSubSectionStyle.Render("Category Totals (Range)"))
@@ -272,6 +277,67 @@ func printCategorySection(transactions []model.Transaction, start, end time.Time
 	}
 
 	fmt.Println()
+	return nil
+}
+
+func printMonthlyBudgetSection(start, end, now time.Time) error {
+	monthLabel, ok := budgetMonthForRange(start, end)
+	if !ok {
+		return nil
+	}
+
+	fmt.Println(reportSubSectionStyle.Render("Monthly Budget"))
+	fmt.Println()
+
+	summaries, err := coininternal.GetMonthlyBudgetSummaries(monthLabel, now)
+	if err != nil {
+		return err
+	}
+	if len(summaries) == 0 {
+		fmt.Printf("no budget set for %s\n", monthLabel)
+		fmt.Println()
+		return nil
+	}
+
+	rows := make([]table.Row, 0, len(summaries))
+	for _, summary := range summaries {
+		rows = append(rows, table.Row{
+			summary.Budget.Currency,
+			coininternal.FormatMinor(summary.Budget.AmountMinor),
+			coininternal.FormatMinor(summary.Budget.RolloverMinor),
+			coininternal.FormatMinor(summary.SpentMinor),
+			coininternal.FormatMinor(summary.LeftMinor),
+		})
+	}
+
+	renderTable(
+		[]table.Column{
+			{Title: "CUR", Width: 5},
+			{Title: "BUDGET", Width: 14},
+			{Title: "ROLL", Width: 14},
+			{Title: "SPENT", Width: 14},
+			{Title: "LEFT", Width: 14},
+		},
+		rows,
+	)
+	fmt.Println()
+
+	return nil
+}
+
+func budgetMonthForRange(start, end time.Time) (string, bool) {
+	if start.Year() != end.Year() || start.Month() != end.Month() {
+		return "", false
+	}
+	if start.Day() != 1 {
+		return "", false
+	}
+	monthEnd := time.Date(start.Year(), start.Month()+1, 0, 0, 0, 0, 0, start.Location())
+	if end.Year() != monthEnd.Year() || end.Month() != monthEnd.Month() || end.Day() != monthEnd.Day() {
+		return "", false
+	}
+
+	return coininternal.FormatBudgetMonth(start), true
 }
 
 func renderCompactCategoryDetails(categoryReports []categoryReport) {

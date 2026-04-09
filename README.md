@@ -9,6 +9,7 @@ Local-first CLI tool for tracking personal finances.
 - Interactive transaction deletion: `coinw delete`
 - Interactive account setup: `coinw account add`
 - Update account balance: `coinw account update`
+- Monthly budgets with rollover: `coinw budget`
 - List transactions: `coinw list [range]`
 - Range report (balances + category): `coinw report <range> [--details]`
 

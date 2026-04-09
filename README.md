@@ -7,8 +7,7 @@ Local-first CLI tool for tracking personal finances.
 - Interactive transaction entry: `coinw add`
 - Interactive transaction editing: `coinw edit`
 - Interactive transaction deletion: `coinw delete`
-- Interactive account setup: `coinw account add`
-- Update account balance: `coinw account update`
+- Interactive account management: `coinw account`
 - Monthly budgets with rollover: `coinw budget`
 - List transactions: `coinw list [range]`
 - Range report (balances + category): `coinw report <range> [--details]`
@@ -36,7 +35,7 @@ coinw init
 1. Add at least one account:
 
 ```bash
-coinw account add
+coinw account
 ```
 
 1. Add a transaction:

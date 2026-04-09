@@ -13,6 +13,13 @@ import (
 
 type accountAddStep int
 type accountUpdateStep int
+type accountAction string
+
+const (
+	accountActionAdd    accountAction = "add"
+	accountActionUpdate accountAction = "update"
+	accountActionQuit   accountAction = "quit"
+)
 
 const (
 	accountStepName accountAddStep = iota
@@ -27,6 +34,17 @@ const (
 	accountUpdateStepConfirm
 	accountUpdateStepDone
 )
+
+type accountMenuChoice struct {
+	label  string
+	action accountAction
+}
+
+type accountMenuModel struct {
+	choices  []accountMenuChoice
+	cursor   int
+	selected accountAction
+}
 
 type accountAddModel struct {
 	step accountAddStep
@@ -72,11 +90,25 @@ func newAccountUpdateModel(accounts []model.Account) accountUpdateModel {
 	}
 }
 
+func newAccountMenuModel() accountMenuModel {
+	return accountMenuModel{
+		choices: []accountMenuChoice{
+			{label: "Add account", action: accountActionAdd},
+			{label: "Update account balance", action: accountActionUpdate},
+			{label: "Quit", action: accountActionQuit},
+		},
+	}
+}
+
 func (m accountAddModel) Init() tea.Cmd {
 	return nil
 }
 
 func (m accountUpdateModel) Init() tea.Cmd {
+	return nil
+}
+
+func (m accountMenuModel) Init() tea.Cmd {
 	return nil
 }
 
@@ -226,6 +258,29 @@ func (m accountUpdateModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+func (m accountMenuModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "ctrl+c", "q", "esc":
+			return m, tea.Quit
+		case "up", "k":
+			if m.cursor > 0 {
+				m.cursor--
+			}
+		case "down", "j":
+			if m.cursor < len(m.choices)-1 {
+				m.cursor++
+			}
+		case "enter":
+			m.selected = m.choices[m.cursor].action
+			return m, tea.Quit
+		}
+	}
+
+	return m, nil
+}
+
 func (m accountAddModel) View() string {
 	s := ""
 
@@ -303,6 +358,22 @@ func (m accountUpdateModel) View() string {
 	return s
 }
 
+func (m accountMenuModel) View() string {
+	s := "Account\n\n"
+	s += "Choose an action:\n\n"
+
+	for i, choice := range m.choices {
+		line := "  " + choice.label
+		if i == m.cursor {
+			line = accountFocusStyle.Render("> " + choice.label)
+		}
+		s += line + "\n"
+	}
+
+	s += "\n" + accountMutedStyle.Render("(use ↑/↓ and enter, esc to cancel, q to quit)") + "\n"
+	return s
+}
+
 func renderAccountField(label, value string) string {
 	return label + accountValueStyle.Render(value)
 }
@@ -323,31 +394,43 @@ func renderAccountCursor(value string) string {
 var accountCmd = &cobra.Command{
 	Use:   "account",
 	Short: "Manage accounts",
-}
-
-var accountAddCmd = &cobra.Command{
-	Use:   "add",
-	Short: "Add a new account",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		_, err := runAccountAddInteractive()
-		return err
-	},
-}
-
-var accountUpdateCmd = &cobra.Command{
-	Use:   "update",
-	Short: "Update account balance",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		_, err := runAccountUpdateInteractive()
-		return err
+		action, err := runAccountMenuInteractive()
+		if err != nil {
+			return err
+		}
+
+		switch action {
+		case accountActionAdd:
+			_, err := runAccountAddInteractive()
+			return err
+		case accountActionUpdate:
+			_, err := runAccountUpdateInteractive()
+			return err
+		case accountActionQuit:
+			return nil
+		default:
+			fmt.Println("account cancelled")
+			return nil
+		}
 	},
 }
 
 func init() {
-	accountCmd.AddCommand(accountAddCmd)
-	accountCmd.AddCommand(accountUpdateCmd)
 	rootCmd.AddCommand(accountCmd)
+}
+
+func runAccountMenuInteractive() (accountAction, error) {
+	p := tea.NewProgram(newAccountMenuModel())
+
+	finalModel, err := p.Run()
+	if err != nil {
+		return "", err
+	}
+
+	result := finalModel.(accountMenuModel)
+	return result.selected, nil
 }
 
 func runAccountAddInteractive() (bool, error) {
@@ -396,7 +479,7 @@ func runAccountUpdateInteractive() (bool, error) {
 		return false, err
 	}
 	if len(accountsFile.Accounts) == 0 {
-		return false, fmt.Errorf("no accounts available; add one with 'coinw account add'")
+		return false, fmt.Errorf("no accounts available; create one with 'coinw account'")
 	}
 
 	p := tea.NewProgram(newAccountUpdateModel(accountsFile.Accounts))

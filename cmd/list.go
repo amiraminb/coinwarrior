@@ -15,7 +15,14 @@ import (
 var listCmd = &cobra.Command{
 	Use:   "list [range]",
 	Short: "List transactions",
-	Args:  cobra.MaximumNArgs(1),
+	Long: `List transactions.
+
+Supported ranges: today, yesterday, week, lastweek, month, lastmonth, year, lastyear, or YYYY-MM-DD..YYYY-MM-DD.`,
+	Example: `  coinw list
+  coinw list month
+  coinw list yesterday
+  coinw list 2026-04-01..2026-04-30`,
+	Args: cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		path, err := coininternal.FilePath(coininternal.TransactionsFileName)
 		if err != nil {

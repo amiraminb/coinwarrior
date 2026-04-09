@@ -23,7 +23,17 @@ var (
 var reportCmd = &cobra.Command{
 	Use:   "report <range|account>",
 	Short: "Show reports",
-	Args:  cobra.ExactArgs(1),
+	Long: `Show reports.
+
+Supported ranges: today, yesterday, week, lastweek, month, lastmonth, year, lastyear, or YYYY-MM-DD..YYYY-MM-DD.
+Use 'account' for account balance reports.
+Use --details to show transactions separated by category.`,
+	Example: `  coinw report month
+  coinw report lastmonth --details
+  coinw report 2026-04-01..2026-04-30
+  coinw report account
+  coinw report month --details`,
+	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if strings.EqualFold(args[0], "account") {
 			return runAccountReport()

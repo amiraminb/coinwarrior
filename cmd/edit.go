@@ -16,8 +16,7 @@ import (
 type editStep int
 
 const (
-	editStepSelectTransaction editStep = iota
-	editStepDate
+	editStepDate editStep = iota
 	editStepAmount
 	editStepCategory
 	editStepAccount
@@ -29,9 +28,6 @@ const (
 
 type editModel struct {
 	step editStep
-
-	transactions []model.Transaction
-	cursor       int
 
 	selected       model.Transaction
 	dateInput      string
@@ -54,13 +50,16 @@ var (
 	editCursorStyle = lipgloss.NewStyle().Background(lipgloss.Color("42")).Foreground(lipgloss.Color("0"))
 )
 
-func newEditModel(transactions []model.Transaction) editModel {
-	items := make([]model.Transaction, len(transactions))
-	copy(items, transactions)
-
+func newEditModel(selected model.Transaction) editModel {
 	return editModel{
-		step:         editStepSelectTransaction,
-		transactions: items,
+		step:           editStepDate,
+		selected:       selected,
+		dateInput:      selected.Date,
+		amountInput:    formatEditAmountInput(selected.AmountMinor),
+		categoryInput:  selected.Category,
+		accountInput:   selected.Account,
+		toAccountInput: selected.ToAccount,
+		noteInput:      selected.Note,
 	}
 }
 
@@ -77,30 +76,6 @@ func (m editModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		switch m.step {
-		case editStepSelectTransaction:
-			switch msg.String() {
-			case "up", "k":
-				if m.cursor > 0 {
-					m.cursor--
-				}
-			case "down", "j":
-				if m.cursor < len(m.transactions)-1 {
-					m.cursor++
-				}
-			case "enter":
-				if len(m.transactions) == 0 {
-					break
-				}
-				m.selected = m.transactions[m.cursor]
-				m.dateInput = m.selected.Date
-				m.amountInput = formatEditAmountInput(m.selected.AmountMinor)
-				m.categoryInput = m.selected.Category
-				m.accountInput = m.selected.Account
-				m.toAccountInput = m.selected.ToAccount
-				m.noteInput = m.selected.Note
-				m.errMessage = ""
-				m.step = editStepDate
-			}
 		case editStepDate:
 			switch msg.String() {
 			case "enter":
@@ -116,8 +91,7 @@ func (m editModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.errMessage = ""
 				m.step = editStepAmount
 			case "esc":
-				m.errMessage = ""
-				m.step = editStepSelectTransaction
+				return m, tea.Quit
 			case "backspace":
 				m.errMessage = ""
 				if len(m.dateInput) > 0 {
@@ -283,16 +257,6 @@ func (m editModel) View() string {
 	s := "Edit Transaction\n\n"
 
 	switch m.step {
-	case editStepSelectTransaction:
-		s += "Select transaction:\n\n"
-		for i, tx := range m.transactions {
-			line := "  " + formatEditableTransaction(tx)
-			if i == m.cursor {
-				line = editFocusStyle.Render("> " + formatEditableTransaction(tx))
-			}
-			s += line + "\n"
-		}
-		s += "\n" + editMutedStyle.Render("(use ↑/↓ and enter, q to quit)") + "\n"
 	case editStepDate:
 		s += renderEditField("Editing: ", m.selected.ID) + "\n"
 		s += renderEditField("Type: ", m.selected.Type) + "\n\n"
@@ -374,22 +338,16 @@ var editCmd = &cobra.Command{
 	Short: "Edit a transaction",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		transactionsPath, err := coininternal.FilePath(coininternal.TransactionsFileName)
+		selected, ok, err := selectTransactionInteractive("Edit Transaction")
 		if err != nil {
 			return err
 		}
-
-		transactionsFile, err := coininternal.LoadTransactions(transactionsPath)
-		if err != nil {
-			return err
-		}
-		if len(transactionsFile.Transactions) == 0 {
-			return fmt.Errorf("no transactions available")
+		if !ok {
+			fmt.Println("edit cancelled")
+			return nil
 		}
 
-		sortEditableTransactions(transactionsFile.Transactions)
-
-		p := tea.NewProgram(newEditModel(transactionsFile.Transactions))
+		p := tea.NewProgram(newEditModel(selected))
 		finalModel, err := p.Run()
 		if err != nil {
 			return err
@@ -448,12 +406,17 @@ func formatEditableTransaction(tx model.Transaction) string {
 		amount = "-" + amount
 	}
 
+	category := strings.TrimSpace(tx.Category)
+	if category == "" {
+		category = "(no category)"
+	}
+
 	details := tx.Account
 	if tx.Type == coininternal.TransactionTypeTransfer {
 		details = tx.Account + " -> " + tx.ToAccount
 	}
 
-	label := fmt.Sprintf("%s | %s %s | %s | %s | %s", tx.Date, amount, tx.Currency, tx.Type, details, tx.ID)
+	label := fmt.Sprintf("%s | %s %s | %s | %s | %s", tx.Date, amount, tx.Currency, tx.Type, category, details)
 	if strings.TrimSpace(tx.Note) != "" {
 		label += " | " + strings.TrimSpace(tx.Note)
 	}

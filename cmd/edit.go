@@ -7,7 +7,7 @@ import (
 	"time"
 
 	coininternal "github.com/amiraminb/coinwarrior/internal"
-	"github.com/amiraminb/coinwarrior/internal/model"
+	"github.com/amiraminb/coinwarrior/internal/domain"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/spf13/cobra"
@@ -29,7 +29,7 @@ const (
 type editModel struct {
 	step editStep
 
-	selected       model.Transaction
+	selected       domain.Transaction
 	dateInput      string
 	amountInput    string
 	categoryInput  string
@@ -50,7 +50,7 @@ var (
 	editCursorStyle = lipgloss.NewStyle().Background(lipgloss.Color("42")).Foreground(lipgloss.Color("0"))
 )
 
-func newEditModel(selected model.Transaction) editModel {
+func newEditModel(selected domain.Transaction) editModel {
 	return editModel{
 		step:           editStepDate,
 		selected:       selected,
@@ -391,7 +391,7 @@ func init() {
 	rootCmd.AddCommand(editCmd)
 }
 
-func sortEditableTransactions(transactions []model.Transaction) {
+func sortEditableTransactions(transactions []domain.Transaction) {
 	sort.Slice(transactions, func(i, j int) bool {
 		if transactions[i].Date == transactions[j].Date {
 			return transactions[i].CreatedAt > transactions[j].CreatedAt
@@ -400,7 +400,7 @@ func sortEditableTransactions(transactions []model.Transaction) {
 	})
 }
 
-func formatEditableTransaction(tx model.Transaction) string {
+func formatEditableTransaction(tx domain.Transaction) string {
 	amount := coininternal.FormatMinor(tx.AmountMinor)
 	if tx.Type == coininternal.TransactionTypeExpense {
 		amount = "-" + amount

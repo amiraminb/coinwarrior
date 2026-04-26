@@ -7,13 +7,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/amiraminb/coinwarrior/internal/model"
+	"github.com/amiraminb/coinwarrior/internal/domain"
 )
 
 func TestEditTransactionUpdatesExpenseBalance(t *testing.T) {
 	setupTransactionTestData(t,
-		[]model.Account{{Name: "Checking", Currency: "CAD", BalanceMinor: 90000, UpdatedAt: "2026-04-01T00:00:00Z"}},
-		[]model.Transaction{{
+		[]domain.Account{{Name: "Checking", Currency: "CAD", BalanceMinor: 90000, UpdatedAt: "2026-04-01T00:00:00Z"}},
+		[]domain.Transaction{{
 			ID:          "tx1",
 			Type:        TransactionTypeExpense,
 			AmountMinor: 10000,
@@ -53,12 +53,12 @@ func TestEditTransactionUpdatesExpenseBalance(t *testing.T) {
 
 func TestEditTransactionUpdatesTransferBalances(t *testing.T) {
 	setupTransactionTestData(t,
-		[]model.Account{
+		[]domain.Account{
 			{Name: "Checking", Currency: "CAD", BalanceMinor: 90000, UpdatedAt: "2026-04-01T00:00:00Z"},
 			{Name: "Travel", Currency: "CAD", BalanceMinor: 110000, UpdatedAt: "2026-04-01T00:00:00Z"},
 			{Name: "Savings", Currency: "CAD", BalanceMinor: 50000, UpdatedAt: "2026-04-01T00:00:00Z"},
 		},
-		[]model.Transaction{{
+		[]domain.Transaction{{
 			ID:          "tx-transfer",
 			Type:        TransactionTypeTransfer,
 			AmountMinor: 10000,
@@ -103,8 +103,8 @@ func TestEditTransactionUpdatesTransferBalances(t *testing.T) {
 
 func TestEditTransactionMetadataDoesNotChangeBalance(t *testing.T) {
 	setupTransactionTestData(t,
-		[]model.Account{{Name: "Checking", Currency: "CAD", BalanceMinor: 120000, UpdatedAt: "2026-04-01T00:00:00Z"}},
-		[]model.Transaction{{
+		[]domain.Account{{Name: "Checking", Currency: "CAD", BalanceMinor: 120000, UpdatedAt: "2026-04-01T00:00:00Z"}},
+		[]domain.Transaction{{
 			ID:          "tx2",
 			Type:        TransactionTypeIncome,
 			AmountMinor: 20000,
@@ -140,11 +140,11 @@ func TestEditTransactionMetadataDoesNotChangeBalance(t *testing.T) {
 
 func TestEditTransactionRollbackOnInvalidAccountChange(t *testing.T) {
 	setupTransactionTestData(t,
-		[]model.Account{
+		[]domain.Account{
 			{Name: "Checking", Currency: "CAD", BalanceMinor: 90000, UpdatedAt: "2026-04-01T00:00:00Z"},
 			{Name: "USD Wallet", Currency: "USD", BalanceMinor: 50000, UpdatedAt: "2026-04-01T00:00:00Z"},
 		},
-		[]model.Transaction{{
+		[]domain.Transaction{{
 			ID:          "tx3",
 			Type:        TransactionTypeExpense,
 			AmountMinor: 10000,
@@ -180,8 +180,8 @@ func TestEditTransactionRollbackOnInvalidAccountChange(t *testing.T) {
 
 func TestDeleteTransactionReversesExpenseBalance(t *testing.T) {
 	setupTransactionTestData(t,
-		[]model.Account{{Name: "Checking", Currency: "CAD", BalanceMinor: 90000, UpdatedAt: "2026-04-01T00:00:00Z"}},
-		[]model.Transaction{{
+		[]domain.Account{{Name: "Checking", Currency: "CAD", BalanceMinor: 90000, UpdatedAt: "2026-04-01T00:00:00Z"}},
+		[]domain.Transaction{{
 			ID:          "tx-delete-expense",
 			Type:        TransactionTypeExpense,
 			AmountMinor: 10000,
@@ -215,8 +215,8 @@ func TestDeleteTransactionReversesExpenseBalance(t *testing.T) {
 
 func TestDeleteTransactionReversesIncomeBalance(t *testing.T) {
 	setupTransactionTestData(t,
-		[]model.Account{{Name: "Checking", Currency: "CAD", BalanceMinor: 120000, UpdatedAt: "2026-04-01T00:00:00Z"}},
-		[]model.Transaction{{
+		[]domain.Account{{Name: "Checking", Currency: "CAD", BalanceMinor: 120000, UpdatedAt: "2026-04-01T00:00:00Z"}},
+		[]domain.Transaction{{
 			ID:          "tx-delete-income",
 			Type:        TransactionTypeIncome,
 			AmountMinor: 20000,
@@ -247,11 +247,11 @@ func TestDeleteTransactionReversesIncomeBalance(t *testing.T) {
 
 func TestDeleteTransactionReversesTransferBalances(t *testing.T) {
 	setupTransactionTestData(t,
-		[]model.Account{
+		[]domain.Account{
 			{Name: "Checking", Currency: "CAD", BalanceMinor: 90000, UpdatedAt: "2026-04-01T00:00:00Z"},
 			{Name: "Travel", Currency: "CAD", BalanceMinor: 110000, UpdatedAt: "2026-04-01T00:00:00Z"},
 		},
-		[]model.Transaction{{
+		[]domain.Transaction{{
 			ID:          "tx-delete-transfer",
 			Type:        TransactionTypeTransfer,
 			AmountMinor: 10000,
@@ -286,8 +286,8 @@ func TestDeleteTransactionReversesTransferBalances(t *testing.T) {
 
 func TestDeleteTransactionLeavesFilesUnchangedOnReverseFailure(t *testing.T) {
 	setupTransactionTestData(t,
-		[]model.Account{{Name: "Savings", Currency: "CAD", BalanceMinor: 50000, UpdatedAt: "2026-04-01T00:00:00Z"}},
-		[]model.Transaction{{
+		[]domain.Account{{Name: "Savings", Currency: "CAD", BalanceMinor: 50000, UpdatedAt: "2026-04-01T00:00:00Z"}},
+		[]domain.Transaction{{
 			ID:          "tx-delete-fail",
 			Type:        TransactionTypeExpense,
 			AmountMinor: 10000,
@@ -322,7 +322,7 @@ func TestDeleteTransactionLeavesFilesUnchangedOnReverseFailure(t *testing.T) {
 	}
 }
 
-func setupTransactionTestData(t *testing.T, accounts []model.Account, transactions []model.Transaction) {
+func setupTransactionTestData(t *testing.T, accounts []domain.Account, transactions []domain.Transaction) {
 	t.Helper()
 
 	home := t.TempDir()
@@ -333,15 +333,15 @@ func setupTransactionTestData(t *testing.T, accounts []model.Account, transactio
 		t.Fatalf("MkdirAll returned error: %v", err)
 	}
 
-	if err := SaveAccountsFile(filepath.Join(dataDir, AccountsFileName), model.AccountsFile{SchemaVersion: 1, Accounts: accounts}); err != nil {
+	if err := SaveAccountsFile(filepath.Join(dataDir, AccountsFileName), domain.AccountsFile{SchemaVersion: 1, Accounts: accounts}); err != nil {
 		t.Fatalf("SaveAccountsFile returned error: %v", err)
 	}
-	if err := SaveTransactions(filepath.Join(dataDir, TransactionsFileName), model.TransactionsFile{SchemaVersion: 1, Transactions: transactions}); err != nil {
+	if err := SaveTransactions(filepath.Join(dataDir, TransactionsFileName), domain.TransactionsFile{SchemaVersion: 1, Transactions: transactions}); err != nil {
 		t.Fatalf("SaveTransactions returned error: %v", err)
 	}
 }
 
-func loadTransactionTestState(t *testing.T) (model.AccountsFile, model.TransactionsFile) {
+func loadTransactionTestState(t *testing.T) (domain.AccountsFile, domain.TransactionsFile) {
 	t.Helper()
 
 	accountsPath, err := FilePath(AccountsFileName)
@@ -365,7 +365,7 @@ func loadTransactionTestState(t *testing.T) (model.AccountsFile, model.Transacti
 	return accountsFile, transactionsFile
 }
 
-func accountBalance(t *testing.T, accounts []model.Account, name string) int64 {
+func accountBalance(t *testing.T, accounts []domain.Account, name string) int64 {
 	t.Helper()
 
 	for _, account := range accounts {

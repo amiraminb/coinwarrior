@@ -8,7 +8,7 @@ import (
 	"time"
 
 	coininternal "github.com/amiraminb/coinwarrior/internal"
-	"github.com/amiraminb/coinwarrior/internal/model"
+	"github.com/amiraminb/coinwarrior/internal/domain"
 	"github.com/charmbracelet/bubbles/table"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/spf13/cobra"
@@ -86,14 +86,14 @@ func runAccountReport() error {
 	return nil
 }
 
-func printAccountBalancesReport(accounts []model.Account) {
+func printAccountBalancesReport(accounts []domain.Account) {
 	fmt.Println(reportSubSectionStyle.Render("Account Balances"))
 	if len(accounts) == 0 {
 		fmt.Println("  no accounts")
 		return
 	}
 
-	items := make([]model.Account, len(accounts))
+	items := make([]domain.Account, len(accounts))
 	copy(items, accounts)
 	sort.Slice(items, func(i, j int) bool {
 		return items[i].Name < items[j].Name
@@ -114,7 +114,7 @@ func printAccountBalancesReport(accounts []model.Account) {
 	)
 }
 
-func printTotalBalancesReport(accounts []model.Account) {
+func printTotalBalancesReport(accounts []domain.Account) {
 	fmt.Println(reportSubSectionStyle.Render("Total Balances"))
 	if len(accounts) == 0 {
 		fmt.Println("  no balances")
@@ -146,14 +146,14 @@ func printTotalBalancesReport(accounts []model.Account) {
 	)
 }
 
-func printCategorySection(transactions []model.Transaction, start, end time.Time, showDetails bool, now time.Time) error {
+func printCategorySection(transactions []domain.Transaction, start, end time.Time, showDetails bool, now time.Time) error {
 	fmt.Println(reportSectionStyle.Render("Range Categories"))
 	fmt.Println()
 	if err := printMonthlyBudgetSection(start, end, now); err != nil {
 		return err
 	}
 
-	byCategory := make(map[string][]model.Transaction)
+	byCategory := make(map[string][]domain.Transaction)
 	for _, tx := range transactions {
 		if tx.Type == coininternal.TransactionTypeTransfer {
 			continue
@@ -354,7 +354,7 @@ func renderCompactCategoryDetails(categoryReports []categoryReport) {
 
 	detailRows := make([]table.Row, 0)
 	for _, report := range categoryReports {
-		items := make([]model.Transaction, len(report.items))
+		items := make([]domain.Transaction, len(report.items))
 		copy(items, report.items)
 
 		sort.Slice(items, func(i, j int) bool {
@@ -403,7 +403,7 @@ func renderSeparateCategoryDetails(categoryReports []categoryReport) {
 			fmt.Println()
 		}
 
-		items := make([]model.Transaction, len(report.items))
+		items := make([]domain.Transaction, len(report.items))
 		copy(items, report.items)
 
 		sort.Slice(items, func(i, j int) bool {
@@ -446,7 +446,7 @@ func renderSeparateCategoryDetails(categoryReports []categoryReport) {
 
 type categoryReport struct {
 	name              string
-	items             []model.Transaction
+	items             []domain.Transaction
 	totalsByCurrency  map[string]int64
 	expenseByCurrency map[string]int64
 	totalExpenseMinor int64

@@ -6,7 +6,7 @@ import (
 	"time"
 
 	coininternal "github.com/amiraminb/coinwarrior/internal"
-	"github.com/amiraminb/coinwarrior/internal/model"
+	"github.com/amiraminb/coinwarrior/internal/domain"
 	"github.com/charmbracelet/bubbles/table"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/spf13/cobra"
@@ -39,7 +39,7 @@ Supported ranges: today, yesterday, week, lastweek, month, lastmonth, year, last
 			return nil
 		}
 
-		items := make([]model.Transaction, len(transactions.Transactions))
+		items := make([]domain.Transaction, len(transactions.Transactions))
 		copy(items, transactions.Transactions)
 
 		if len(args) == 1 {
@@ -48,7 +48,7 @@ Supported ranges: today, yesterday, week, lastweek, month, lastmonth, year, last
 				return err
 			}
 
-			filtered := make([]model.Transaction, 0, len(items))
+			filtered := make([]domain.Transaction, 0, len(items))
 			for _, tx := range items {
 				inRange, err := coininternal.TransactionInRange(tx.Date, start, end)
 				if err != nil {

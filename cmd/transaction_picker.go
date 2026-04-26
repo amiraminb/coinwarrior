@@ -6,7 +6,7 @@ import (
 	"time"
 
 	coininternal "github.com/amiraminb/coinwarrior/internal"
-	"github.com/amiraminb/coinwarrior/internal/model"
+	"github.com/amiraminb/coinwarrior/internal/domain"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -46,9 +46,9 @@ type transactionIDPromptModel struct {
 
 type transactionListModel struct {
 	title        string
-	transactions []model.Transaction
+	transactions []domain.Transaction
 	cursor       int
-	selected     model.Transaction
+	selected     domain.Transaction
 }
 
 func newTransactionLookupMenuModel(title string) transactionLookupMenuModel {
@@ -73,8 +73,8 @@ func newTransactionIDPromptModel(title string) transactionIDPromptModel {
 	return transactionIDPromptModel{title: title}
 }
 
-func newTransactionListModel(title string, transactions []model.Transaction) transactionListModel {
-	items := make([]model.Transaction, len(transactions))
+func newTransactionListModel(title string, transactions []domain.Transaction) transactionListModel {
+	items := make([]domain.Transaction, len(transactions))
 	copy(items, transactions)
 	return transactionListModel{title: title, transactions: items}
 }
@@ -246,60 +246,60 @@ func (m transactionListModel) View() string {
 	return s
 }
 
-func selectTransactionInteractive(title string) (model.Transaction, bool, error) {
+func selectTransactionInteractive(title string) (domain.Transaction, bool, error) {
 	transactions, err := loadAllTransactionsForSelection()
 	if err != nil {
-		return model.Transaction{}, false, err
+		return domain.Transaction{}, false, err
 	}
 	if len(transactions) == 0 {
-		return model.Transaction{}, false, fmt.Errorf("no transactions available")
+		return domain.Transaction{}, false, fmt.Errorf("no transactions available")
 	}
 
 	action, ok, err := runTransactionLookupMenuInteractive(title)
 	if err != nil {
-		return model.Transaction{}, false, err
+		return domain.Transaction{}, false, err
 	}
 	if !ok || action == transactionLookupQuit {
-		return model.Transaction{}, false, nil
+		return domain.Transaction{}, false, nil
 	}
 
 	switch action {
 	case transactionLookupByMonth:
 		monthInput, ok, err := runTransactionMonthPromptInteractive(title)
 		if err != nil {
-			return model.Transaction{}, false, err
+			return domain.Transaction{}, false, err
 		}
 		if !ok {
-			return model.Transaction{}, false, nil
+			return domain.Transaction{}, false, nil
 		}
 
 		month, err := coininternal.ParseBudgetMonth(monthInput, time.Now())
 		if err != nil {
-			return model.Transaction{}, false, err
+			return domain.Transaction{}, false, err
 		}
 		filtered, err := filterTransactionsByMonth(transactions, month)
 		if err != nil {
-			return model.Transaction{}, false, err
+			return domain.Transaction{}, false, err
 		}
 		if len(filtered) == 0 {
-			return model.Transaction{}, false, fmt.Errorf("no transactions found for %s", coininternal.FormatBudgetMonth(month))
+			return domain.Transaction{}, false, fmt.Errorf("no transactions found for %s", coininternal.FormatBudgetMonth(month))
 		}
 
 		selected, ok, err := runTransactionListInteractive(title, filtered)
 		if err != nil {
-			return model.Transaction{}, false, err
+			return domain.Transaction{}, false, err
 		}
 		if !ok {
-			return model.Transaction{}, false, nil
+			return domain.Transaction{}, false, nil
 		}
 		return selected, true, nil
 	case transactionLookupByID:
 		id, ok, err := runTransactionIDPromptInteractive(title)
 		if err != nil {
-			return model.Transaction{}, false, err
+			return domain.Transaction{}, false, err
 		}
 		if !ok {
-			return model.Transaction{}, false, nil
+			return domain.Transaction{}, false, nil
 		}
 
 		for _, tx := range transactions {
@@ -307,9 +307,9 @@ func selectTransactionInteractive(title string) (model.Transaction, bool, error)
 				return tx, true, nil
 			}
 		}
-		return model.Transaction{}, false, fmt.Errorf("transaction '%s' not found", strings.TrimSpace(id))
+		return domain.Transaction{}, false, fmt.Errorf("transaction '%s' not found", strings.TrimSpace(id))
 	default:
-		return model.Transaction{}, false, nil
+		return domain.Transaction{}, false, nil
 	}
 }
 
@@ -355,21 +355,21 @@ func runTransactionIDPromptInteractive(title string) (string, bool, error) {
 	return strings.TrimSpace(result.input), true, nil
 }
 
-func runTransactionListInteractive(title string, transactions []model.Transaction) (model.Transaction, bool, error) {
+func runTransactionListInteractive(title string, transactions []domain.Transaction) (domain.Transaction, bool, error) {
 	p := tea.NewProgram(newTransactionListModel(title, transactions))
 	finalModel, err := p.Run()
 	if err != nil {
-		return model.Transaction{}, false, err
+		return domain.Transaction{}, false, err
 	}
 
 	result := finalModel.(transactionListModel)
 	if result.selected.ID == "" {
-		return model.Transaction{}, false, nil
+		return domain.Transaction{}, false, nil
 	}
 	return result.selected, true, nil
 }
 
-func loadAllTransactionsForSelection() ([]model.Transaction, error) {
+func loadAllTransactionsForSelection() ([]domain.Transaction, error) {
 	transactionsPath, err := coininternal.FilePath(coininternal.TransactionsFileName)
 	if err != nil {
 		return nil, err
@@ -380,17 +380,17 @@ func loadAllTransactionsForSelection() ([]model.Transaction, error) {
 		return nil, err
 	}
 
-	items := make([]model.Transaction, len(transactionsFile.Transactions))
+	items := make([]domain.Transaction, len(transactionsFile.Transactions))
 	copy(items, transactionsFile.Transactions)
 	sortEditableTransactions(items)
 	return items, nil
 }
 
-func filterTransactionsByMonth(transactions []model.Transaction, month time.Time) ([]model.Transaction, error) {
+func filterTransactionsByMonth(transactions []domain.Transaction, month time.Time) ([]domain.Transaction, error) {
 	start := time.Date(month.Year(), month.Month(), 1, 0, 0, 0, 0, month.Location())
 	end := start.AddDate(0, 1, -1)
 
-	filtered := make([]model.Transaction, 0)
+	filtered := make([]domain.Transaction, 0)
 	for _, tx := range transactions {
 		inRange, err := coininternal.TransactionInRange(tx.Date, start, end)
 		if err != nil {

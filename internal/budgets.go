@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/amiraminb/coinwarrior/internal/model"
+	"github.com/amiraminb/coinwarrior/internal/domain"
 )
 
 const (
@@ -19,7 +19,7 @@ const (
 )
 
 type BudgetSummary struct {
-	Budget      model.Budget
+	Budget      domain.Budget
 	SpentMinor  int64
 	LeftMinor   int64
 	Status      string
@@ -28,34 +28,34 @@ type BudgetSummary struct {
 }
 
 type BudgetCarryoverCandidate struct {
-	SourceBudget model.Budget
+	SourceBudget domain.Budget
 	TargetMonth  string
 	LeftMinor    int64
 }
 
-func LoadBudgetsFile(path string) (model.BudgetsFile, error) {
+func LoadBudgetsFile(path string) (domain.BudgetsFile, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return model.BudgetsFile{SchemaVersion: 1, Budgets: []model.Budget{}}, nil
+			return domain.BudgetsFile{SchemaVersion: 1, Budgets: []domain.Budget{}}, nil
 		}
-		return model.BudgetsFile{}, err
+		return domain.BudgetsFile{}, err
 	}
 
-	var budgets model.BudgetsFile
+	var budgets domain.BudgetsFile
 	if err := json.Unmarshal(data, &budgets); err != nil {
-		return model.BudgetsFile{}, err
+		return domain.BudgetsFile{}, err
 	}
 	if budgets.Budgets == nil {
-		budgets.Budgets = []model.Budget{}
+		budgets.Budgets = []domain.Budget{}
 	}
 
 	return budgets, nil
 }
 
-func SaveBudgetsFile(path string, budgets model.BudgetsFile) error {
+func SaveBudgetsFile(path string, budgets domain.BudgetsFile) error {
 	if budgets.Budgets == nil {
-		budgets.Budgets = []model.Budget{}
+		budgets.Budgets = []domain.Budget{}
 	}
 
 	data, err := json.MarshalIndent(budgets, "", "  ")
@@ -72,55 +72,55 @@ func SaveBudgetsFile(path string, budgets model.BudgetsFile) error {
 	return os.Rename(tmpPath, path)
 }
 
-func SetMonthlyBudget(monthInput, currency, amountInput string) (model.Budget, error) {
+func SetMonthlyBudget(monthInput, currency, amountInput string) (domain.Budget, error) {
 	return setMonthlyBudgetWithNow(monthInput, currency, amountInput, nil, time.Now())
 }
 
-func SetMonthlyBudgetWithCarryover(monthInput, currency, amountInput string, carryover bool) (model.Budget, error) {
+func SetMonthlyBudgetWithCarryover(monthInput, currency, amountInput string, carryover bool) (domain.Budget, error) {
 	return setMonthlyBudgetWithNow(monthInput, currency, amountInput, &carryover, time.Now())
 }
 
-func setMonthlyBudgetWithNow(monthInput, currency, amountInput string, carryoverDecision *bool, now time.Time) (model.Budget, error) {
+func setMonthlyBudgetWithNow(monthInput, currency, amountInput string, carryoverDecision *bool, now time.Time) (domain.Budget, error) {
 	month, err := ParseBudgetMonth(monthInput, now)
 	if err != nil {
-		return model.Budget{}, err
+		return domain.Budget{}, err
 	}
 
 	cur := strings.ToUpper(strings.TrimSpace(currency))
 	if cur == "" {
-		return model.Budget{}, fmt.Errorf("currency is required")
+		return domain.Budget{}, fmt.Errorf("currency is required")
 	}
 
 	amountMinor, err := ParseAmount(amountInput)
 	if err != nil {
-		return model.Budget{}, err
+		return domain.Budget{}, err
 	}
 	if amountMinor <= 0 {
-		return model.Budget{}, fmt.Errorf("budget amount must be greater than zero")
+		return domain.Budget{}, fmt.Errorf("budget amount must be greater than zero")
 	}
 
 	path, err := FilePath(BudgetsFileName)
 	if err != nil {
-		return model.Budget{}, err
+		return domain.Budget{}, err
 	}
 
 	budgetsFile, err := LoadBudgetsFile(path)
 	if err != nil {
-		return model.Budget{}, err
+		return domain.Budget{}, err
 	}
 	transactionsPath, err := FilePath(TransactionsFileName)
 	if err != nil {
-		return model.Budget{}, err
+		return domain.Budget{}, err
 	}
 	transactionsFile, err := LoadTransactions(transactionsPath)
 	if err != nil {
-		return model.Budget{}, err
+		return domain.Budget{}, err
 	}
 
 	monthKey := FormatBudgetMonth(month)
 	carryover, sourceIndex, err := budgetCarryoverCandidate(budgetsFile.Budgets, transactionsFile.Transactions, month, cur, now)
 	if err != nil {
-		return model.Budget{}, err
+		return domain.Budget{}, err
 	}
 	nowUTC := now.UTC().Format(time.RFC3339)
 	targetIndex := -1
@@ -132,7 +132,7 @@ func setMonthlyBudgetWithNow(monthInput, currency, amountInput string, carryover
 	}
 
 	if targetIndex == -1 {
-		budgetsFile.Budgets = append(budgetsFile.Budgets, model.Budget{
+		budgetsFile.Budgets = append(budgetsFile.Budgets, domain.Budget{
 			Month:       monthKey,
 			Currency:    cur,
 			AmountMinor: amountMinor,
@@ -148,7 +148,7 @@ func setMonthlyBudgetWithNow(monthInput, currency, amountInput string, carryover
 	if carryover != nil && carryoverDecision != nil {
 		if *carryoverDecision {
 			if from := strings.TrimSpace(budgetsFile.Budgets[targetIndex].RolloverFromMonth); from != "" && from != carryover.SourceBudget.Month {
-				return model.Budget{}, fmt.Errorf("budget for %s %s already has rollover from %s", monthKey, cur, from)
+				return domain.Budget{}, fmt.Errorf("budget for %s %s already has rollover from %s", monthKey, cur, from)
 			}
 			budgetsFile.Budgets[targetIndex].RolloverMinor = carryover.LeftMinor
 			budgetsFile.Budgets[targetIndex].RolloverFromMonth = carryover.SourceBudget.Month
@@ -169,7 +169,7 @@ func setMonthlyBudgetWithNow(monthInput, currency, amountInput string, carryover
 	}
 
 	if err := SaveBudgetsFile(path, budgetsFile); err != nil {
-		return model.Budget{}, err
+		return domain.Budget{}, err
 	}
 
 	return budgetsFile.Budgets[targetIndex], nil
@@ -303,33 +303,33 @@ func GetPendingBudgetRollovers(targetMonthInput string, now time.Time) ([]Budget
 	return summaries, nil
 }
 
-func ApplyMonthlyBudgetRollover(monthInput, currency string, carry bool, now time.Time) (model.Budget, *model.Budget, error) {
+func ApplyMonthlyBudgetRollover(monthInput, currency string, carry bool, now time.Time) (domain.Budget, *domain.Budget, error) {
 	month, err := ParseBudgetMonth(monthInput, now)
 	if err != nil {
-		return model.Budget{}, nil, err
+		return domain.Budget{}, nil, err
 	}
 	monthKey := FormatBudgetMonth(month)
 	cur := strings.ToUpper(strings.TrimSpace(currency))
 	if cur == "" {
-		return model.Budget{}, nil, fmt.Errorf("currency is required")
+		return domain.Budget{}, nil, fmt.Errorf("currency is required")
 	}
 
 	budgetsPath, err := FilePath(BudgetsFileName)
 	if err != nil {
-		return model.Budget{}, nil, err
+		return domain.Budget{}, nil, err
 	}
 	transactionsPath, err := FilePath(TransactionsFileName)
 	if err != nil {
-		return model.Budget{}, nil, err
+		return domain.Budget{}, nil, err
 	}
 
 	budgetsFile, err := LoadBudgetsFile(budgetsPath)
 	if err != nil {
-		return model.Budget{}, nil, err
+		return domain.Budget{}, nil, err
 	}
 	transactionsFile, err := LoadTransactions(transactionsPath)
 	if err != nil {
-		return model.Budget{}, nil, err
+		return domain.Budget{}, nil, err
 	}
 
 	index := -1
@@ -340,20 +340,20 @@ func ApplyMonthlyBudgetRollover(monthInput, currency string, carry bool, now tim
 		}
 	}
 	if index == -1 {
-		return model.Budget{}, nil, fmt.Errorf("budget for %s %s not found", monthKey, cur)
+		return domain.Budget{}, nil, fmt.Errorf("budget for %s %s not found", monthKey, cur)
 	}
 
 	_, end := budgetMonthBounds(month)
 	if !end.Before(dateOnly(now)) {
-		return model.Budget{}, nil, fmt.Errorf("budget period %s is still open", monthKey)
+		return domain.Budget{}, nil, fmt.Errorf("budget period %s is still open", monthKey)
 	}
 	if strings.TrimSpace(budgetsFile.Budgets[index].RolloverStatus) != "" {
-		return model.Budget{}, nil, fmt.Errorf("budget for %s %s already has rollover decision '%s'", monthKey, cur, budgetsFile.Budgets[index].RolloverStatus)
+		return domain.Budget{}, nil, fmt.Errorf("budget for %s %s already has rollover decision '%s'", monthKey, cur, budgetsFile.Budgets[index].RolloverStatus)
 	}
 
 	left, err := budgetLeftForMonth(transactionsFile.Transactions, budgetsFile.Budgets[index], month)
 	if err != nil {
-		return model.Budget{}, nil, err
+		return domain.Budget{}, nil, err
 	}
 
 	nowUTC := now.UTC().Format(time.RFC3339)
@@ -364,7 +364,7 @@ func ApplyMonthlyBudgetRollover(monthInput, currency string, carry bool, now tim
 		budgetsFile.Budgets[index].RolledOverAt = nowUTC
 		budgetsFile.Budgets[index].UpdatedAt = nowUTC
 		if err := SaveBudgetsFile(budgetsPath, budgetsFile); err != nil {
-			return model.Budget{}, nil, err
+			return domain.Budget{}, nil, err
 		}
 		return budgetsFile.Budgets[index], nil, nil
 	}
@@ -380,7 +380,7 @@ func ApplyMonthlyBudgetRollover(monthInput, currency string, carry bool, now tim
 	}
 
 	if destIndex == -1 {
-		budgetsFile.Budgets = append(budgetsFile.Budgets, model.Budget{
+		budgetsFile.Budgets = append(budgetsFile.Budgets, domain.Budget{
 			Month:             nextMonthKey,
 			Currency:          cur,
 			AmountMinor:       0,
@@ -391,7 +391,7 @@ func ApplyMonthlyBudgetRollover(monthInput, currency string, carry bool, now tim
 		destIndex = len(budgetsFile.Budgets) - 1
 	} else {
 		if from := strings.TrimSpace(budgetsFile.Budgets[destIndex].RolloverFromMonth); from != "" && from != monthKey {
-			return model.Budget{}, nil, fmt.Errorf("budget for %s %s already has rollover from %s", nextMonthKey, cur, from)
+			return domain.Budget{}, nil, fmt.Errorf("budget for %s %s already has rollover from %s", nextMonthKey, cur, from)
 		}
 		budgetsFile.Budgets[destIndex].RolloverMinor = left
 		budgetsFile.Budgets[destIndex].RolloverFromMonth = monthKey
@@ -405,7 +405,7 @@ func ApplyMonthlyBudgetRollover(monthInput, currency string, carry bool, now tim
 	budgetsFile.Budgets[index].UpdatedAt = nowUTC
 
 	if err := SaveBudgetsFile(budgetsPath, budgetsFile); err != nil {
-		return model.Budget{}, nil, err
+		return domain.Budget{}, nil, err
 	}
 
 	source := budgetsFile.Budgets[index]
@@ -431,7 +431,7 @@ func FormatBudgetMonth(month time.Time) string {
 	return time.Date(month.Year(), month.Month(), 1, 0, 0, 0, 0, month.Location()).Format(budgetMonthLayout)
 }
 
-func summarizeBudgetsForMonth(budgets []model.Budget, transactions []model.Transaction, month time.Time, now time.Time) ([]BudgetSummary, error) {
+func summarizeBudgetsForMonth(budgets []domain.Budget, transactions []domain.Transaction, month time.Time, now time.Time) ([]BudgetSummary, error) {
 	start, end := budgetMonthBounds(month)
 	monthKey := FormatBudgetMonth(month)
 	summaries := make([]BudgetSummary, 0)
@@ -459,7 +459,7 @@ func summarizeBudgetsForMonth(budgets []model.Budget, transactions []model.Trans
 	return summaries, nil
 }
 
-func budgetLeftForMonth(transactions []model.Transaction, budget model.Budget, month time.Time) (int64, error) {
+func budgetLeftForMonth(transactions []domain.Transaction, budget domain.Budget, month time.Time) (int64, error) {
 	spent, err := expensesForBudgetMonth(transactions, budget, month)
 	if err != nil {
 		return 0, err
@@ -467,7 +467,7 @@ func budgetLeftForMonth(transactions []model.Transaction, budget model.Budget, m
 	return budget.AmountMinor + budget.RolloverMinor - spent, nil
 }
 
-func expensesForBudgetMonth(transactions []model.Transaction, budget model.Budget, month time.Time) (int64, error) {
+func expensesForBudgetMonth(transactions []domain.Transaction, budget domain.Budget, month time.Time) (int64, error) {
 	start, end := budgetMonthBounds(month)
 	spent := int64(0)
 	for _, tx := range transactions {
@@ -489,7 +489,7 @@ func expensesForBudgetMonth(transactions []model.Transaction, budget model.Budge
 	return spent, nil
 }
 
-func budgetSummaryStatus(budget model.Budget, periodEnd, now time.Time) string {
+func budgetSummaryStatus(budget domain.Budget, periodEnd, now time.Time) string {
 	if strings.TrimSpace(budget.RolloverStatus) != "" {
 		return budget.RolloverStatus
 	}
@@ -514,7 +514,7 @@ func sortBudgetSummaries(summaries []BudgetSummary) {
 	})
 }
 
-func budgetCarryoverCandidate(budgets []model.Budget, transactions []model.Transaction, targetMonth time.Time, currency string, now time.Time) (*BudgetCarryoverCandidate, int, error) {
+func budgetCarryoverCandidate(budgets []domain.Budget, transactions []domain.Transaction, targetMonth time.Time, currency string, now time.Time) (*BudgetCarryoverCandidate, int, error) {
 	previousMonth := targetMonth.AddDate(0, -1, 0)
 	previousMonthKey := FormatBudgetMonth(previousMonth)
 

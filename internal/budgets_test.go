@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/amiraminb/coinwarrior/internal/model"
+	"github.com/amiraminb/coinwarrior/internal/domain"
 )
 
 func TestSetMonthlyBudgetCreatesAndUpdates(t *testing.T) {
@@ -40,13 +40,13 @@ func TestGetMonthlyBudgetSummariesSeparatesCurrencies(t *testing.T) {
 	setupBudgetTestData(
 		t,
 		nil,
-		[]model.Transaction{
+		[]domain.Transaction{
 			{ID: "cad-exp", Type: TransactionTypeExpense, AmountMinor: 3000, Currency: "CAD", Date: "2026-04-05"},
 			{ID: "usd-exp", Type: TransactionTypeExpense, AmountMinor: 1000, Currency: "USD", Date: "2026-04-06"},
 			{ID: "cad-income", Type: TransactionTypeIncome, AmountMinor: 9000, Currency: "CAD", Date: "2026-04-02"},
 			{ID: "may-exp", Type: TransactionTypeExpense, AmountMinor: 500, Currency: "CAD", Date: "2026-05-01"},
 		},
-		[]model.Budget{
+		[]domain.Budget{
 			{Month: "2026-04", Currency: "CAD", AmountMinor: 10000, UpdatedAt: "2026-04-01T00:00:00Z"},
 			{Month: "2026-04", Currency: "USD", AmountMinor: 5000, UpdatedAt: "2026-04-01T00:00:00Z"},
 		},
@@ -72,8 +72,8 @@ func TestGetBudgetCarryoverCandidateReturnsPreviousMonthLeft(t *testing.T) {
 	setupBudgetTestData(
 		t,
 		nil,
-		[]model.Transaction{{ID: "apr-exp", Type: TransactionTypeExpense, AmountMinor: 2500, Currency: "CAD", Date: "2026-04-10"}},
-		[]model.Budget{{Month: "2026-04", Currency: "CAD", AmountMinor: 10000, UpdatedAt: "2026-04-01T00:00:00Z"}},
+		[]domain.Transaction{{ID: "apr-exp", Type: TransactionTypeExpense, AmountMinor: 2500, Currency: "CAD", Date: "2026-04-10"}},
+		[]domain.Budget{{Month: "2026-04", Currency: "CAD", AmountMinor: 10000, UpdatedAt: "2026-04-01T00:00:00Z"}},
 	)
 
 	now := time.Date(2026, 5, 2, 12, 0, 0, 0, time.UTC)
@@ -93,8 +93,8 @@ func TestSetMonthlyBudgetWithCarryoverCarriesPreviousLeft(t *testing.T) {
 	setupBudgetTestData(
 		t,
 		nil,
-		[]model.Transaction{{ID: "apr-exp", Type: TransactionTypeExpense, AmountMinor: 2500, Currency: "CAD", Date: "2026-04-10"}},
-		[]model.Budget{{Month: "2026-04", Currency: "CAD", AmountMinor: 10000, UpdatedAt: "2026-04-01T00:00:00Z"}},
+		[]domain.Transaction{{ID: "apr-exp", Type: TransactionTypeExpense, AmountMinor: 2500, Currency: "CAD", Date: "2026-04-10"}},
+		[]domain.Budget{{Month: "2026-04", Currency: "CAD", AmountMinor: 10000, UpdatedAt: "2026-04-01T00:00:00Z"}},
 	)
 
 	now := time.Date(2026, 5, 2, 12, 0, 0, 0, time.UTC)
@@ -120,8 +120,8 @@ func TestSetMonthlyBudgetWithCarryoverSkipMarksPreviousMonth(t *testing.T) {
 	setupBudgetTestData(
 		t,
 		nil,
-		[]model.Transaction{{ID: "apr-exp", Type: TransactionTypeExpense, AmountMinor: 2500, Currency: "CAD", Date: "2026-04-10"}},
-		[]model.Budget{{Month: "2026-04", Currency: "CAD", AmountMinor: 10000, UpdatedAt: "2026-04-01T00:00:00Z"}},
+		[]domain.Transaction{{ID: "apr-exp", Type: TransactionTypeExpense, AmountMinor: 2500, Currency: "CAD", Date: "2026-04-10"}},
+		[]domain.Budget{{Month: "2026-04", Currency: "CAD", AmountMinor: 10000, UpdatedAt: "2026-04-01T00:00:00Z"}},
 	)
 
 	now := time.Date(2026, 5, 2, 12, 0, 0, 0, time.UTC)
@@ -144,8 +144,8 @@ func TestApplyMonthlyBudgetRolloverCarriesSignedLeft(t *testing.T) {
 	setupBudgetTestData(
 		t,
 		nil,
-		[]model.Transaction{{ID: "apr-exp", Type: TransactionTypeExpense, AmountMinor: 13000, Currency: "CAD", Date: "2026-04-10"}},
-		[]model.Budget{{Month: "2026-04", Currency: "CAD", AmountMinor: 10000, UpdatedAt: "2026-04-01T00:00:00Z"}},
+		[]domain.Transaction{{ID: "apr-exp", Type: TransactionTypeExpense, AmountMinor: 13000, Currency: "CAD", Date: "2026-04-10"}},
+		[]domain.Budget{{Month: "2026-04", Currency: "CAD", AmountMinor: 10000, UpdatedAt: "2026-04-01T00:00:00Z"}},
 	)
 
 	now := time.Date(2026, 5, 2, 12, 0, 0, 0, time.UTC)
@@ -173,8 +173,8 @@ func TestApplyMonthlyBudgetRolloverSkipMarksBudget(t *testing.T) {
 	setupBudgetTestData(
 		t,
 		nil,
-		[]model.Transaction{{ID: "apr-exp", Type: TransactionTypeExpense, AmountMinor: 2500, Currency: "CAD", Date: "2026-04-10"}},
-		[]model.Budget{{Month: "2026-04", Currency: "CAD", AmountMinor: 10000, UpdatedAt: "2026-04-01T00:00:00Z"}},
+		[]domain.Transaction{{ID: "apr-exp", Type: TransactionTypeExpense, AmountMinor: 2500, Currency: "CAD", Date: "2026-04-10"}},
+		[]domain.Budget{{Month: "2026-04", Currency: "CAD", AmountMinor: 10000, UpdatedAt: "2026-04-01T00:00:00Z"}},
 	)
 
 	now := time.Date(2026, 5, 2, 12, 0, 0, 0, time.UTC)
@@ -198,7 +198,7 @@ func TestApplyMonthlyBudgetRolloverSkipMarksBudget(t *testing.T) {
 	}
 }
 
-func setupBudgetTestData(t *testing.T, accounts []model.Account, transactions []model.Transaction, budgets []model.Budget) {
+func setupBudgetTestData(t *testing.T, accounts []domain.Account, transactions []domain.Transaction, budgets []domain.Budget) {
 	t.Helper()
 
 	setupTransactionTestData(t, accounts, transactions)
@@ -207,12 +207,12 @@ func setupBudgetTestData(t *testing.T, accounts []model.Account, transactions []
 	if err != nil {
 		t.Fatalf("FilePath returned error: %v", err)
 	}
-	if err := SaveBudgetsFile(path, model.BudgetsFile{SchemaVersion: 1, Budgets: budgets}); err != nil {
+	if err := SaveBudgetsFile(path, domain.BudgetsFile{SchemaVersion: 1, Budgets: budgets}); err != nil {
 		t.Fatalf("SaveBudgetsFile returned error: %v", err)
 	}
 }
 
-func loadBudgetTestFile(t *testing.T) model.BudgetsFile {
+func loadBudgetTestFile(t *testing.T) domain.BudgetsFile {
 	t.Helper()
 
 	path, err := FilePath(BudgetsFileName)

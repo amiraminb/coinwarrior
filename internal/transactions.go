@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/amiraminb/coinwarrior/internal/model"
+	"github.com/amiraminb/coinwarrior/internal/domain"
 )
 
 type TransactionEdits struct {
@@ -81,29 +81,29 @@ func NewTransactionID(now time.Time) string {
 	return fmt.Sprintf("txn_%d", now.UnixNano())
 }
 
-func LoadTransactions(path string) (model.TransactionsFile, error) {
+func LoadTransactions(path string) (domain.TransactionsFile, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return model.TransactionsFile{SchemaVersion: 1, Transactions: []model.Transaction{}}, nil
+			return domain.TransactionsFile{SchemaVersion: 1, Transactions: []domain.Transaction{}}, nil
 		}
-		return model.TransactionsFile{}, err
+		return domain.TransactionsFile{}, err
 	}
 
-	var transactions model.TransactionsFile
+	var transactions domain.TransactionsFile
 	if err := json.Unmarshal(data, &transactions); err != nil {
-		return model.TransactionsFile{}, err
+		return domain.TransactionsFile{}, err
 	}
 	if transactions.Transactions == nil {
-		transactions.Transactions = []model.Transaction{}
+		transactions.Transactions = []domain.Transaction{}
 	}
 
 	return transactions, nil
 }
 
-func SaveTransactions(path string, file model.TransactionsFile) error {
+func SaveTransactions(path string, file domain.TransactionsFile) error {
 	if file.Transactions == nil {
-		file.Transactions = []model.Transaction{}
+		file.Transactions = []domain.Transaction{}
 	}
 
 	data, err := json.MarshalIndent(file, "", "  ")
@@ -120,22 +120,22 @@ func SaveTransactions(path string, file model.TransactionsFile) error {
 	return os.Rename(tmpPath, path)
 }
 
-func AddTransaction(txType, amountInput, currency, dateValue, category, account, toAccount, note string) (model.Transaction, error) {
+func AddTransaction(txType, amountInput, currency, dateValue, category, account, toAccount, note string) (domain.Transaction, error) {
 	amountMinor, err := ParseAmount(amountInput)
 	if err != nil {
-		return model.Transaction{}, err
+		return domain.Transaction{}, err
 	}
 	if amountMinor <= 0 {
-		return model.Transaction{}, fmt.Errorf("amount must be greater than zero")
+		return domain.Transaction{}, fmt.Errorf("amount must be greater than zero")
 	}
 
 	if txType != TransactionTypeExpense && txType != TransactionTypeIncome && txType != TransactionTypeTransfer {
-		return model.Transaction{}, fmt.Errorf("invalid transaction type: %s", txType)
+		return domain.Transaction{}, fmt.Errorf("invalid transaction type: %s", txType)
 	}
 
 	currency = strings.ToUpper(strings.TrimSpace(currency))
 	if currency == "" {
-		return model.Transaction{}, fmt.Errorf("currency is required")
+		return domain.Transaction{}, fmt.Errorf("currency is required")
 	}
 
 	dateValue = strings.TrimSpace(dateValue)
@@ -143,7 +143,7 @@ func AddTransaction(txType, amountInput, currency, dateValue, category, account,
 		dateValue = time.Now().Format("2006-01-02")
 	}
 	if _, err := time.Parse("2006-01-02", dateValue); err != nil {
-		return model.Transaction{}, fmt.Errorf("invalid date format: %s", dateValue)
+		return domain.Transaction{}, fmt.Errorf("invalid date format: %s", dateValue)
 	}
 
 	category = strings.TrimSpace(category)
@@ -155,23 +155,23 @@ func AddTransaction(txType, amountInput, currency, dateValue, category, account,
 		}
 	} else {
 		if account == "" {
-			return model.Transaction{}, fmt.Errorf("account is required")
+			return domain.Transaction{}, fmt.Errorf("account is required")
 		}
 	}
 
 	path, err := FilePath(TransactionsFileName)
 	if err != nil {
-		return model.Transaction{}, err
+		return domain.Transaction{}, err
 	}
 
 	file, err := LoadTransactions(path)
 	if err != nil {
-		return model.Transaction{}, err
+		return domain.Transaction{}, err
 	}
 
 	localNow := time.Now()
 	utcNow := localNow.UTC()
-	tx := model.Transaction{
+	tx := domain.Transaction{
 		ID:          NewTransactionID(utcNow),
 		Type:        txType,
 		AmountMinor: amountMinor,
@@ -188,7 +188,7 @@ func AddTransaction(txType, amountInput, currency, dateValue, category, account,
 
 	if txType == TransactionTypeTransfer {
 		if err := TransferBetweenAccounts(account, toAccount, currency, amountMinor); err != nil {
-			return model.Transaction{}, err
+			return domain.Transaction{}, err
 		}
 	} else {
 		delta := amountMinor
@@ -197,7 +197,7 @@ func AddTransaction(txType, amountInput, currency, dateValue, category, account,
 		}
 
 		if err := ApplyTransactionToAccount(account, currency, delta); err != nil {
-			return model.Transaction{}, err
+			return domain.Transaction{}, err
 		}
 	}
 
@@ -212,45 +212,45 @@ func AddTransaction(txType, amountInput, currency, dateValue, category, account,
 			}
 			_ = ApplyTransactionToAccount(account, currency, -delta)
 		}
-		return model.Transaction{}, err
+		return domain.Transaction{}, err
 	}
 
 	return tx, nil
 }
 
-func EditTransaction(id string, edits TransactionEdits) (model.Transaction, error) {
+func EditTransaction(id string, edits TransactionEdits) (domain.Transaction, error) {
 	return editTransactionWithNow(id, edits, time.Now())
 }
 
-func DeleteTransaction(id string) (model.Transaction, error) {
+func DeleteTransaction(id string) (domain.Transaction, error) {
 	return deleteTransactionWithNow(id, time.Now())
 }
 
-func editTransactionWithNow(id string, edits TransactionEdits, now time.Time) (model.Transaction, error) {
+func editTransactionWithNow(id string, edits TransactionEdits, now time.Time) (domain.Transaction, error) {
 	txID := strings.TrimSpace(id)
 	if txID == "" {
-		return model.Transaction{}, fmt.Errorf("transaction id is required")
+		return domain.Transaction{}, fmt.Errorf("transaction id is required")
 	}
 	if edits.empty() {
-		return model.Transaction{}, fmt.Errorf("no changes provided")
+		return domain.Transaction{}, fmt.Errorf("no changes provided")
 	}
 
 	transactionsPath, err := FilePath(TransactionsFileName)
 	if err != nil {
-		return model.Transaction{}, err
+		return domain.Transaction{}, err
 	}
 	accountsPath, err := FilePath(AccountsFileName)
 	if err != nil {
-		return model.Transaction{}, err
+		return domain.Transaction{}, err
 	}
 
 	transactionsFile, err := LoadTransactions(transactionsPath)
 	if err != nil {
-		return model.Transaction{}, err
+		return domain.Transaction{}, err
 	}
 	accountsFile, err := LoadAccountsFile(accountsPath)
 	if err != nil {
-		return model.Transaction{}, err
+		return domain.Transaction{}, err
 	}
 
 	index := -1
@@ -261,13 +261,13 @@ func editTransactionWithNow(id string, edits TransactionEdits, now time.Time) (m
 		}
 	}
 	if index == -1 {
-		return model.Transaction{}, fmt.Errorf("transaction '%s' not found", txID)
+		return domain.Transaction{}, fmt.Errorf("transaction '%s' not found", txID)
 	}
 
 	original := transactionsFile.Transactions[index]
 	updated, changed, err := applyTransactionEdits(original, edits, now)
 	if err != nil {
-		return model.Transaction{}, err
+		return domain.Transaction{}, err
 	}
 	if !changed {
 		return original, nil
@@ -277,51 +277,51 @@ func editTransactionWithNow(id string, edits TransactionEdits, now time.Time) (m
 	nowUTC := now.UTC().Format(time.RFC3339)
 
 	if err := applyTransactionEffectToAccounts(&accountsFile, original, nowUTC, true); err != nil {
-		return model.Transaction{}, err
+		return domain.Transaction{}, err
 	}
 	if err := applyTransactionEffectToAccounts(&accountsFile, updated, nowUTC, false); err != nil {
 		if rollbackErr := applyTransactionEffectToAccounts(&accountsFile, original, nowUTC, false); rollbackErr != nil {
-			return model.Transaction{}, fmt.Errorf("%w; rollback failed: %v", err, rollbackErr)
+			return domain.Transaction{}, fmt.Errorf("%w; rollback failed: %v", err, rollbackErr)
 		}
-		return model.Transaction{}, err
+		return domain.Transaction{}, err
 	}
 
 	transactionsFile.Transactions[index] = updated
 	if err := SaveAccountsFile(accountsPath, accountsFile); err != nil {
-		return model.Transaction{}, err
+		return domain.Transaction{}, err
 	}
 	if err := SaveTransactions(transactionsPath, transactionsFile); err != nil {
 		if rollbackErr := SaveAccountsFile(accountsPath, originalAccounts); rollbackErr != nil {
-			return model.Transaction{}, fmt.Errorf("save transactions: %w; rollback accounts: %v", err, rollbackErr)
+			return domain.Transaction{}, fmt.Errorf("save transactions: %w; rollback accounts: %v", err, rollbackErr)
 		}
-		return model.Transaction{}, err
+		return domain.Transaction{}, err
 	}
 
 	return updated, nil
 }
 
-func deleteTransactionWithNow(id string, now time.Time) (model.Transaction, error) {
+func deleteTransactionWithNow(id string, now time.Time) (domain.Transaction, error) {
 	txID := strings.TrimSpace(id)
 	if txID == "" {
-		return model.Transaction{}, fmt.Errorf("transaction id is required")
+		return domain.Transaction{}, fmt.Errorf("transaction id is required")
 	}
 
 	transactionsPath, err := FilePath(TransactionsFileName)
 	if err != nil {
-		return model.Transaction{}, err
+		return domain.Transaction{}, err
 	}
 	accountsPath, err := FilePath(AccountsFileName)
 	if err != nil {
-		return model.Transaction{}, err
+		return domain.Transaction{}, err
 	}
 
 	transactionsFile, err := LoadTransactions(transactionsPath)
 	if err != nil {
-		return model.Transaction{}, err
+		return domain.Transaction{}, err
 	}
 	accountsFile, err := LoadAccountsFile(accountsPath)
 	if err != nil {
-		return model.Transaction{}, err
+		return domain.Transaction{}, err
 	}
 
 	index := -1
@@ -332,7 +332,7 @@ func deleteTransactionWithNow(id string, now time.Time) (model.Transaction, erro
 		}
 	}
 	if index == -1 {
-		return model.Transaction{}, fmt.Errorf("transaction '%s' not found", txID)
+		return domain.Transaction{}, fmt.Errorf("transaction '%s' not found", txID)
 	}
 
 	deleted := transactionsFile.Transactions[index]
@@ -340,24 +340,24 @@ func deleteTransactionWithNow(id string, now time.Time) (model.Transaction, erro
 	nowUTC := now.UTC().Format(time.RFC3339)
 
 	if err := applyTransactionEffectToAccounts(&accountsFile, deleted, nowUTC, true); err != nil {
-		return model.Transaction{}, err
+		return domain.Transaction{}, err
 	}
 
 	transactionsFile.Transactions = append(transactionsFile.Transactions[:index], transactionsFile.Transactions[index+1:]...)
 	if err := SaveAccountsFile(accountsPath, accountsFile); err != nil {
-		return model.Transaction{}, err
+		return domain.Transaction{}, err
 	}
 	if err := SaveTransactions(transactionsPath, transactionsFile); err != nil {
 		if rollbackErr := SaveAccountsFile(accountsPath, originalAccounts); rollbackErr != nil {
-			return model.Transaction{}, fmt.Errorf("save transactions: %w; rollback accounts: %v", err, rollbackErr)
+			return domain.Transaction{}, fmt.Errorf("save transactions: %w; rollback accounts: %v", err, rollbackErr)
 		}
-		return model.Transaction{}, err
+		return domain.Transaction{}, err
 	}
 
 	return deleted, nil
 }
 
-func applyTransactionEdits(tx model.Transaction, edits TransactionEdits, now time.Time) (model.Transaction, bool, error) {
+func applyTransactionEdits(tx domain.Transaction, edits TransactionEdits, now time.Time) (domain.Transaction, bool, error) {
 	updated := tx
 
 	if edits.Date != nil {
@@ -366,10 +366,10 @@ func applyTransactionEdits(tx model.Transaction, edits TransactionEdits, now tim
 	if edits.Amount != nil {
 		amountMinor, err := ParseAmount(*edits.Amount)
 		if err != nil {
-			return model.Transaction{}, false, err
+			return domain.Transaction{}, false, err
 		}
 		if amountMinor <= 0 {
-			return model.Transaction{}, false, fmt.Errorf("amount must be greater than zero")
+			return domain.Transaction{}, false, fmt.Errorf("amount must be greater than zero")
 		}
 		updated.AmountMinor = amountMinor
 	}
@@ -388,20 +388,20 @@ func applyTransactionEdits(tx model.Transaction, edits TransactionEdits, now tim
 
 	updated.Type = strings.TrimSpace(updated.Type)
 	if updated.Type != TransactionTypeExpense && updated.Type != TransactionTypeIncome && updated.Type != TransactionTypeTransfer {
-		return model.Transaction{}, false, fmt.Errorf("invalid transaction type: %s", updated.Type)
+		return domain.Transaction{}, false, fmt.Errorf("invalid transaction type: %s", updated.Type)
 	}
 
 	updated.Currency = strings.ToUpper(strings.TrimSpace(updated.Currency))
 	if updated.Currency == "" {
-		return model.Transaction{}, false, fmt.Errorf("currency is required")
+		return domain.Transaction{}, false, fmt.Errorf("currency is required")
 	}
 
 	updated.Date = strings.TrimSpace(updated.Date)
 	if updated.Date == "" {
-		return model.Transaction{}, false, fmt.Errorf("date is required")
+		return domain.Transaction{}, false, fmt.Errorf("date is required")
 	}
 	if _, err := time.Parse("2006-01-02", updated.Date); err != nil {
-		return model.Transaction{}, false, fmt.Errorf("invalid date format: %s", updated.Date)
+		return domain.Transaction{}, false, fmt.Errorf("invalid date format: %s", updated.Date)
 	}
 
 	updated.Category = strings.TrimSpace(updated.Category)
@@ -414,17 +414,17 @@ func applyTransactionEdits(tx model.Transaction, edits TransactionEdits, now tim
 			updated.Category = "Transfer"
 		}
 		if updated.Account == "" || updated.ToAccount == "" {
-			return model.Transaction{}, false, fmt.Errorf("both source and destination accounts are required")
+			return domain.Transaction{}, false, fmt.Errorf("both source and destination accounts are required")
 		}
 		if strings.EqualFold(updated.Account, updated.ToAccount) {
-			return model.Transaction{}, false, fmt.Errorf("source and destination accounts must be different")
+			return domain.Transaction{}, false, fmt.Errorf("source and destination accounts must be different")
 		}
 	} else {
 		if updated.Account == "" {
-			return model.Transaction{}, false, fmt.Errorf("account is required")
+			return domain.Transaction{}, false, fmt.Errorf("account is required")
 		}
 		if edits.ToAccount != nil && strings.TrimSpace(*edits.ToAccount) != "" {
-			return model.Transaction{}, false, fmt.Errorf("to-account can only be edited for transfer transactions")
+			return domain.Transaction{}, false, fmt.Errorf("to-account can only be edited for transfer transactions")
 		}
 		updated.ToAccount = ""
 	}
@@ -443,7 +443,7 @@ func applyTransactionEdits(tx model.Transaction, edits TransactionEdits, now tim
 	return updated, true, nil
 }
 
-func applyTransactionEffectToAccounts(accountsFile *model.AccountsFile, tx model.Transaction, now string, reverse bool) error {
+func applyTransactionEffectToAccounts(accountsFile *domain.AccountsFile, tx domain.Transaction, now string, reverse bool) error {
 	switch tx.Type {
 	case TransactionTypeTransfer:
 		from := tx.Account
@@ -466,10 +466,10 @@ func applyTransactionEffectToAccounts(accountsFile *model.AccountsFile, tx model
 	}
 }
 
-func cloneAccountsFile(file model.AccountsFile) model.AccountsFile {
-	cloned := model.AccountsFile{
+func cloneAccountsFile(file domain.AccountsFile) domain.AccountsFile {
+	cloned := domain.AccountsFile{
 		SchemaVersion: file.SchemaVersion,
-		Accounts:      make([]model.Account, len(file.Accounts)),
+		Accounts:      make([]domain.Account, len(file.Accounts)),
 	}
 	copy(cloned.Accounts, file.Accounts)
 	return cloned

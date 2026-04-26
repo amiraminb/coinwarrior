@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/amiraminb/coinwarrior/internal/model"
+	"github.com/amiraminb/coinwarrior/internal/domain"
 )
 
 func LoadAccounts() ([]string, error) {
@@ -38,29 +38,29 @@ func AccountExists(accounts []string, account string) bool {
 	return false
 }
 
-func LoadAccountsFile(path string) (model.AccountsFile, error) {
+func LoadAccountsFile(path string) (domain.AccountsFile, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return model.AccountsFile{SchemaVersion: 1, Accounts: []model.Account{}}, nil
+			return domain.AccountsFile{SchemaVersion: 1, Accounts: []domain.Account{}}, nil
 		}
-		return model.AccountsFile{}, err
+		return domain.AccountsFile{}, err
 	}
 
-	var accounts model.AccountsFile
+	var accounts domain.AccountsFile
 	if err := json.Unmarshal(data, &accounts); err != nil {
-		return model.AccountsFile{}, err
+		return domain.AccountsFile{}, err
 	}
 	if accounts.Accounts == nil {
-		accounts.Accounts = []model.Account{}
+		accounts.Accounts = []domain.Account{}
 	}
 
 	return accounts, nil
 }
 
-func SaveAccountsFile(path string, accounts model.AccountsFile) error {
+func SaveAccountsFile(path string, accounts domain.AccountsFile) error {
 	if accounts.Accounts == nil {
-		accounts.Accounts = []model.Account{}
+		accounts.Accounts = []domain.Account{}
 	}
 
 	data, err := json.MarshalIndent(accounts, "", "  ")
@@ -138,38 +138,38 @@ func TransferBetweenAccounts(fromAccount, toAccount, currency string, amountMino
 	return SaveAccountsFile(path, accountsFile)
 }
 
-func AddAccount(name, currency, openingBalanceInput string) (model.Account, error) {
+func AddAccount(name, currency, openingBalanceInput string) (domain.Account, error) {
 	accountName := strings.TrimSpace(name)
 	cur := strings.ToUpper(strings.TrimSpace(currency))
 	if accountName == "" {
-		return model.Account{}, fmt.Errorf("account name is required")
+		return domain.Account{}, fmt.Errorf("account name is required")
 	}
 	if cur == "" {
-		return model.Account{}, fmt.Errorf("currency is required")
+		return domain.Account{}, fmt.Errorf("currency is required")
 	}
 
 	balanceMinor, err := ParseAmount(openingBalanceInput)
 	if err != nil {
-		return model.Account{}, err
+		return domain.Account{}, err
 	}
 
 	path, err := FilePath(AccountsFileName)
 	if err != nil {
-		return model.Account{}, err
+		return domain.Account{}, err
 	}
 
 	accountsFile, err := LoadAccountsFile(path)
 	if err != nil {
-		return model.Account{}, err
+		return domain.Account{}, err
 	}
 
 	for _, existing := range accountsFile.Accounts {
 		if strings.EqualFold(existing.Name, accountName) {
-			return model.Account{}, fmt.Errorf("account '%s' already exists", existing.Name)
+			return domain.Account{}, fmt.Errorf("account '%s' already exists", existing.Name)
 		}
 	}
 
-	account := model.Account{
+	account := domain.Account{
 		Name:         accountName,
 		Currency:     cur,
 		BalanceMinor: balanceMinor,
@@ -178,31 +178,31 @@ func AddAccount(name, currency, openingBalanceInput string) (model.Account, erro
 
 	accountsFile.Accounts = append(accountsFile.Accounts, account)
 	if err := SaveAccountsFile(path, accountsFile); err != nil {
-		return model.Account{}, err
+		return domain.Account{}, err
 	}
 
 	return account, nil
 }
 
-func UpdateAccountBalance(name, amountInput string) (model.Account, error) {
+func UpdateAccountBalance(name, amountInput string) (domain.Account, error) {
 	accountName := strings.TrimSpace(name)
 	if accountName == "" {
-		return model.Account{}, fmt.Errorf("account name is required")
+		return domain.Account{}, fmt.Errorf("account name is required")
 	}
 
 	balanceMinor, err := ParseAmount(amountInput)
 	if err != nil {
-		return model.Account{}, err
+		return domain.Account{}, err
 	}
 
 	path, err := FilePath(AccountsFileName)
 	if err != nil {
-		return model.Account{}, err
+		return domain.Account{}, err
 	}
 
 	accountsFile, err := LoadAccountsFile(path)
 	if err != nil {
-		return model.Account{}, err
+		return domain.Account{}, err
 	}
 
 	for i := range accountsFile.Accounts {
@@ -210,16 +210,16 @@ func UpdateAccountBalance(name, amountInput string) (model.Account, error) {
 			accountsFile.Accounts[i].BalanceMinor = balanceMinor
 			accountsFile.Accounts[i].UpdatedAt = time.Now().UTC().Format(time.RFC3339)
 			if err := SaveAccountsFile(path, accountsFile); err != nil {
-				return model.Account{}, err
+				return domain.Account{}, err
 			}
 			return accountsFile.Accounts[i], nil
 		}
 	}
 
-	return model.Account{}, fmt.Errorf("account '%s' not found", accountName)
+	return domain.Account{}, fmt.Errorf("account '%s' not found", accountName)
 }
 
-func applyAccountDeltaToFile(accountsFile *model.AccountsFile, accountName, currency string, deltaMinor int64, now string) error {
+func applyAccountDeltaToFile(accountsFile *domain.AccountsFile, accountName, currency string, deltaMinor int64, now string) error {
 	name := strings.TrimSpace(accountName)
 	cur := strings.ToUpper(strings.TrimSpace(currency))
 	if name == "" {
@@ -243,7 +243,7 @@ func applyAccountDeltaToFile(accountsFile *model.AccountsFile, accountName, curr
 	return fmt.Errorf("account '%s' not found", name)
 }
 
-func transferBetweenAccountsInFile(accountsFile *model.AccountsFile, fromAccount, toAccount, currency string, amountMinor int64, now string) error {
+func transferBetweenAccountsInFile(accountsFile *domain.AccountsFile, fromAccount, toAccount, currency string, amountMinor int64, now string) error {
 	from := strings.TrimSpace(fromAccount)
 	to := strings.TrimSpace(toAccount)
 	cur := strings.ToUpper(strings.TrimSpace(currency))

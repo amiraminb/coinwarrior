@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/amiraminb/coinwarrior/internal/model"
+	"github.com/amiraminb/coinwarrior/internal/domain"
 )
 
 var DefaultCategories = []string{
@@ -63,20 +63,20 @@ func AddCategory(category string) error {
 	return saveCategoriesFile(path, categoriesFile)
 }
 
-func loadCategoriesFile(path string) (model.CategoriesFile, error) {
+func loadCategoriesFile(path string) (domain.CategoriesFile, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			result := make([]string, len(DefaultCategories))
 			copy(result, DefaultCategories)
-			return model.CategoriesFile{SchemaVersion: 1, Categories: result}, nil
+			return domain.CategoriesFile{SchemaVersion: 1, Categories: result}, nil
 		}
-		return model.CategoriesFile{}, err
+		return domain.CategoriesFile{}, err
 	}
 
-	var categoriesFile model.CategoriesFile
+	var categoriesFile domain.CategoriesFile
 	if err := json.Unmarshal(data, &categoriesFile); err != nil {
-		return model.CategoriesFile{}, err
+		return domain.CategoriesFile{}, err
 	}
 
 	if categoriesFile.Categories == nil {
@@ -86,7 +86,7 @@ func loadCategoriesFile(path string) (model.CategoriesFile, error) {
 	return categoriesFile, nil
 }
 
-func saveCategoriesFile(path string, categoriesFile model.CategoriesFile) error {
+func saveCategoriesFile(path string, categoriesFile domain.CategoriesFile) error {
 	if categoriesFile.Categories == nil {
 		categoriesFile.Categories = []string{}
 	}

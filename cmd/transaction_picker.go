@@ -7,6 +7,7 @@ import (
 
 	coininternal "github.com/amiraminb/coinwarrior/internal"
 	"github.com/amiraminb/coinwarrior/internal/domain"
+	"github.com/amiraminb/coinwarrior/internal/repository"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -370,18 +371,13 @@ func runTransactionListInteractive(title string, transactions []domain.Transacti
 }
 
 func loadAllTransactionsForSelection() ([]domain.Transaction, error) {
-	transactionsPath, err := coininternal.FilePath(coininternal.TransactionsFileName)
+	transactions, err := repository.FRepository.LoadTransactions()
 	if err != nil {
 		return nil, err
 	}
 
-	transactionsFile, err := coininternal.LoadTransactions(transactionsPath)
-	if err != nil {
-		return nil, err
-	}
-
-	items := make([]domain.Transaction, len(transactionsFile.Transactions))
-	copy(items, transactionsFile.Transactions)
+	items := make([]domain.Transaction, len(transactions))
+	copy(items, transactions)
 	sortEditableTransactions(items)
 	return items, nil
 }

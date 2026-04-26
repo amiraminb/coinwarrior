@@ -9,6 +9,7 @@ import (
 
 	coininternal "github.com/amiraminb/coinwarrior/internal"
 	"github.com/amiraminb/coinwarrior/internal/domain"
+	"github.com/amiraminb/coinwarrior/internal/repository"
 	"github.com/charmbracelet/bubbles/table"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/spf13/cobra"
@@ -44,11 +45,7 @@ Use --details to show transactions separated by category.`,
 			return err
 		}
 
-		transactionsPath, err := coininternal.FilePath(coininternal.TransactionsFileName)
-		if err != nil {
-			return err
-		}
-		transactionsFile, err := coininternal.LoadTransactions(transactionsPath)
+		transactions, err := repository.FRepository.LoadTransactions()
 		if err != nil {
 			return err
 		}
@@ -56,7 +53,7 @@ Use --details to show transactions separated by category.`,
 		headerStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("250"))
 		fmt.Println(headerStyle.Render(fmt.Sprintf("report %s..%s", start.Format("2006-01-02"), end.Format("2006-01-02"))))
 		fmt.Println()
-		if err := printCategorySection(transactionsFile.Transactions, start, end, reportShowDetails, time.Now()); err != nil {
+		if err := printCategorySection(transactions, start, end, reportShowDetails, time.Now()); err != nil {
 			return err
 		}
 
@@ -65,12 +62,7 @@ Use --details to show transactions separated by category.`,
 }
 
 func runAccountReport() error {
-	accountsPath, err := coininternal.FilePath(coininternal.AccountsFileName)
-	if err != nil {
-		return err
-	}
-
-	accountsFile, err := coininternal.LoadAccountsFile(accountsPath)
+	accounts, err := repository.FRepository.LoadAccounts()
 	if err != nil {
 		return err
 	}
@@ -78,9 +70,9 @@ func runAccountReport() error {
 	headerStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("250"))
 	fmt.Println(headerStyle.Render("account report"))
 	fmt.Println()
-	printAccountBalancesReport(accountsFile.Accounts)
+	printAccountBalancesReport(accounts)
 	fmt.Println()
-	printTotalBalancesReport(accountsFile.Accounts)
+	printTotalBalancesReport(accounts)
 	fmt.Println()
 
 	return nil
@@ -351,7 +343,6 @@ func budgetMonthForRange(start, end time.Time) (string, bool) {
 }
 
 func renderCompactCategoryDetails(categoryReports []categoryReport) {
-
 	detailRows := make([]table.Row, 0)
 	for _, report := range categoryReports {
 		items := make([]domain.Transaction, len(report.items))

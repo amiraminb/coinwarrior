@@ -16,26 +16,11 @@ type Transaction struct {
 	Source      string   `json:"source"`
 }
 
-type TransactionsFile struct {
-	SchemaVersion int           `json:"schema_version"`
-	Transactions  []Transaction `json:"transactions"`
-}
-
 type Account struct {
 	Name         string `json:"name"`
 	Currency     string `json:"currency"`
 	BalanceMinor int64  `json:"balance_minor"`
 	UpdatedAt    string `json:"updated_at"`
-}
-
-type AccountsFile struct {
-	SchemaVersion int       `json:"schema_version"`
-	Accounts      []Account `json:"accounts"`
-}
-
-type CategoriesFile struct {
-	SchemaVersion int      `json:"schema_version"`
-	Categories    []string `json:"categories"`
 }
 
 type Budget struct {
@@ -49,9 +34,4 @@ type Budget struct {
 	RolledOverIntoMonth string `json:"rolled_over_into_month,omitempty"`
 	RolledOverAt        string `json:"rolled_over_at,omitempty"`
 	UpdatedAt           string `json:"updated_at"`
-}
-
-type BudgetsFile struct {
-	SchemaVersion int      `json:"schema_version"`
-	Budgets       []Budget `json:"budgets"`
 }

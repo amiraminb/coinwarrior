@@ -9,9 +9,12 @@ build:
 	mkdir -p $(BIN_DIR)
 	go build -o $(BIN_DIR)/$(APP) .
 
-dev:
+dep:
 	go mod tidy
 	go mod vendor
+
+test:
+	go test ./...
 
 clean:
 	rm -rf $(BIN_DIR)/$(APP)

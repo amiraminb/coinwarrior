@@ -7,6 +7,7 @@ import (
 
 	coininternal "github.com/amiraminb/coinwarrior/internal"
 	"github.com/amiraminb/coinwarrior/internal/domain"
+	"github.com/amiraminb/coinwarrior/internal/repository"
 	"github.com/charmbracelet/bubbles/table"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/spf13/cobra"
@@ -24,23 +25,18 @@ Supported ranges: today, yesterday, week, lastweek, month, lastmonth, year, last
   coinw list 2026-04-01..2026-04-30`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		path, err := coininternal.FilePath(coininternal.TransactionsFileName)
+		transactions, err := repository.FRepository.LoadTransactions()
 		if err != nil {
 			return err
 		}
 
-		transactions, err := coininternal.LoadTransactions(path)
-		if err != nil {
-			return err
-		}
-
-		if len(transactions.Transactions) == 0 {
+		if len(transactions) == 0 {
 			fmt.Println("no transactions")
 			return nil
 		}
 
-		items := make([]domain.Transaction, len(transactions.Transactions))
-		copy(items, transactions.Transactions)
+		items := make([]domain.Transaction, len(transactions))
+		copy(items, transactions)
 
 		if len(args) == 1 {
 			start, end, err := coininternal.ResolveDateRange(args[0], time.Now())

@@ -4,32 +4,20 @@ import (
 	"fmt"
 	"os"
 
-	coininternal "github.com/amiraminb/coinwarrior/internal"
+	"github.com/amiraminb/coinwarrior/internal/repository"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
 )
 
-func ensureFile(path string, content []byte) (bool, error) {
-	if _, err := os.Stat(path); err == nil {
-		return false, nil
-	} else if !os.IsNotExist(err) {
-		return false, err
-	}
-	if err := os.WriteFile(path, content, 0o644); err != nil {
-		return false, err
-	}
-	return true, nil
-}
-
-func createConfigFile(configPath string, content []byte) error {
-	created, err := ensureFile(configPath, content)
+func createConfigFile(repo *repository.FileRepository, name string, content []byte) error {
+	path, created, err := repo.CreateFile(name, content)
 	if err != nil {
 		return err
 	}
 	if created {
-		fmt.Printf("created %s\n", configPath)
+		fmt.Printf("created %s\n", path)
 	} else {
-		fmt.Printf("%s exists\n", configPath)
+		fmt.Printf("%s exists\n", path)
 	}
 
 	return nil
@@ -39,7 +27,8 @@ var initCmd = &cobra.Command{
 	Use:   "init",
 	Short: "Initialize coinwarrior data",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		dir, err := coininternal.DataDir()
+		repo := repository.NewFileRepository()
+		dir, err := repo.DataDir()
 		if err != nil {
 			return err
 		}
@@ -50,12 +39,7 @@ var initCmd = &cobra.Command{
 
 		fmt.Printf("data dir ready: %s\n", dir)
 
-		configPath, err := coininternal.FilePath(coininternal.ConfigFileName)
-		if err != nil {
-			return err
-		}
-
-		err = createConfigFile(configPath, []byte(`{
+		err = createConfigFile(repo, repository.ConfigFileName, []byte(`{
 		  "schema_version": 1,
 		  "default_currency": "CAD",
 		  "timezone": "Local",
@@ -66,12 +50,7 @@ var initCmd = &cobra.Command{
 			return err
 		}
 
-		transactionsPath, err := coininternal.FilePath(coininternal.TransactionsFileName)
-		if err != nil {
-			return err
-		}
-
-		err = createConfigFile(transactionsPath, []byte(`{
+		err = createConfigFile(repo, repository.TransactionsFileName, []byte(`{
 		  "schema_version": 1,
 		  "transactions": []
 		}
@@ -80,12 +59,7 @@ var initCmd = &cobra.Command{
 			return err
 		}
 
-		accountsPath, err := coininternal.FilePath(coininternal.AccountsFileName)
-		if err != nil {
-			return err
-		}
-
-		err = createConfigFile(accountsPath, []byte(`{
+		err = createConfigFile(repo, repository.AccountsFileName, []byte(`{
 		  "schema_version": 1,
 		  "accounts": []
 		}
@@ -94,16 +68,11 @@ var initCmd = &cobra.Command{
 			return err
 		}
 
-		if err := setupInitialAccounts(accountsPath); err != nil {
+		if err := setupInitialAccounts(repo); err != nil {
 			return err
 		}
 
-		categoriesPath, err := coininternal.FilePath(coininternal.CategoriesFileName)
-		if err != nil {
-			return err
-		}
-
-		err = createConfigFile(categoriesPath, []byte(`{
+		err = createConfigFile(repo, repository.CategoriesFileName, []byte(`{
 		  "schema_version": 1,
 		  "categories": [
 		    "Housing",
@@ -123,12 +92,7 @@ var initCmd = &cobra.Command{
 			return err
 		}
 
-		budgetsPath, err := coininternal.FilePath(coininternal.BudgetsFileName)
-		if err != nil {
-			return err
-		}
-
-		err = createConfigFile(budgetsPath, []byte(`{
+		err = createConfigFile(repo, repository.BudgetsFileName, []byte(`{
 		  "schema_version": 1,
 		  "budgets": []
 		}
@@ -137,12 +101,7 @@ var initCmd = &cobra.Command{
 			return err
 		}
 
-		recurringPath, err := coininternal.FilePath(coininternal.RecurringFileName)
-		if err != nil {
-			return err
-		}
-
-		err = createConfigFile(recurringPath, []byte(`{
+		err = createConfigFile(repo, repository.RecurringFileName, []byte(`{
 		  "schema_version": 1,
 		  "recurring_rules": []
 		}
@@ -159,12 +118,12 @@ func init() {
 	rootCmd.AddCommand(initCmd)
 }
 
-func setupInitialAccounts(accountsPath string) error {
-	accountsFile, err := coininternal.LoadAccountsFile(accountsPath)
+func setupInitialAccounts(repo repository.Repository) error {
+	accounts, err := repo.LoadAccounts()
 	if err != nil {
 		return err
 	}
-	if len(accountsFile.Accounts) > 0 {
+	if len(accounts) > 0 {
 		return nil
 	}
 

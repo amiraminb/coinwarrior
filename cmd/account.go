@@ -6,14 +6,17 @@ import (
 
 	coininternal "github.com/amiraminb/coinwarrior/internal"
 	"github.com/amiraminb/coinwarrior/internal/domain"
+	"github.com/amiraminb/coinwarrior/internal/repository"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/spf13/cobra"
 )
 
-type accountAddStep int
-type accountUpdateStep int
-type accountAction string
+type (
+	accountAddStep    int
+	accountUpdateStep int
+	accountAction     string
+)
 
 const (
 	accountActionAdd    accountAction = "add"
@@ -469,20 +472,15 @@ func runAccountAddInteractive() (bool, error) {
 }
 
 func runAccountUpdateInteractive() (bool, error) {
-	accountsPath, err := coininternal.FilePath(coininternal.AccountsFileName)
+	accounts, err := repository.FRepository.LoadAccounts()
 	if err != nil {
 		return false, err
 	}
-
-	accountsFile, err := coininternal.LoadAccountsFile(accountsPath)
-	if err != nil {
-		return false, err
-	}
-	if len(accountsFile.Accounts) == 0 {
+	if len(accounts) == 0 {
 		return false, fmt.Errorf("no accounts available; create one with 'coinw account'")
 	}
 
-	p := tea.NewProgram(newAccountUpdateModel(accountsFile.Accounts))
+	p := tea.NewProgram(newAccountUpdateModel(accounts))
 	finalModel, err := p.Run()
 	if err != nil {
 		return false, err

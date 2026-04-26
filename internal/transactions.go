@@ -1,14 +1,13 @@
 package internal
 
 import (
-	"encoding/json"
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/amiraminb/coinwarrior/internal/domain"
+	"github.com/amiraminb/coinwarrior/internal/repository"
 )
 
 type TransactionEdits struct {
@@ -81,45 +80,6 @@ func NewTransactionID(now time.Time) string {
 	return fmt.Sprintf("txn_%d", now.UnixNano())
 }
 
-func LoadTransactions(path string) (domain.TransactionsFile, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return domain.TransactionsFile{SchemaVersion: 1, Transactions: []domain.Transaction{}}, nil
-		}
-		return domain.TransactionsFile{}, err
-	}
-
-	var transactions domain.TransactionsFile
-	if err := json.Unmarshal(data, &transactions); err != nil {
-		return domain.TransactionsFile{}, err
-	}
-	if transactions.Transactions == nil {
-		transactions.Transactions = []domain.Transaction{}
-	}
-
-	return transactions, nil
-}
-
-func SaveTransactions(path string, file domain.TransactionsFile) error {
-	if file.Transactions == nil {
-		file.Transactions = []domain.Transaction{}
-	}
-
-	data, err := json.MarshalIndent(file, "", "  ")
-	if err != nil {
-		return err
-	}
-	data = append(data, '\n')
-
-	tmpPath := path + ".tmp"
-	if err := os.WriteFile(tmpPath, data, 0o644); err != nil {
-		return err
-	}
-
-	return os.Rename(tmpPath, path)
-}
-
 func AddTransaction(txType, amountInput, currency, dateValue, category, account, toAccount, note string) (domain.Transaction, error) {
 	amountMinor, err := ParseAmount(amountInput)
 	if err != nil {
@@ -159,12 +119,7 @@ func AddTransaction(txType, amountInput, currency, dateValue, category, account,
 		}
 	}
 
-	path, err := FilePath(TransactionsFileName)
-	if err != nil {
-		return domain.Transaction{}, err
-	}
-
-	file, err := LoadTransactions(path)
+	transactions, err := repository.FRepository.LoadTransactions()
 	if err != nil {
 		return domain.Transaction{}, err
 	}
@@ -201,8 +156,8 @@ func AddTransaction(txType, amountInput, currency, dateValue, category, account,
 		}
 	}
 
-	file.Transactions = append(file.Transactions, tx)
-	if err := SaveTransactions(path, file); err != nil {
+	transactions = append(transactions, tx)
+	if err := repository.FRepository.SaveTransactions(transactions); err != nil {
 		if txType == TransactionTypeTransfer {
 			_ = TransferBetweenAccounts(toAccount, account, currency, amountMinor)
 		} else {
@@ -235,27 +190,18 @@ func editTransactionWithNow(id string, edits TransactionEdits, now time.Time) (d
 		return domain.Transaction{}, fmt.Errorf("no changes provided")
 	}
 
-	transactionsPath, err := FilePath(TransactionsFileName)
+	transactions, err := repository.FRepository.LoadTransactions()
 	if err != nil {
 		return domain.Transaction{}, err
 	}
-	accountsPath, err := FilePath(AccountsFileName)
-	if err != nil {
-		return domain.Transaction{}, err
-	}
-
-	transactionsFile, err := LoadTransactions(transactionsPath)
-	if err != nil {
-		return domain.Transaction{}, err
-	}
-	accountsFile, err := LoadAccountsFile(accountsPath)
+	accounts, err := repository.FRepository.LoadAccounts()
 	if err != nil {
 		return domain.Transaction{}, err
 	}
 
 	index := -1
-	for i := range transactionsFile.Transactions {
-		if transactionsFile.Transactions[i].ID == txID {
+	for i := range transactions {
+		if transactions[i].ID == txID {
 			index = i
 			break
 		}
@@ -264,7 +210,7 @@ func editTransactionWithNow(id string, edits TransactionEdits, now time.Time) (d
 		return domain.Transaction{}, fmt.Errorf("transaction '%s' not found", txID)
 	}
 
-	original := transactionsFile.Transactions[index]
+	original := transactions[index]
 	updated, changed, err := applyTransactionEdits(original, edits, now)
 	if err != nil {
 		return domain.Transaction{}, err
@@ -273,25 +219,25 @@ func editTransactionWithNow(id string, edits TransactionEdits, now time.Time) (d
 		return original, nil
 	}
 
-	originalAccounts := cloneAccountsFile(accountsFile)
+	originalAccounts := cloneAccounts(accounts)
 	nowUTC := now.UTC().Format(time.RFC3339)
 
-	if err := applyTransactionEffectToAccounts(&accountsFile, original, nowUTC, true); err != nil {
+	if err := applyTransactionEffectToAccounts(accounts, original, nowUTC, true); err != nil {
 		return domain.Transaction{}, err
 	}
-	if err := applyTransactionEffectToAccounts(&accountsFile, updated, nowUTC, false); err != nil {
-		if rollbackErr := applyTransactionEffectToAccounts(&accountsFile, original, nowUTC, false); rollbackErr != nil {
+	if err := applyTransactionEffectToAccounts(accounts, updated, nowUTC, false); err != nil {
+		if rollbackErr := applyTransactionEffectToAccounts(accounts, original, nowUTC, false); rollbackErr != nil {
 			return domain.Transaction{}, fmt.Errorf("%w; rollback failed: %v", err, rollbackErr)
 		}
 		return domain.Transaction{}, err
 	}
 
-	transactionsFile.Transactions[index] = updated
-	if err := SaveAccountsFile(accountsPath, accountsFile); err != nil {
+	transactions[index] = updated
+	if err := repository.FRepository.SaveAccounts(accounts); err != nil {
 		return domain.Transaction{}, err
 	}
-	if err := SaveTransactions(transactionsPath, transactionsFile); err != nil {
-		if rollbackErr := SaveAccountsFile(accountsPath, originalAccounts); rollbackErr != nil {
+	if err := repository.FRepository.SaveTransactions(transactions); err != nil {
+		if rollbackErr := repository.FRepository.SaveAccounts(originalAccounts); rollbackErr != nil {
 			return domain.Transaction{}, fmt.Errorf("save transactions: %w; rollback accounts: %v", err, rollbackErr)
 		}
 		return domain.Transaction{}, err
@@ -306,27 +252,18 @@ func deleteTransactionWithNow(id string, now time.Time) (domain.Transaction, err
 		return domain.Transaction{}, fmt.Errorf("transaction id is required")
 	}
 
-	transactionsPath, err := FilePath(TransactionsFileName)
+	transactions, err := repository.FRepository.LoadTransactions()
 	if err != nil {
 		return domain.Transaction{}, err
 	}
-	accountsPath, err := FilePath(AccountsFileName)
-	if err != nil {
-		return domain.Transaction{}, err
-	}
-
-	transactionsFile, err := LoadTransactions(transactionsPath)
-	if err != nil {
-		return domain.Transaction{}, err
-	}
-	accountsFile, err := LoadAccountsFile(accountsPath)
+	accounts, err := repository.FRepository.LoadAccounts()
 	if err != nil {
 		return domain.Transaction{}, err
 	}
 
 	index := -1
-	for i := range transactionsFile.Transactions {
-		if transactionsFile.Transactions[i].ID == txID {
+	for i := range transactions {
+		if transactions[i].ID == txID {
 			index = i
 			break
 		}
@@ -335,20 +272,20 @@ func deleteTransactionWithNow(id string, now time.Time) (domain.Transaction, err
 		return domain.Transaction{}, fmt.Errorf("transaction '%s' not found", txID)
 	}
 
-	deleted := transactionsFile.Transactions[index]
-	originalAccounts := cloneAccountsFile(accountsFile)
+	deleted := transactions[index]
+	originalAccounts := cloneAccounts(accounts)
 	nowUTC := now.UTC().Format(time.RFC3339)
 
-	if err := applyTransactionEffectToAccounts(&accountsFile, deleted, nowUTC, true); err != nil {
+	if err := applyTransactionEffectToAccounts(accounts, deleted, nowUTC, true); err != nil {
 		return domain.Transaction{}, err
 	}
 
-	transactionsFile.Transactions = append(transactionsFile.Transactions[:index], transactionsFile.Transactions[index+1:]...)
-	if err := SaveAccountsFile(accountsPath, accountsFile); err != nil {
+	transactions = append(transactions[:index], transactions[index+1:]...)
+	if err := repository.FRepository.SaveAccounts(accounts); err != nil {
 		return domain.Transaction{}, err
 	}
-	if err := SaveTransactions(transactionsPath, transactionsFile); err != nil {
-		if rollbackErr := SaveAccountsFile(accountsPath, originalAccounts); rollbackErr != nil {
+	if err := repository.FRepository.SaveTransactions(transactions); err != nil {
+		if rollbackErr := repository.FRepository.SaveAccounts(originalAccounts); rollbackErr != nil {
 			return domain.Transaction{}, fmt.Errorf("save transactions: %w; rollback accounts: %v", err, rollbackErr)
 		}
 		return domain.Transaction{}, err
@@ -443,7 +380,7 @@ func applyTransactionEdits(tx domain.Transaction, edits TransactionEdits, now ti
 	return updated, true, nil
 }
 
-func applyTransactionEffectToAccounts(accountsFile *domain.AccountsFile, tx domain.Transaction, now string, reverse bool) error {
+func applyTransactionEffectToAccounts(accounts []domain.Account, tx domain.Transaction, now string, reverse bool) error {
 	switch tx.Type {
 	case TransactionTypeTransfer:
 		from := tx.Account
@@ -451,7 +388,7 @@ func applyTransactionEffectToAccounts(accountsFile *domain.AccountsFile, tx doma
 		if reverse {
 			from, to = to, from
 		}
-		return transferBetweenAccountsInFile(accountsFile, from, to, tx.Currency, tx.AmountMinor, now)
+		return transferBetweenAccountsInFile(accounts, from, to, tx.Currency, tx.AmountMinor, now)
 	case TransactionTypeExpense, TransactionTypeIncome:
 		delta := tx.AmountMinor
 		if tx.Type == TransactionTypeExpense {
@@ -460,18 +397,15 @@ func applyTransactionEffectToAccounts(accountsFile *domain.AccountsFile, tx doma
 		if reverse {
 			delta = -delta
 		}
-		return applyAccountDeltaToFile(accountsFile, tx.Account, tx.Currency, delta, now)
+		return applyAccountDeltaToFile(accounts, tx.Account, tx.Currency, delta, now)
 	default:
 		return fmt.Errorf("invalid transaction type: %s", tx.Type)
 	}
 }
 
-func cloneAccountsFile(file domain.AccountsFile) domain.AccountsFile {
-	cloned := domain.AccountsFile{
-		SchemaVersion: file.SchemaVersion,
-		Accounts:      make([]domain.Account, len(file.Accounts)),
-	}
-	copy(cloned.Accounts, file.Accounts)
+func cloneAccounts(accounts []domain.Account) []domain.Account {
+	cloned := make([]domain.Account, len(accounts))
+	copy(cloned, accounts)
 	return cloned
 }
 

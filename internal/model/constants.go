@@ -7,8 +7,9 @@ const (
 )
 
 const (
-	TransferCategory        = "Transfer"
-	TransactionSourceManual = "manual"
+	TransferCategory           = "Transfer"
+	TransactionSourceManual    = "manual"
+	TransactionSourceRecurring = "recurring"
 )
 
 const (

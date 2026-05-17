@@ -23,6 +23,23 @@ type Account struct {
 	UpdatedAt    string `json:"updated_at"`
 }
 
+type RecurringRule struct {
+	ID                 string `json:"id"`
+	Type               string `json:"type"`
+	AmountMinor        int64  `json:"amount_minor"`
+	Currency           string `json:"currency"`
+	Category           string `json:"category"`
+	Account            string `json:"account"`
+	ToAccount          string `json:"to_account,omitempty"`
+	Note               string `json:"note,omitempty"`
+	DayOfMonth         int    `json:"day_of_month"`
+	StartDate          string `json:"start_date"`
+	EndDate            string `json:"end_date,omitempty"`
+	LastGeneratedMonth string `json:"last_generated_month,omitempty"`
+	CreatedAt          string `json:"created_at"`
+	UpdatedAt          string `json:"updated_at"`
+}
+
 type Budget struct {
 	Month               string `json:"month"`
 	Currency            string `json:"currency"`

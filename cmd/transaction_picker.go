@@ -188,7 +188,7 @@ func loadAllTransactionsForSelection() ([]domain.Transaction, error) {
 
 	items := make([]domain.Transaction, len(transactions))
 	copy(items, transactions)
-	sortEditableTransactions(items)
+	sortTransactionsByDateDesc(items)
 	return items, nil
 }
 

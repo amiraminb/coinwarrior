@@ -1,8 +1,9 @@
 package cmd
 
 import (
+	"cmp"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
@@ -382,12 +383,12 @@ func init() {
 	rootCmd.AddCommand(editCmd)
 }
 
-func sortEditableTransactions(transactions []domain.Transaction) {
-	sort.Slice(transactions, func(i, j int) bool {
-		if transactions[i].Date == transactions[j].Date {
-			return transactions[i].CreatedAt > transactions[j].CreatedAt
+func sortTransactionsByDateDesc(transactions []domain.Transaction) {
+	slices.SortFunc(transactions, func(a, b domain.Transaction) int {
+		if a.Date != b.Date {
+			return cmp.Compare(b.Date, a.Date)
 		}
-		return transactions[i].Date > transactions[j].Date
+		return cmp.Compare(b.CreatedAt, a.CreatedAt)
 	})
 }
 

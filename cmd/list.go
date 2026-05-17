@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"sort"
 	"time"
 
 	coininternal "github.com/amiraminb/coinwarrior/internal"
@@ -63,12 +62,7 @@ Supported ranges: today, yesterday, week, lastweek, month, lastmonth, year, last
 			return nil
 		}
 
-		sort.Slice(items, func(i, j int) bool {
-			if items[i].Date == items[j].Date {
-				return items[i].CreatedAt > items[j].CreatedAt
-			}
-			return items[i].Date > items[j].Date
-		})
+		sortTransactionsByDateDesc(items)
 
 		columns := []table.Column{
 			{Title: "ID", Width: 24},

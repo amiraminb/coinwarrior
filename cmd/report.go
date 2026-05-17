@@ -348,12 +348,7 @@ func renderCompactCategoryDetails(categoryReports []categoryReport) {
 		items := make([]domain.Transaction, len(report.items))
 		copy(items, report.items)
 
-		sort.Slice(items, func(i, j int) bool {
-			if items[i].Date == items[j].Date {
-				return items[i].CreatedAt > items[j].CreatedAt
-			}
-			return items[i].Date > items[j].Date
-		})
+		sortTransactionsByDateDesc(items)
 
 		displayCategory := report.name
 		if displayCategory == "" {
@@ -397,12 +392,7 @@ func renderSeparateCategoryDetails(categoryReports []categoryReport) {
 		items := make([]domain.Transaction, len(report.items))
 		copy(items, report.items)
 
-		sort.Slice(items, func(i, j int) bool {
-			if items[i].Date == items[j].Date {
-				return items[i].CreatedAt > items[j].CreatedAt
-			}
-			return items[i].Date > items[j].Date
-		})
+		sortTransactionsByDateDesc(items)
 
 		displayCategory := report.name
 		if displayCategory == "" {

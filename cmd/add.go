@@ -354,23 +354,23 @@ func (m addModel) View() string {
 		}
 		s += "\n" + mutedStyle.Render("(use ↑/↓ and enter, q to quit)") + "\n"
 	case stepAmount:
-		s += renderAddField("Type selected: ", m.selected) + "\n\n"
-		s += renderActiveAddField("Enter amount: ", m.amountInput) + "\n"
+		s += renderField("Type selected: ", m.selected) + "\n\n"
+		s += renderActiveField("Enter amount: ", m.amountInput) + "\n"
 		s += mutedStyle.Render("(press enter to continue, q to quit)") + "\n"
 	case stepDate:
-		s += renderAddField("Type selected: ", m.selected) + "\n"
-		s += renderAddField("Amount: ", m.amountInput) + "\n\n"
-		s += renderActiveAddField("Enter date (YYYY-MM-DD): ", m.dateInput) + "\n"
+		s += renderField("Type selected: ", m.selected) + "\n"
+		s += renderField("Amount: ", m.amountInput) + "\n\n"
+		s += renderActiveField("Enter date (YYYY-MM-DD): ", m.dateInput) + "\n"
 		s += mutedStyle.Render("(press enter to continue, esc to go back, q to quit)") + "\n"
 	case stepCurrency:
-		s += renderAddField("Type selected: ", m.selected) + "\n"
-		s += renderAddField("Amount: ", m.amountInput) + "\n\n"
-		s += renderActiveAddField("Enter currency: ", m.currencyInput) + "\n"
+		s += renderField("Type selected: ", m.selected) + "\n"
+		s += renderField("Amount: ", m.amountInput) + "\n\n"
+		s += renderActiveField("Enter currency: ", m.currencyInput) + "\n"
 		s += mutedStyle.Render("(press enter to continue, esc to go back, q to quit)") + "\n"
 	case stepCategorySelect:
-		s += renderAddField("Type selected: ", m.selected) + "\n"
-		s += renderAddField("Amount: ", m.amountInput) + "\n"
-		s += renderAddField("Currency: ", m.currencyInput) + "\n\n"
+		s += renderField("Type selected: ", m.selected) + "\n"
+		s += renderField("Amount: ", m.amountInput) + "\n"
+		s += renderField("Currency: ", m.currencyInput) + "\n\n"
 		s += "Select category:\n\n"
 		for i, c := range m.categories {
 			line := "  " + c
@@ -386,15 +386,15 @@ func (m addModel) View() string {
 		s += newOptionLine + "\n"
 		s += "\n" + mutedStyle.Render("(use ↑/↓ and enter, q to quit)") + "\n"
 	case stepCategoryInput:
-		s += renderAddField("Type selected: ", m.selected) + "\n"
-		s += renderAddField("Amount: ", m.amountInput) + "\n"
-		s += renderAddField("Currency: ", m.currencyInput) + "\n\n"
-		s += renderActiveAddField("Enter category: ", m.categoryDraft) + "\n"
+		s += renderField("Type selected: ", m.selected) + "\n"
+		s += renderField("Amount: ", m.amountInput) + "\n"
+		s += renderField("Currency: ", m.currencyInput) + "\n\n"
+		s += renderActiveField("Enter category: ", m.categoryDraft) + "\n"
 		s += mutedStyle.Render("(enter to continue, esc to go back, q to quit)") + "\n"
 	case stepCategoryConfirm:
-		s += renderAddField("Type selected: ", m.selected) + "\n"
-		s += renderAddField("Amount: ", m.amountInput) + "\n"
-		s += renderAddField("Currency: ", m.currencyInput) + "\n\n"
+		s += renderField("Type selected: ", m.selected) + "\n"
+		s += renderField("Amount: ", m.amountInput) + "\n"
+		s += renderField("Currency: ", m.currencyInput) + "\n\n"
 		s += warnStyle.Render("Category '"+m.pendingCategory+"' is new. Create it?") + "\n\n"
 		yesPrefix := "  "
 		noPrefix := "  "
@@ -407,12 +407,12 @@ func (m addModel) View() string {
 		s += noPrefix + "No\n"
 		s += "\n" + mutedStyle.Render("(use ←/→ or ↑/↓ and enter)") + "\n"
 	case stepAccountSelect:
-		s += renderAddField("Type selected: ", m.selected) + "\n"
-		s += renderAddField("Amount: ", m.amountInput) + "\n"
-		s += renderAddField("Date: ", m.dateInput) + "\n"
-		s += renderAddField("Currency: ", m.currencyInput) + "\n"
+		s += renderField("Type selected: ", m.selected) + "\n"
+		s += renderField("Amount: ", m.amountInput) + "\n"
+		s += renderField("Date: ", m.dateInput) + "\n"
+		s += renderField("Currency: ", m.currencyInput) + "\n"
 		if m.selected != coininternal.TransactionTypeTransfer {
-			s += renderAddField("Category: ", m.categoryInput) + "\n\n"
+			s += renderField("Category: ", m.categoryInput) + "\n\n"
 			s += "Select account:\n\n"
 		} else {
 			s += "\nSelect from account:\n\n"
@@ -433,19 +433,19 @@ func (m addModel) View() string {
 		}
 		s += "\n" + mutedStyle.Render("(use ↑/↓ and enter, q to quit)") + "\n"
 	case stepAccountInput:
-		s += renderAddField("Type selected: ", m.selected) + "\n"
-		s += renderAddField("Amount: ", m.amountInput) + "\n"
-		s += renderAddField("Date: ", m.dateInput) + "\n"
-		s += renderAddField("Currency: ", m.currencyInput) + "\n"
-		s += renderAddField("Category: ", m.categoryInput) + "\n\n"
-		s += renderActiveAddField("Enter account: ", m.accountDraft) + "\n"
+		s += renderField("Type selected: ", m.selected) + "\n"
+		s += renderField("Amount: ", m.amountInput) + "\n"
+		s += renderField("Date: ", m.dateInput) + "\n"
+		s += renderField("Currency: ", m.currencyInput) + "\n"
+		s += renderField("Category: ", m.categoryInput) + "\n\n"
+		s += renderActiveField("Enter account: ", m.accountDraft) + "\n"
 		s += mutedStyle.Render("(enter to continue, esc to go back, q to quit)") + "\n"
 	case stepTransferToAccountSelect:
-		s += renderAddField("Type selected: ", m.selected) + "\n"
-		s += renderAddField("Amount: ", m.amountInput) + "\n"
-		s += renderAddField("Date: ", m.dateInput) + "\n"
-		s += renderAddField("Currency: ", m.currencyInput) + "\n"
-		s += renderAddField("From account: ", m.accountInput) + "\n\n"
+		s += renderField("Type selected: ", m.selected) + "\n"
+		s += renderField("Amount: ", m.amountInput) + "\n"
+		s += renderField("Date: ", m.dateInput) + "\n"
+		s += renderField("Currency: ", m.currencyInput) + "\n"
+		s += renderField("From account: ", m.accountInput) + "\n\n"
 		s += "Select to account:\n\n"
 		for i, a := range m.accounts {
 			line := "  " + a
@@ -462,11 +462,11 @@ func (m addModel) View() string {
 		}
 		s += "\n" + mutedStyle.Render("(use ↑/↓ and enter, esc to go back, q to quit)") + "\n"
 	case stepAccountConfirm:
-		s += renderAddField("Type selected: ", m.selected) + "\n"
-		s += renderAddField("Amount: ", m.amountInput) + "\n"
-		s += renderAddField("Date: ", m.dateInput) + "\n"
-		s += renderAddField("Currency: ", m.currencyInput) + "\n"
-		s += renderAddField("Category: ", m.categoryInput) + "\n\n"
+		s += renderField("Type selected: ", m.selected) + "\n"
+		s += renderField("Amount: ", m.amountInput) + "\n"
+		s += renderField("Date: ", m.dateInput) + "\n"
+		s += renderField("Currency: ", m.currencyInput) + "\n"
+		s += renderField("Category: ", m.categoryInput) + "\n\n"
 		s += warnStyle.Render("Account '"+m.pendingAccount+"' is new. Create it?") + "\n\n"
 		yesPrefix := "  "
 		noPrefix := "  "
@@ -479,41 +479,24 @@ func (m addModel) View() string {
 		s += noPrefix + "No\n"
 		s += "\n" + mutedStyle.Render("(use ←/→ or ↑/↓ and enter)") + "\n"
 	case stepNote:
-		s += renderAddField("Type selected: ", m.selected) + "\n"
-		s += renderAddField("Amount: ", m.amountInput) + "\n"
-		s += renderAddField("Date: ", m.dateInput) + "\n"
-		s += renderAddField("Currency: ", m.currencyInput) + "\n"
+		s += renderField("Type selected: ", m.selected) + "\n"
+		s += renderField("Amount: ", m.amountInput) + "\n"
+		s += renderField("Date: ", m.dateInput) + "\n"
+		s += renderField("Currency: ", m.currencyInput) + "\n"
 		if m.selected != coininternal.TransactionTypeTransfer {
-			s += renderAddField("Category: ", m.categoryInput) + "\n"
-			s += renderAddField("Account: ", m.accountInput) + "\n\n"
+			s += renderField("Category: ", m.categoryInput) + "\n"
+			s += renderField("Account: ", m.accountInput) + "\n\n"
 		} else {
-			s += renderAddField("From account: ", m.accountInput) + "\n"
-			s += renderAddField("To account: ", m.toAccountInput) + "\n"
-			s += renderAddField("Category: ", "Transfer") + "\n\n"
+			s += renderField("From account: ", m.accountInput) + "\n"
+			s += renderField("To account: ", m.toAccountInput) + "\n"
+			s += renderField("Category: ", "Transfer") + "\n\n"
 		}
-		s += renderActiveAddField("Enter note (optional): ", m.noteInput) + "\n"
+		s += renderActiveField("Enter note (optional): ", m.noteInput) + "\n"
 		s += mutedStyle.Render("(enter to save, esc to go back, q to quit)") + "\n"
 	case stepDone:
 		s += mutedStyle.Render("Done") + "\n"
 	}
 	return s
-}
-
-func renderAddField(label, value string) string {
-	return label + valueStyle.Render(value)
-}
-
-func renderActiveAddField(label, value string) string {
-	return label + renderAddCursor(value)
-}
-
-func renderAddCursor(value string) string {
-	rendered := ""
-	if value != "" {
-		rendered = valueStyle.Render(value)
-	}
-
-	return rendered + cursorStyle.Render(" ")
 }
 
 var addCmd = &cobra.Command{

@@ -233,21 +233,21 @@ func (m accountAddModel) View() string {
 	s += "Add Account\n\n"
 
 	if m.step == accountStepName {
-		s += renderActiveAccountField("Account name: ", m.nameInput) + "\n"
+		s += renderActiveField("Account name: ", m.nameInput) + "\n"
 	} else {
-		s += renderAccountField("Account name: ", m.nameInput) + "\n"
+		s += renderField("Account name: ", m.nameInput) + "\n"
 	}
 
 	if m.step == accountStepCurrency {
-		s += renderActiveAccountField("Currency: ", m.currencyInput) + "\n"
+		s += renderActiveField("Currency: ", m.currencyInput) + "\n"
 	} else {
-		s += renderAccountField("Currency: ", m.currencyInput) + "\n"
+		s += renderField("Currency: ", m.currencyInput) + "\n"
 	}
 
 	if m.step == accountStepOpeningBalance {
-		s += renderActiveAccountField("Opening balance: ", m.openingBalanceInput) + "\n\n"
+		s += renderActiveField("Opening balance: ", m.openingBalanceInput) + "\n\n"
 	} else {
-		s += renderAccountField("Opening balance: ", m.openingBalanceInput) + "\n\n"
+		s += renderField("Opening balance: ", m.openingBalanceInput) + "\n\n"
 	}
 
 	s += mutedStyle.Render("(enter to continue, esc to go back, q to quit)") + "\n"
@@ -270,20 +270,20 @@ func (m accountUpdateModel) View() string {
 		}
 		s += "\n" + mutedStyle.Render("(use ↑/↓ and enter, q to quit)") + "\n"
 	case accountUpdateStepAmount:
-		s += renderAccountField("Account: ", m.selectedAccount.Name) + "\n"
-		s += renderAccountField("Currency: ", m.selectedAccount.Currency) + "\n"
-		s += renderAccountField("Current balance: ", coininternal.FormatMinor(m.selectedAccount.BalanceMinor)) + "\n\n"
-		s += renderActiveAccountField("Enter new balance: ", m.amountInput) + "\n"
+		s += renderField("Account: ", m.selectedAccount.Name) + "\n"
+		s += renderField("Currency: ", m.selectedAccount.Currency) + "\n"
+		s += renderField("Current balance: ", coininternal.FormatMinor(m.selectedAccount.BalanceMinor)) + "\n\n"
+		s += renderActiveField("Enter new balance: ", m.amountInput) + "\n"
 		if m.errMessage != "" {
 			s += warnStyle.Render(m.errMessage) + "\n"
 		}
 		s += "\n" + mutedStyle.Render("(enter to continue, esc to go back, q to quit)") + "\n"
 	case accountUpdateStepConfirm:
 		newBalanceMinor, _ := coininternal.ParseAmount(m.amountInput)
-		s += renderAccountField("Account: ", m.selectedAccount.Name) + "\n"
-		s += renderAccountField("Currency: ", m.selectedAccount.Currency) + "\n"
-		s += renderAccountField("Current balance: ", coininternal.FormatMinor(m.selectedAccount.BalanceMinor)) + "\n"
-		s += renderAccountField("New balance: ", coininternal.FormatMinor(newBalanceMinor)) + "\n\n"
+		s += renderField("Account: ", m.selectedAccount.Name) + "\n"
+		s += renderField("Currency: ", m.selectedAccount.Currency) + "\n"
+		s += renderField("Current balance: ", coininternal.FormatMinor(m.selectedAccount.BalanceMinor)) + "\n"
+		s += renderField("New balance: ", coininternal.FormatMinor(newBalanceMinor)) + "\n\n"
 		s += warnStyle.Render("Confirm account balance update?") + "\n\n"
 
 		yes := "  Yes"
@@ -302,23 +302,6 @@ func (m accountUpdateModel) View() string {
 	}
 
 	return s
-}
-
-func renderAccountField(label, value string) string {
-	return label + valueStyle.Render(value)
-}
-
-func renderActiveAccountField(label, value string) string {
-	return label + renderAccountCursor(value)
-}
-
-func renderAccountCursor(value string) string {
-	rendered := ""
-	if value != "" {
-		rendered = valueStyle.Render(value)
-	}
-
-	return rendered + cursorStyle.Render(" ")
 }
 
 var accountCmd = &cobra.Command{

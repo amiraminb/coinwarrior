@@ -169,24 +169,24 @@ func (m budgetSetModel) View() string {
 
 	switch m.step {
 	case budgetSetStepMonth:
-		s += renderBudgetActiveField("Month (YYYY-MM): ", m.monthInput) + "\n"
-		s += renderBudgetError(m.errMessage)
+		s += renderActiveField("Month (YYYY-MM): ", m.monthInput) + "\n"
+		s += renderError(m.errMessage)
 		s += mutedStyle.Render("(enter to continue, q to quit)") + "\n"
 	case budgetSetStepCurrency:
-		s += renderBudgetField("Month: ", m.monthInput) + "\n\n"
-		s += renderBudgetActiveField("Currency: ", m.currencyInput) + "\n"
-		s += renderBudgetError(m.errMessage)
+		s += renderField("Month: ", m.monthInput) + "\n\n"
+		s += renderActiveField("Currency: ", m.currencyInput) + "\n"
+		s += renderError(m.errMessage)
 		s += mutedStyle.Render("(enter to continue, esc to go back, q to quit)") + "\n"
 	case budgetSetStepAmount:
-		s += renderBudgetField("Month: ", m.monthInput) + "\n"
-		s += renderBudgetField("Currency: ", strings.ToUpper(strings.TrimSpace(m.currencyInput))) + "\n\n"
-		s += renderBudgetActiveField("Budget amount: ", m.amountInput) + "\n"
-		s += renderBudgetError(m.errMessage)
+		s += renderField("Month: ", m.monthInput) + "\n"
+		s += renderField("Currency: ", strings.ToUpper(strings.TrimSpace(m.currencyInput))) + "\n\n"
+		s += renderActiveField("Budget amount: ", m.amountInput) + "\n"
+		s += renderError(m.errMessage)
 		s += mutedStyle.Render("(enter to continue, esc to go back, q to quit)") + "\n"
 	case budgetSetStepConfirm:
-		s += renderBudgetField("Month: ", m.monthInput) + "\n"
-		s += renderBudgetField("Currency: ", strings.ToUpper(strings.TrimSpace(m.currencyInput))) + "\n"
-		s += renderBudgetField("Budget amount: ", m.amountInput) + "\n\n"
+		s += renderField("Month: ", m.monthInput) + "\n"
+		s += renderField("Currency: ", strings.ToUpper(strings.TrimSpace(m.currencyInput))) + "\n"
+		s += renderField("Budget amount: ", m.amountInput) + "\n\n"
 		s += warnStyle.Render("Save monthly budget?") + "\n\n"
 
 		yes := "  Yes"
@@ -358,27 +358,3 @@ func runBudgetShow(monthInput string) error {
 	return nil
 }
 
-func renderBudgetField(label, value string) string {
-	return label + valueStyle.Render(value)
-}
-
-func renderBudgetActiveField(label, value string) string {
-	return label + renderBudgetCursor(value)
-}
-
-func renderBudgetCursor(value string) string {
-	rendered := ""
-	if value != "" {
-		rendered = valueStyle.Render(value)
-	}
-
-	return rendered + cursorStyle.Render(" ")
-}
-
-func renderBudgetError(message string) string {
-	if message == "" {
-		return ""
-	}
-
-	return warnStyle.Render(message) + "\n"
-}

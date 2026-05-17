@@ -249,61 +249,61 @@ func (m editModel) View() string {
 
 	switch m.step {
 	case editStepDate:
-		s += renderEditField("Editing: ", m.selected.ID) + "\n"
-		s += renderEditField("Type: ", m.selected.Type) + "\n\n"
-		s += renderActiveEditField("Date: ", m.dateInput) + "\n"
-		s += renderEditError(m.errMessage)
+		s += renderField("Editing: ", m.selected.ID) + "\n"
+		s += renderField("Type: ", m.selected.Type) + "\n\n"
+		s += renderActiveField("Date: ", m.dateInput) + "\n"
+		s += renderError(m.errMessage)
 		s += mutedStyle.Render("(enter to continue, esc to go back, q to quit)") + "\n"
 	case editStepAmount:
-		s += renderEditField("Editing: ", m.selected.ID) + "\n"
-		s += renderEditField("Date: ", m.dateInput) + "\n\n"
-		s += renderActiveEditField("Amount: ", m.amountInput) + "\n"
-		s += renderEditError(m.errMessage)
+		s += renderField("Editing: ", m.selected.ID) + "\n"
+		s += renderField("Date: ", m.dateInput) + "\n\n"
+		s += renderActiveField("Amount: ", m.amountInput) + "\n"
+		s += renderError(m.errMessage)
 		s += mutedStyle.Render("(enter to continue, esc to go back, q to quit)") + "\n"
 	case editStepCategory:
-		s += renderEditField("Editing: ", m.selected.ID) + "\n"
-		s += renderEditField("Date: ", m.dateInput) + "\n"
-		s += renderEditField("Amount: ", m.amountInput) + "\n\n"
-		s += renderActiveEditField("Category: ", m.categoryInput) + "\n"
+		s += renderField("Editing: ", m.selected.ID) + "\n"
+		s += renderField("Date: ", m.dateInput) + "\n"
+		s += renderField("Amount: ", m.amountInput) + "\n\n"
+		s += renderActiveField("Category: ", m.categoryInput) + "\n"
 		s += mutedStyle.Render("(enter to continue, esc to go back, q to quit)") + "\n"
 	case editStepAccount:
-		s += renderEditField("Editing: ", m.selected.ID) + "\n"
-		s += renderEditField("Date: ", m.dateInput) + "\n"
-		s += renderEditField("Amount: ", m.amountInput) + "\n"
-		s += renderEditField("Category: ", m.categoryInput) + "\n\n"
-		s += renderActiveEditField("Account: ", m.accountInput) + "\n"
-		s += renderEditError(m.errMessage)
+		s += renderField("Editing: ", m.selected.ID) + "\n"
+		s += renderField("Date: ", m.dateInput) + "\n"
+		s += renderField("Amount: ", m.amountInput) + "\n"
+		s += renderField("Category: ", m.categoryInput) + "\n\n"
+		s += renderActiveField("Account: ", m.accountInput) + "\n"
+		s += renderError(m.errMessage)
 		s += mutedStyle.Render("(enter to continue, esc to go back, q to quit)") + "\n"
 	case editStepToAccount:
-		s += renderEditField("Editing: ", m.selected.ID) + "\n"
-		s += renderEditField("Date: ", m.dateInput) + "\n"
-		s += renderEditField("Amount: ", m.amountInput) + "\n"
-		s += renderEditField("Category: ", m.categoryInput) + "\n"
-		s += renderEditField("From account: ", m.accountInput) + "\n\n"
-		s += renderActiveEditField("To account: ", m.toAccountInput) + "\n"
-		s += renderEditError(m.errMessage)
+		s += renderField("Editing: ", m.selected.ID) + "\n"
+		s += renderField("Date: ", m.dateInput) + "\n"
+		s += renderField("Amount: ", m.amountInput) + "\n"
+		s += renderField("Category: ", m.categoryInput) + "\n"
+		s += renderField("From account: ", m.accountInput) + "\n\n"
+		s += renderActiveField("To account: ", m.toAccountInput) + "\n"
+		s += renderError(m.errMessage)
 		s += mutedStyle.Render("(enter to continue, esc to go back, q to quit)") + "\n"
 	case editStepNote:
-		s += renderEditField("Editing: ", m.selected.ID) + "\n"
-		s += renderEditField("Date: ", m.dateInput) + "\n"
-		s += renderEditField("Amount: ", m.amountInput) + "\n"
-		s += renderEditField("Category: ", m.categoryInput) + "\n"
-		s += renderEditField("Account: ", m.accountInput) + "\n"
+		s += renderField("Editing: ", m.selected.ID) + "\n"
+		s += renderField("Date: ", m.dateInput) + "\n"
+		s += renderField("Amount: ", m.amountInput) + "\n"
+		s += renderField("Category: ", m.categoryInput) + "\n"
+		s += renderField("Account: ", m.accountInput) + "\n"
 		if m.selected.Type == coininternal.TransactionTypeTransfer {
-			s += renderEditField("To account: ", m.toAccountInput) + "\n"
+			s += renderField("To account: ", m.toAccountInput) + "\n"
 		}
-		s += "\n" + renderActiveEditField("Note: ", m.noteInput) + "\n"
+		s += "\n" + renderActiveField("Note: ", m.noteInput) + "\n"
 		s += mutedStyle.Render("(enter to continue, esc to go back, q to quit)") + "\n"
 	case editStepConfirm:
-		s += renderEditField("Editing: ", m.selected.ID) + "\n"
-		s += renderEditField("Date: ", m.dateInput) + "\n"
-		s += renderEditField("Amount: ", m.amountInput) + "\n"
-		s += renderEditField("Category: ", m.categoryInput) + "\n"
-		s += renderEditField("Account: ", m.accountInput) + "\n"
+		s += renderField("Editing: ", m.selected.ID) + "\n"
+		s += renderField("Date: ", m.dateInput) + "\n"
+		s += renderField("Amount: ", m.amountInput) + "\n"
+		s += renderField("Category: ", m.categoryInput) + "\n"
+		s += renderField("Account: ", m.accountInput) + "\n"
 		if m.selected.Type == coininternal.TransactionTypeTransfer {
-			s += renderEditField("To account: ", m.toAccountInput) + "\n"
+			s += renderField("To account: ", m.toAccountInput) + "\n"
 		}
-		s += renderEditField("Note: ", m.noteInput) + "\n\n"
+		s += renderField("Note: ", m.noteInput) + "\n\n"
 		s += warnStyle.Render("Save transaction changes?") + "\n\n"
 
 		yes := "  Yes"
@@ -413,31 +413,6 @@ func formatEditableTransaction(tx domain.Transaction) string {
 	}
 
 	return label
-}
-
-func renderEditField(label, value string) string {
-	return label + valueStyle.Render(value)
-}
-
-func renderActiveEditField(label, value string) string {
-	return label + renderEditCursor(value)
-}
-
-func renderEditCursor(value string) string {
-	rendered := ""
-	if value != "" {
-		rendered = valueStyle.Render(value)
-	}
-
-	return rendered + cursorStyle.Render(" ")
-}
-
-func renderEditError(message string) string {
-	if message == "" {
-		return ""
-	}
-
-	return warnStyle.Render(message) + "\n"
 }
 
 func formatEditAmountInput(amountMinor int64) string {

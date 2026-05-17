@@ -496,7 +496,7 @@ func (m addModel) View() string {
 		} else {
 			s += renderField("From account: ", m.accountInput) + "\n"
 			s += renderField("To account: ", m.toAccountInput) + "\n"
-			s += renderField("Category: ", "Transfer") + "\n\n"
+			s += renderField("Category: ", coininternal.TransferCategory) + "\n\n"
 		}
 		s += renderActiveField("Enter note (optional): ", m.noteInput) + "\n"
 		s += mutedStyle.Render("(enter to save, esc to go back, q to quit)") + "\n"

@@ -217,7 +217,7 @@ func (s *Service) GetPendingBudgetRollovers(targetMonthInput string, now time.Ti
 			Budget:      budget,
 			SpentMinor:  spent,
 			LeftMinor:   budget.AmountMinor + budget.RolloverMinor - spent,
-			Status:      "pending",
+			Status:      BudgetSummaryStatusPending,
 			PeriodStart: month,
 			PeriodEnd:   end,
 		})
@@ -409,9 +409,9 @@ func budgetSummaryStatus(budget domain.Budget, periodEnd, now time.Time) string 
 		return budget.RolloverStatus
 	}
 	if periodEnd.Before(dateOnly(now)) {
-		return "pending"
+		return BudgetSummaryStatusPending
 	}
-	return "open"
+	return BudgetSummaryStatusOpen
 }
 
 func budgetMonthBounds(month time.Time) (time.Time, time.Time) {

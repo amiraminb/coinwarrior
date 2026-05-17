@@ -142,7 +142,7 @@ func (s *Service) AddTransaction(txType, amountInput, currency, dateValue, categ
 	toAccount = strings.TrimSpace(toAccount)
 	if txType == TransactionTypeTransfer {
 		if category == "" {
-			category = "Transfer"
+			category = TransferCategory
 		}
 	} else {
 		if account == "" {
@@ -164,7 +164,7 @@ func (s *Service) AddTransaction(txType, amountInput, currency, dateValue, categ
 		Note:        strings.TrimSpace(note),
 		CreatedAt:   utcNow.Format(time.RFC3339),
 		UpdatedAt:   utcNow.Format(time.RFC3339),
-		Source:      "manual",
+		Source:      TransactionSourceManual,
 	}
 
 	err = s.mutateLedger(now, func(transactions *[]domain.Transaction, accounts *[]domain.Account, nowUTC string) error {
@@ -323,7 +323,7 @@ func applyTransactionEdits(tx domain.Transaction, edits TransactionEdits, now ti
 
 	if updated.Type == TransactionTypeTransfer {
 		if updated.Category == "" {
-			updated.Category = "Transfer"
+			updated.Category = TransferCategory
 		}
 		if updated.Account == "" || updated.ToAccount == "" {
 			return domain.Transaction{}, false, fmt.Errorf("both source and destination accounts are required")

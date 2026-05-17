@@ -1,0 +1,58 @@
+version: 2
+
+project_name: coinwarrior
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: coinw
+    binary: coinw
+    main: .
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X github.com/amiraminb/coinwarrior/cmd.version={{.Version}}
+
+archives:
+  - id: coinw
+    formats: [tar.gz]
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- .Version }}_
+      {{- .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else }}{{ .Arch }}{{ end }}
+    files:
+      - README.md
+      - LICENSE*
+
+checksum:
+  name_template: checksums.txt
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - "Merge pull request"
+      - "Merge branch"
+
+release:
+  github:
+    owner: amiraminb
+    name: coinwarrior
+  draft: false
+  prerelease: auto

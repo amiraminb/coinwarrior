@@ -17,9 +17,12 @@ func init() {
 	tui.Repo = repo
 }
 
+var version = "dev"
+
 var rootCmd = &cobra.Command{
-	Use:   "coinw",
-	Short: "Coinwarrior CLI",
+	Use:     "coinw",
+	Short:   "Coinwarrior CLI",
+	Version: version,
 }
 
 func Execute() error {

@@ -12,19 +12,40 @@ Local-first CLI tool for tracking personal finances.
 - List transactions: `coinw list [range]`
 - Range report (balances + category): `coinw report <range> [--details]`
 
-## Quick Start
+## Installation
 
-Build the binary first (this installs `coinw` to `~/.local/bin`):
+### Pre-built binary (recommended)
+
+Download the latest release for your platform from the [Releases page](https://github.com/amiraminb/coinwarrior/releases), extract, and place `coinw` somewhere on your `PATH`.
+
+One-liner for macOS/Linux (replace `VERSION` with the latest tag):
+
+```bash
+VERSION=0.1.0
+OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+ARCH=$(uname -m | sed 's/aarch64/arm64/;s/x86_64/x86_64/')
+curl -sSL "https://github.com/amiraminb/coinwarrior/releases/download/v${VERSION}/coinwarrior_${VERSION}_${OS}_${ARCH}.tar.gz" \
+  | tar xz -C /tmp \
+  && mv /tmp/coinw ~/.local/bin/coinw
+```
+
+### From source with Go
+
+```bash
+go install github.com/amiraminb/coinwarrior@latest
+```
+
+### From source with make
+
+Builds and copies `coinw` to `~/.local/bin`:
 
 ```bash
 make build
 ```
 
-If `~/.local/bin` is not on your `PATH`, run with the full path:
+If `~/.local/bin` is not on your `PATH`, either add it or run with the full path: `~/.local/bin/coinw <command>`.
 
-```bash
-~/.local/bin/coinw <command>
-```
+## Quick Start
 
 1. Initialize data files:
 

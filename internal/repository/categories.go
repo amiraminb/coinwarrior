@@ -1,11 +1,6 @@
 package repository
 
-import (
-	"encoding/json"
-	"os"
-
-	"github.com/amiraminb/coinwarrior/internal/domain"
-)
+import "github.com/amiraminb/coinwarrior/internal/domain"
 
 type categoriesDocument struct {
 	SchemaVersion int      `json:"schema_version"`
@@ -17,26 +12,13 @@ func (r *FileRepository) LoadCategories() ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	data, err := os.ReadFile(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			categories := make([]string, len(domain.DefaultCategories))
-			copy(categories, domain.DefaultCategories)
-			return categories, nil
-		}
-		return nil, err
-	}
-
-	var document categoriesDocument
-	if err := json.Unmarshal(data, &document); err != nil {
-		return nil, err
-	}
-	if document.Categories == nil {
-		document.Categories = []string{}
-	}
-
-	return document.Categories, nil
+	return loadDocument(path, func(d categoriesDocument) []string {
+		return d.Categories
+	}, func() []string {
+		categories := make([]string, len(domain.DefaultCategories))
+		copy(categories, domain.DefaultCategories)
+		return categories
+	})
 }
 
 func (r *FileRepository) SaveCategories(categories []string) error {
@@ -44,21 +26,8 @@ func (r *FileRepository) SaveCategories(categories []string) error {
 	if err != nil {
 		return err
 	}
-
 	if categories == nil {
 		categories = []string{}
 	}
-
-	data, err := json.MarshalIndent(categoriesDocument{SchemaVersion: 1, Categories: categories}, "", "  ")
-	if err != nil {
-		return err
-	}
-	data = append(data, '\n')
-
-	tmpPath := path + ".tmp"
-	if err := os.WriteFile(tmpPath, data, 0o644); err != nil {
-		return err
-	}
-
-	return os.Rename(tmpPath, path)
+	return saveDocument(path, categoriesDocument{SchemaVersion: 1, Categories: categories})
 }

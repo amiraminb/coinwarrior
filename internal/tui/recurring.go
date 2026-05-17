@@ -137,35 +137,39 @@ const (
 )
 
 type recurringFormModel struct {
-	step           recurringField
-	typeChoices    []string
-	typeCursor     int
-	amountInput    string
-	currencyInput  string
-	categoryInput  string
-	accountInput   string
-	toAccountInput string
-	dayInput       string
-	startInput     string
-	endInput       string
-	noteInput      string
-	confirmCursor  int
-	confirmed      bool
-	errMessage     string
-	editingID      string // empty for add
+	step              recurringField
+	typeChoices       []string
+	typeCursor        int
+	amountInput       string
+	currencyInput     string
+	categories        []string
+	categoryCursor    int
+	accounts          []string
+	accountCursor     int
+	toAccountCursor   int
+	dayInput          string
+	startInput        string
+	endInput          string
+	noteInput         string
+	confirmCursor     int
+	confirmed         bool
+	errMessage        string
+	editingID         string // empty for add
 }
 
-func newRecurringAddFormModel() recurringFormModel {
+func newRecurringAddFormModel(categories, accounts []string) recurringFormModel {
 	return recurringFormModel{
 		step:          recurringFieldType,
 		typeChoices:   []string{model.TransactionTypeExpense, model.TransactionTypeIncome, model.TransactionTypeTransfer},
 		currencyInput: "CAD",
 		startInput:    time.Now().Format("2006-01-02"),
 		dayInput:      "1",
+		categories:    categories,
+		accounts:      accounts,
 	}
 }
 
-func newRecurringEditFormModel(rule model.RecurringRule) recurringFormModel {
+func newRecurringEditFormModel(rule model.RecurringRule, categories, accounts []string) recurringFormModel {
 	typeIdx := 0
 	choices := []string{model.TransactionTypeExpense, model.TransactionTypeIncome, model.TransactionTypeTransfer}
 	for i, c := range choices {
@@ -174,21 +178,77 @@ func newRecurringEditFormModel(rule model.RecurringRule) recurringFormModel {
 			break
 		}
 	}
-	return recurringFormModel{
-		step:           recurringFieldType,
-		typeChoices:    choices,
-		typeCursor:     typeIdx,
-		amountInput:    formatRuleAmountInput(rule.AmountMinor),
-		currencyInput:  rule.Currency,
-		categoryInput:  rule.Category,
-		accountInput:   rule.Account,
-		toAccountInput: rule.ToAccount,
-		dayInput:       strconv.Itoa(rule.DayOfMonth),
-		startInput:     rule.StartDate,
-		endInput:       rule.EndDate,
-		noteInput:      rule.Note,
-		editingID:      rule.ID,
+	categoryCursor := indexOfFold(categories, rule.Category)
+	if categoryCursor < 0 {
+		categoryCursor = 0
 	}
+	accountCursor := indexOfFold(accounts, rule.Account)
+	if accountCursor < 0 {
+		accountCursor = 0
+	}
+	toAccountCursor := indexOfFold(accounts, rule.ToAccount)
+	if toAccountCursor < 0 {
+		toAccountCursor = 0
+	}
+	return recurringFormModel{
+		step:            recurringFieldType,
+		typeChoices:     choices,
+		typeCursor:      typeIdx,
+		amountInput:     formatRuleAmountInput(rule.AmountMinor),
+		currencyInput:   rule.Currency,
+		categories:      categories,
+		categoryCursor:  categoryCursor,
+		accounts:        accounts,
+		accountCursor:   accountCursor,
+		toAccountCursor: toAccountCursor,
+		dayInput:        strconv.Itoa(rule.DayOfMonth),
+		startInput:      rule.StartDate,
+		endInput:        rule.EndDate,
+		noteInput:       rule.Note,
+		editingID:       rule.ID,
+	}
+}
+
+func indexOfFold(items []string, target string) int {
+	for i, v := range items {
+		if strings.EqualFold(v, target) {
+			return i
+		}
+	}
+	return -1
+}
+
+func (m recurringFormModel) selectedCategory() string {
+	if m.categoryCursor < 0 || m.categoryCursor >= len(m.categories) {
+		return ""
+	}
+	return m.categories[m.categoryCursor]
+}
+
+func (m recurringFormModel) selectedAccount() string {
+	if m.accountCursor < 0 || m.accountCursor >= len(m.accounts) {
+		return ""
+	}
+	return m.accounts[m.accountCursor]
+}
+
+func (m recurringFormModel) selectedToAccount() string {
+	if m.toAccountCursor < 0 || m.toAccountCursor >= len(m.accounts) {
+		return ""
+	}
+	return m.accounts[m.toAccountCursor]
+}
+
+func renderSelectionList(items []string, cursor int) string {
+	out := ""
+	for i, item := range items {
+		line := "  " + item
+		if i == cursor {
+			line = focusStyle.Render("> " + item)
+		}
+		out += line + "\n"
+	}
+	return out
 }
 
 func formatRuleAmountInput(amountMinor int64) string {
@@ -272,63 +332,66 @@ func (m recurringFormModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		case recurringFieldCategory:
 			switch msg.String() {
+			case "up", "k":
+				if m.categoryCursor > 0 {
+					m.categoryCursor--
+				}
+			case "down", "j":
+				if m.categoryCursor < len(m.categories)-1 {
+					m.categoryCursor++
+				}
 			case "enter":
 				m.errMessage = ""
 				m.step = recurringFieldAccount
 			case "esc":
 				m.step = recurringFieldCurrency
-			case "backspace":
-				if len(m.categoryInput) > 0 {
-					m.categoryInput = m.categoryInput[:len(m.categoryInput)-1]
-				}
-			default:
-				if len(msg.String()) == 1 {
-					m.categoryInput += msg.String()
-				}
 			}
 		case recurringFieldAccount:
 			switch msg.String() {
-			case "enter":
-				if strings.TrimSpace(m.accountInput) == "" {
-					m.errMessage = "account is required"
-					break
+			case "up", "k":
+				if m.accountCursor > 0 {
+					m.accountCursor--
 				}
+			case "down", "j":
+				if m.accountCursor < len(m.accounts)-1 {
+					m.accountCursor++
+				}
+			case "enter":
 				m.errMessage = ""
 				if m.typeChoices[m.typeCursor] == model.TransactionTypeTransfer {
+					if m.toAccountCursor == m.accountCursor {
+						if m.toAccountCursor < len(m.accounts)-1 {
+							m.toAccountCursor++
+						} else if m.toAccountCursor > 0 {
+							m.toAccountCursor--
+						}
+					}
 					m.step = recurringFieldToAccount
 				} else {
 					m.step = recurringFieldDayOfMonth
 				}
 			case "esc":
 				m.step = recurringFieldCategory
-			case "backspace":
-				if len(m.accountInput) > 0 {
-					m.accountInput = m.accountInput[:len(m.accountInput)-1]
-				}
-			default:
-				if len(msg.String()) == 1 {
-					m.accountInput += msg.String()
-				}
 			}
 		case recurringFieldToAccount:
 			switch msg.String() {
+			case "up", "k":
+				if m.toAccountCursor > 0 {
+					m.toAccountCursor--
+				}
+			case "down", "j":
+				if m.toAccountCursor < len(m.accounts)-1 {
+					m.toAccountCursor++
+				}
 			case "enter":
-				if strings.TrimSpace(m.toAccountInput) == "" {
-					m.errMessage = "destination account is required"
+				if m.toAccountCursor == m.accountCursor {
+					m.errMessage = "source and destination accounts must be different"
 					break
 				}
 				m.errMessage = ""
 				m.step = recurringFieldDayOfMonth
 			case "esc":
 				m.step = recurringFieldAccount
-			case "backspace":
-				if len(m.toAccountInput) > 0 {
-					m.toAccountInput = m.toAccountInput[:len(m.toAccountInput)-1]
-				}
-			default:
-				if len(msg.String()) == 1 {
-					m.toAccountInput += msg.String()
-				}
 			}
 		case recurringFieldDayOfMonth:
 			switch msg.String() {
@@ -479,31 +542,49 @@ func (m recurringFormModel) View() string {
 		s += renderField("Type: ", m.typeChoices[m.typeCursor]) + "\n"
 		s += renderField("Amount: ", m.amountInput) + "\n"
 		s += renderField("Currency: ", m.currencyInput) + "\n\n"
-		s += renderActiveField("Category: ", m.categoryInput) + "\n"
-		s += mutedStyle.Render("(enter to continue, esc to go back, q to quit)") + "\n"
+		s += "Select category:\n\n"
+		s += renderSelectionList(m.categories, m.categoryCursor)
+		s += "\n" + mutedStyle.Render("(↑/↓ enter, esc to go back, q to quit)") + "\n"
 	case recurringFieldAccount:
 		s += renderField("Type: ", m.typeChoices[m.typeCursor]) + "\n"
 		s += renderField("Amount: ", m.amountInput) + "\n"
 		s += renderField("Currency: ", m.currencyInput) + "\n"
-		s += renderField("Category: ", m.categoryInput) + "\n\n"
-		label := "Account: "
+		s += renderField("Category: ", m.selectedCategory()) + "\n\n"
+		header := "Select account:"
 		if m.typeChoices[m.typeCursor] == model.TransactionTypeTransfer {
-			label = "From account: "
+			header = "Select from account:"
 		}
-		s += renderActiveField(label, m.accountInput) + "\n"
+		s += header + "\n\n"
+		s += renderSelectionList(m.accounts, m.accountCursor)
 		s += renderError(m.errMessage)
-		s += mutedStyle.Render("(enter to continue, esc to go back, q to quit)") + "\n"
+		s += "\n" + mutedStyle.Render("(↑/↓ enter, esc to go back, q to quit)") + "\n"
 	case recurringFieldToAccount:
 		s += renderField("Type: ", m.typeChoices[m.typeCursor]) + "\n"
 		s += renderField("Amount: ", m.amountInput) + "\n"
-		s += renderField("From account: ", m.accountInput) + "\n\n"
-		s += renderActiveField("To account: ", m.toAccountInput) + "\n"
+		s += renderField("From account: ", m.selectedAccount()) + "\n\n"
+		s += "Select to account:\n\n"
+		out := ""
+		for i, a := range m.accounts {
+			line := "  " + a
+			if i == m.accountCursor {
+				line = mutedStyle.Render("  " + a + " (same as from)")
+			}
+			if i == m.toAccountCursor {
+				if i == m.accountCursor {
+					line = warnStyle.Render("> " + a + " (same as from, choose another)")
+				} else {
+					line = focusStyle.Render("> " + a)
+				}
+			}
+			out += line + "\n"
+		}
+		s += out
 		s += renderError(m.errMessage)
-		s += mutedStyle.Render("(enter to continue, esc to go back, q to quit)") + "\n"
+		s += "\n" + mutedStyle.Render("(↑/↓ enter, esc to go back, q to quit)") + "\n"
 	case recurringFieldDayOfMonth:
 		s += renderField("Type: ", m.typeChoices[m.typeCursor]) + "\n"
 		s += renderField("Amount: ", m.amountInput) + "\n"
-		s += renderField("Account: ", m.accountInput) + "\n\n"
+		s += renderField("Account: ", m.selectedAccount()) + "\n\n"
 		s += renderActiveField("Day of month (1-28): ", m.dayInput) + "\n"
 		s += renderError(m.errMessage)
 		s += mutedStyle.Render("(enter to continue, esc to go back, q to quit)") + "\n"
@@ -523,11 +604,11 @@ func (m recurringFormModel) View() string {
 	case recurringFieldConfirm:
 		s += renderField("Type: ", m.typeChoices[m.typeCursor]) + "\n"
 		s += renderField("Amount: ", m.amountInput) + " " + m.currencyInput + "\n"
-		s += renderField("Category: ", m.categoryInput) + "\n"
+		s += renderField("Category: ", m.selectedCategory()) + "\n"
 		if m.typeChoices[m.typeCursor] == model.TransactionTypeTransfer {
-			s += renderField("From -> To: ", m.accountInput+" -> "+m.toAccountInput) + "\n"
+			s += renderField("From -> To: ", m.selectedAccount()+" -> "+m.selectedToAccount()) + "\n"
 		} else {
-			s += renderField("Account: ", m.accountInput) + "\n"
+			s += renderField("Account: ", m.selectedAccount()) + "\n"
 		}
 		s += renderField("Day of month: ", m.dayInput) + "\n"
 		s += renderField("Start: ", m.startInput) + "\n"
@@ -548,8 +629,31 @@ func (m recurringFormModel) View() string {
 	return s
 }
 
+func loadRecurringFormDeps() (categories, accounts []string, err error) {
+	categories, err = Svc.LoadCategories()
+	if err != nil {
+		return nil, nil, err
+	}
+	if len(categories) == 0 {
+		return nil, nil, fmt.Errorf("no categories available; create one with 'coinw add'")
+	}
+	accounts, err = Svc.LoadAccountNames()
+	if err != nil {
+		return nil, nil, err
+	}
+	if len(accounts) == 0 {
+		return nil, nil, fmt.Errorf("no accounts available; create one with 'coinw account'")
+	}
+	return categories, accounts, nil
+}
+
 func runRecurringAdd() (bool, error) {
-	p := tea.NewProgram(newRecurringAddFormModel())
+	categories, accounts, err := loadRecurringFormDeps()
+	if err != nil {
+		return false, err
+	}
+
+	p := tea.NewProgram(newRecurringAddFormModel(categories, accounts))
 	finalModel, err := p.Run()
 	if err != nil {
 		return false, err
@@ -565,13 +669,16 @@ func runRecurringAdd() (bool, error) {
 		Type:        result.typeChoices[result.typeCursor],
 		AmountInput: result.amountInput,
 		Currency:    result.currencyInput,
-		Category:    result.categoryInput,
-		Account:     result.accountInput,
-		ToAccount:   result.toAccountInput,
+		Category:    result.selectedCategory(),
+		Account:     result.selectedAccount(),
+		ToAccount:   result.selectedToAccount(),
 		Note:        result.noteInput,
 		DayOfMonth:  day,
 		StartDate:   result.startInput,
 		EndDate:     result.endInput,
+	}
+	if input.Type != model.TransactionTypeTransfer {
+		input.ToAccount = ""
 	}
 	rule, err := Svc.AddRecurringRule(input)
 	if err != nil {
@@ -591,7 +698,12 @@ func runRecurringEdit() (bool, error) {
 		return false, nil
 	}
 
-	p := tea.NewProgram(newRecurringEditFormModel(rule))
+	categories, accounts, err := loadRecurringFormDeps()
+	if err != nil {
+		return false, err
+	}
+
+	p := tea.NewProgram(newRecurringEditFormModel(rule, categories, accounts))
 	finalModel, err := p.Run()
 	if err != nil {
 		return false, err
@@ -605,9 +717,12 @@ func runRecurringEdit() (bool, error) {
 	day, _ := strconv.Atoi(strings.TrimSpace(result.dayInput))
 	txType := result.typeChoices[result.typeCursor]
 	currency := result.currencyInput
-	category := result.categoryInput
-	account := result.accountInput
-	toAccount := result.toAccountInput
+	category := result.selectedCategory()
+	account := result.selectedAccount()
+	toAccount := ""
+	if txType == model.TransactionTypeTransfer {
+		toAccount = result.selectedToAccount()
+	}
 	note := result.noteInput
 	start := result.startInput
 	end := result.endInput

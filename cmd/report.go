@@ -9,6 +9,7 @@ import (
 
 	coininternal "github.com/amiraminb/coinwarrior/internal"
 	"github.com/amiraminb/coinwarrior/internal/domain"
+	"github.com/amiraminb/coinwarrior/internal/money"
 	"github.com/charmbracelet/bubbles/table"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/spf13/cobra"
@@ -90,7 +91,7 @@ func printAccountBalancesReport(accounts []domain.Account) {
 
 	rows := make([]table.Row, 0, len(items))
 	for _, account := range items {
-		rows = append(rows, table.Row{account.Name, account.Currency, coininternal.FormatMinor(account.BalanceMinor)})
+		rows = append(rows, table.Row{account.Name, account.Currency, money.Format(account.BalanceMinor)})
 	}
 
 	renderTable(
@@ -123,7 +124,7 @@ func printTotalBalancesReport(accounts []domain.Account) {
 
 	rows := make([]table.Row, 0, len(currencies))
 	for _, currency := range currencies {
-		rows = append(rows, table.Row{currency, coininternal.FormatMinor(totals[currency])})
+		rows = append(rows, table.Row{currency, money.Format(totals[currency])})
 	}
 
 	renderTable(
@@ -215,7 +216,7 @@ func printCategorySection(transactions []domain.Transaction, start, end time.Tim
 			if totalExpense := currencyExpense[currency]; totalExpense > 0 {
 				expenseShare = formatPercent(report.expenseByCurrency[currency], totalExpense)
 			}
-			totalRows = append(totalRows, table.Row{displayCategory, currency, coininternal.FormatMinor(report.totalsByCurrency[currency]), strconv.Itoa(len(report.items)), expenseShare})
+			totalRows = append(totalRows, table.Row{displayCategory, currency, money.Format(report.totalsByCurrency[currency]), strconv.Itoa(len(report.items)), expenseShare})
 		}
 	}
 
@@ -248,7 +249,7 @@ func printCategorySection(transactions []domain.Transaction, start, end time.Tim
 		income := currencyIncome[c]
 		expense := currencyExpense[c]
 		net := income - expense
-		summaryRows = append(summaryRows, table.Row{c, coininternal.FormatMinor(income), coininternal.FormatMinor(expense), coininternal.FormatMinor(net)})
+		summaryRows = append(summaryRows, table.Row{c, money.Format(income), money.Format(expense), money.Format(net)})
 	}
 
 	if len(summaryRows) > 0 {
@@ -302,10 +303,10 @@ func printMonthlyBudgetSection(start, end, now time.Time) error {
 	for _, summary := range summaries {
 		rows = append(rows, table.Row{
 			summary.Budget.Currency,
-			coininternal.FormatMinor(summary.Budget.AmountMinor),
-			coininternal.FormatMinor(summary.Budget.RolloverMinor),
-			coininternal.FormatMinor(summary.SpentMinor),
-			coininternal.FormatMinor(summary.LeftMinor),
+			money.Format(summary.Budget.AmountMinor),
+			money.Format(summary.Budget.RolloverMinor),
+			money.Format(summary.SpentMinor),
+			money.Format(summary.LeftMinor),
 		})
 	}
 
@@ -353,7 +354,7 @@ func renderCompactCategoryDetails(categoryReports []categoryReport) {
 		}
 
 		for idx, tx := range items {
-			amount := coininternal.FormatTransactionAmount(tx)
+			amount := money.FormatTransaction(tx)
 
 			categoryCell := ""
 			if idx == 0 {
@@ -398,7 +399,7 @@ func renderSeparateCategoryDetails(categoryReports []categoryReport) {
 
 		rows := make([]table.Row, 0, len(items))
 		for _, tx := range items {
-			amount := coininternal.FormatTransactionAmount(tx)
+			amount := money.FormatTransaction(tx)
 
 			rows = append(rows, table.Row{tx.Date, amount, tx.Currency, tx.Account, tx.Note})
 		}

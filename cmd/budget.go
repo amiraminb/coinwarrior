@@ -6,6 +6,7 @@ import (
 	"time"
 
 	coininternal "github.com/amiraminb/coinwarrior/internal"
+	"github.com/amiraminb/coinwarrior/internal/money"
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
@@ -112,7 +113,7 @@ func (m budgetSetModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case budgetSetStepAmount:
 			switch msg.String() {
 			case "enter":
-				amountMinor, err := coininternal.ParseAmount(m.amountInput)
+				amountMinor, err := money.Parse(m.amountInput)
 				if err != nil {
 					m.errMessage = err.Error()
 					break
@@ -255,7 +256,7 @@ func runBudgetSetInteractive() (bool, error) {
 	if candidate != nil {
 		question := fmt.Sprintf(
 			"Carry over %s %s from %s into %s?",
-			coininternal.FormatMinor(candidate.LeftMinor),
+			money.Format(candidate.LeftMinor),
 			candidate.SourceBudget.Currency,
 			candidate.SourceBudget.Month,
 			candidate.TargetMonth,
@@ -271,10 +272,10 @@ func runBudgetSetInteractive() (bool, error) {
 		return false, err
 	}
 
-	fmt.Printf("budget set: %s (%s %s)\n", budget.Month, budget.Currency, coininternal.FormatMinor(budget.AmountMinor))
+	fmt.Printf("budget set: %s (%s %s)\n", budget.Month, budget.Currency, money.Format(budget.AmountMinor))
 	if candidate != nil {
 		if carryoverDecision {
-			fmt.Printf("carried over %s %s from %s\n", coininternal.FormatMinor(candidate.LeftMinor), candidate.SourceBudget.Currency, candidate.SourceBudget.Month)
+			fmt.Printf("carried over %s %s from %s\n", money.Format(candidate.LeftMinor), candidate.SourceBudget.Currency, candidate.SourceBudget.Month)
 		} else {
 			fmt.Printf("did not carry over budget from %s\n", candidate.SourceBudget.Month)
 		}
@@ -323,10 +324,10 @@ func runBudgetShow(monthInput string) error {
 	for _, summary := range summaries {
 		rows = append(rows, table.Row{
 			summary.Budget.Currency,
-			coininternal.FormatMinor(summary.Budget.AmountMinor),
-			coininternal.FormatMinor(summary.Budget.RolloverMinor),
-			coininternal.FormatMinor(summary.SpentMinor),
-			coininternal.FormatMinor(summary.LeftMinor),
+			money.Format(summary.Budget.AmountMinor),
+			money.Format(summary.Budget.RolloverMinor),
+			money.Format(summary.SpentMinor),
+			money.Format(summary.LeftMinor),
 			summary.Status,
 		})
 	}

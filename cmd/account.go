@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	coininternal "github.com/amiraminb/coinwarrior/internal"
 	"github.com/amiraminb/coinwarrior/internal/domain"
+	"github.com/amiraminb/coinwarrior/internal/money"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
 )
@@ -180,7 +180,7 @@ func (m accountUpdateModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case accountUpdateStepAmount:
 			switch msg.String() {
 			case "enter":
-				if _, err := coininternal.ParseAmount(m.amountInput); err != nil {
+				if _, err := money.Parse(m.amountInput); err != nil {
 					m.errMessage = err.Error()
 					break
 				}
@@ -261,9 +261,9 @@ func (m accountUpdateModel) View() string {
 	case accountUpdateStepSelect:
 		s += "Select account:\n\n"
 		for i, account := range m.accounts {
-			line := fmt.Sprintf("  %s (%s %s)", account.Name, account.Currency, coininternal.FormatMinor(account.BalanceMinor))
+			line := fmt.Sprintf("  %s (%s %s)", account.Name, account.Currency, money.Format(account.BalanceMinor))
 			if i == m.cursor {
-				line = focusStyle.Render(fmt.Sprintf("> %s (%s %s)", account.Name, account.Currency, coininternal.FormatMinor(account.BalanceMinor)))
+				line = focusStyle.Render(fmt.Sprintf("> %s (%s %s)", account.Name, account.Currency, money.Format(account.BalanceMinor)))
 			}
 			s += line + "\n"
 		}
@@ -271,18 +271,18 @@ func (m accountUpdateModel) View() string {
 	case accountUpdateStepAmount:
 		s += renderField("Account: ", m.selectedAccount.Name) + "\n"
 		s += renderField("Currency: ", m.selectedAccount.Currency) + "\n"
-		s += renderField("Current balance: ", coininternal.FormatMinor(m.selectedAccount.BalanceMinor)) + "\n\n"
+		s += renderField("Current balance: ", money.Format(m.selectedAccount.BalanceMinor)) + "\n\n"
 		s += renderActiveField("Enter new balance: ", m.amountInput) + "\n"
 		if m.errMessage != "" {
 			s += warnStyle.Render(m.errMessage) + "\n"
 		}
 		s += "\n" + mutedStyle.Render("(enter to continue, esc to go back, q to quit)") + "\n"
 	case accountUpdateStepConfirm:
-		newBalanceMinor, _ := coininternal.ParseAmount(m.amountInput)
+		newBalanceMinor, _ := money.Parse(m.amountInput)
 		s += renderField("Account: ", m.selectedAccount.Name) + "\n"
 		s += renderField("Currency: ", m.selectedAccount.Currency) + "\n"
-		s += renderField("Current balance: ", coininternal.FormatMinor(m.selectedAccount.BalanceMinor)) + "\n"
-		s += renderField("New balance: ", coininternal.FormatMinor(newBalanceMinor)) + "\n\n"
+		s += renderField("Current balance: ", money.Format(m.selectedAccount.BalanceMinor)) + "\n"
+		s += renderField("New balance: ", money.Format(newBalanceMinor)) + "\n\n"
 		s += warnStyle.Render("Confirm account balance update?") + "\n\n"
 		s += renderYesNo(m.confirmCursor == 0) + "\n"
 		s += mutedStyle.Render("(use ←/→ or ↑/↓, enter to confirm, esc to go back, q to quit)") + "\n"
@@ -367,7 +367,7 @@ func runAccountAddInteractive() (bool, error) {
 		return false, err
 	}
 
-	fmt.Printf("account created: %s (%s %s)\n", account.Name, account.Currency, coininternal.FormatMinor(account.BalanceMinor))
+	fmt.Printf("account created: %s (%s %s)\n", account.Name, account.Currency, money.Format(account.BalanceMinor))
 	return true, nil
 }
 
@@ -397,6 +397,6 @@ func runAccountUpdateInteractive() (bool, error) {
 		return false, err
 	}
 
-	fmt.Printf("account updated: %s (%s %s)\n", account.Name, account.Currency, coininternal.FormatMinor(account.BalanceMinor))
+	fmt.Printf("account updated: %s (%s %s)\n", account.Name, account.Currency, money.Format(account.BalanceMinor))
 	return true, nil
 }

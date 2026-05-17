@@ -9,6 +9,7 @@ import (
 
 	coininternal "github.com/amiraminb/coinwarrior/internal"
 	"github.com/amiraminb/coinwarrior/internal/domain"
+	"github.com/amiraminb/coinwarrior/internal/money"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
 )
@@ -102,7 +103,7 @@ func (m editModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			switch msg.String() {
 			case "enter":
 				amount := strings.TrimSpace(m.amountInput)
-				amountMinor, err := coininternal.ParseAmount(amount)
+				amountMinor, err := money.Parse(amount)
 				if err != nil {
 					m.errMessage = err.Error()
 					break
@@ -383,7 +384,7 @@ func sortTransactionsByDateDesc(transactions []domain.Transaction) {
 }
 
 func formatEditableTransaction(tx domain.Transaction) string {
-	amount := coininternal.FormatTransactionAmount(tx)
+	amount := money.FormatTransaction(tx)
 
 	category := strings.TrimSpace(tx.Category)
 	if category == "" {

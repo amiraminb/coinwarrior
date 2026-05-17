@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/amiraminb/coinwarrior/internal/domain"
+	"github.com/amiraminb/coinwarrior/internal/money"
 )
 
 func (s *Service) LoadAccountNames() ([]string, error) {
@@ -24,7 +25,7 @@ func (s *Service) LoadAccountNames() ([]string, error) {
 
 func (s *Service) AddAccount(name, currency, openingBalanceInput string) (domain.Account, error) {
 	accountName := strings.TrimSpace(name)
-	cur := normalizeCurrency(currency)
+	cur := money.NormalizeCurrency(currency)
 	if accountName == "" {
 		return domain.Account{}, fmt.Errorf("account name is required")
 	}
@@ -32,7 +33,7 @@ func (s *Service) AddAccount(name, currency, openingBalanceInput string) (domain
 		return domain.Account{}, fmt.Errorf("currency is required")
 	}
 
-	balanceMinor, err := ParseAmount(openingBalanceInput)
+	balanceMinor, err := money.Parse(openingBalanceInput)
 	if err != nil {
 		return domain.Account{}, err
 	}
@@ -69,7 +70,7 @@ func (s *Service) UpdateAccountBalance(name, amountInput string) (domain.Account
 		return domain.Account{}, fmt.Errorf("account name is required")
 	}
 
-	balanceMinor, err := ParseAmount(amountInput)
+	balanceMinor, err := money.Parse(amountInput)
 	if err != nil {
 		return domain.Account{}, err
 	}
@@ -95,7 +96,7 @@ func (s *Service) UpdateAccountBalance(name, amountInput string) (domain.Account
 
 func applyAccountDeltaToFile(accounts []domain.Account, accountName, currency string, deltaMinor int64, now string) error {
 	name := strings.TrimSpace(accountName)
-	cur := normalizeCurrency(currency)
+	cur := money.NormalizeCurrency(currency)
 	if name == "" {
 		return fmt.Errorf("account is required")
 	}
@@ -120,7 +121,7 @@ func applyAccountDeltaToFile(accounts []domain.Account, accountName, currency st
 func transferBetweenAccountsInFile(accounts []domain.Account, fromAccount, toAccount, currency string, amountMinor int64, now string) error {
 	from := strings.TrimSpace(fromAccount)
 	to := strings.TrimSpace(toAccount)
-	cur := normalizeCurrency(currency)
+	cur := money.NormalizeCurrency(currency)
 
 	if from == "" || to == "" {
 		return fmt.Errorf("both source and destination accounts are required")
@@ -150,8 +151,8 @@ func transferBetweenAccountsInFile(accounts []domain.Account, fromAccount, toAcc
 		return fmt.Errorf("account '%s' not found", to)
 	}
 
-	fromCurrency := normalizeCurrency(accounts[fromIdx].Currency)
-	toCurrency := normalizeCurrency(accounts[toIdx].Currency)
+	fromCurrency := money.NormalizeCurrency(accounts[fromIdx].Currency)
+	toCurrency := money.NormalizeCurrency(accounts[toIdx].Currency)
 	if fromCurrency != cur {
 		return fmt.Errorf("account '%s' uses currency %s, got %s", accounts[fromIdx].Name, fromCurrency, cur)
 	}

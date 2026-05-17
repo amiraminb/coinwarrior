@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/amiraminb/coinwarrior/internal/domain"
+	"github.com/amiraminb/coinwarrior/internal/money"
 )
 
 func findBudgetIndex(budgets []domain.Budget, monthKey, currency string) int {
@@ -47,12 +48,12 @@ func (s *Service) setMonthlyBudgetWithNow(monthInput, currency, amountInput stri
 		return domain.Budget{}, err
 	}
 
-	cur := normalizeCurrency(currency)
+	cur := money.NormalizeCurrency(currency)
 	if cur == "" {
 		return domain.Budget{}, fmt.Errorf("currency is required")
 	}
 
-	amountMinor, err := ParseAmount(amountInput)
+	amountMinor, err := money.Parse(amountInput)
 	if err != nil {
 		return domain.Budget{}, err
 	}
@@ -127,7 +128,7 @@ func (s *Service) GetBudgetCarryoverCandidate(monthInput, currency string, now t
 		return nil, err
 	}
 
-	cur := normalizeCurrency(currency)
+	cur := money.NormalizeCurrency(currency)
 	if cur == "" {
 		return nil, fmt.Errorf("currency is required")
 	}
@@ -228,7 +229,7 @@ func (s *Service) ApplyMonthlyBudgetRollover(monthInput, currency string, carry 
 		return domain.Budget{}, nil, err
 	}
 	monthKey := FormatBudgetMonth(month)
-	cur := normalizeCurrency(currency)
+	cur := money.NormalizeCurrency(currency)
 	if cur == "" {
 		return domain.Budget{}, nil, fmt.Errorf("currency is required")
 	}

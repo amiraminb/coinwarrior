@@ -6,6 +6,7 @@ import (
 
 	coininternal "github.com/amiraminb/coinwarrior/internal"
 	"github.com/amiraminb/coinwarrior/internal/domain"
+	"github.com/amiraminb/coinwarrior/internal/money"
 	"github.com/charmbracelet/bubbles/table"
 	"github.com/spf13/cobra"
 )
@@ -83,7 +84,7 @@ Supported ranges: today, yesterday, week, lastweek, month, lastmonth, year, last
 				tx.ID,
 				tx.Date,
 				tx.Type,
-				coininternal.FormatMinor(tx.AmountMinor),
+				money.Format(tx.AmountMinor),
 				tx.Currency,
 				tx.Category,
 				account,

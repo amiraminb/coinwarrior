@@ -5,7 +5,7 @@ BIN_DIR := ~/.local/bin
 .PHONY: build dev clean
 
 
-build:
+build: dep
 	mkdir -p $(BIN_DIR)
 	go build -o $(BIN_DIR)/$(APP) .
 

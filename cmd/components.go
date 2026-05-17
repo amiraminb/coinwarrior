@@ -38,19 +38,8 @@ func (m confirmModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m confirmModel) View() string {
 	s := m.question + "\n\n"
-
-	yes := "  Yes"
-	no := "  No"
-	if m.cursor == 0 {
-		yes = focusStyle.Render("> Yes")
-	} else {
-		no = focusStyle.Render("> No")
-	}
-
-	s += yes + "\n"
-	s += no + "\n\n"
+	s += renderYesNo(m.cursor == 0) + "\n"
 	s += mutedStyle.Render("(use ←/→ or ↑/↓ and enter)") + "\n"
-
 	return s
 }
 

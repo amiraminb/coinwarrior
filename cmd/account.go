@@ -284,17 +284,7 @@ func (m accountUpdateModel) View() string {
 		s += renderField("Current balance: ", coininternal.FormatMinor(m.selectedAccount.BalanceMinor)) + "\n"
 		s += renderField("New balance: ", coininternal.FormatMinor(newBalanceMinor)) + "\n\n"
 		s += warnStyle.Render("Confirm account balance update?") + "\n\n"
-
-		yes := "  Yes"
-		no := "  No"
-		if m.confirmCursor == 0 {
-			yes = focusStyle.Render("> Yes")
-		} else {
-			no = focusStyle.Render("> No")
-		}
-
-		s += yes + "\n"
-		s += no + "\n\n"
+		s += renderYesNo(m.confirmCursor == 0) + "\n"
 		s += mutedStyle.Render("(use ←/→ or ↑/↓, enter to confirm, esc to go back, q to quit)") + "\n"
 	case accountUpdateStepDone:
 		s += mutedStyle.Render("Done") + "\n"

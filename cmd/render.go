@@ -45,3 +45,14 @@ func renderError(message string) string {
 	}
 	return warnStyle.Render(message) + "\n"
 }
+
+func renderYesNo(yesFocused bool) string {
+	yes := "  Yes"
+	no := "  No"
+	if yesFocused {
+		yes = focusStyle.Render("> Yes")
+	} else {
+		no = focusStyle.Render("> No")
+	}
+	return yes + "\n" + no + "\n"
+}

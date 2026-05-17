@@ -187,17 +187,7 @@ func (m budgetSetModel) View() string {
 		s += renderField("Currency: ", strings.ToUpper(strings.TrimSpace(m.currencyInput))) + "\n"
 		s += renderField("Budget amount: ", m.amountInput) + "\n\n"
 		s += warnStyle.Render("Save monthly budget?") + "\n\n"
-
-		yes := "  Yes"
-		no := "  No"
-		if m.confirmCursor == 0 {
-			yes = focusStyle.Render("> Yes")
-		} else {
-			no = focusStyle.Render("> No")
-		}
-
-		s += yes + "\n"
-		s += no + "\n\n"
+		s += renderYesNo(m.confirmCursor == 0) + "\n"
 		s += mutedStyle.Render("(use ←/→ or ↑/↓, enter to confirm, esc to go back, q to quit)") + "\n"
 	case budgetSetStepDone:
 		s += mutedStyle.Render("Done") + "\n"

@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/amiraminb/coinwarrior/internal/tui"
 	"github.com/spf13/cobra"
 )
 
@@ -11,7 +12,7 @@ var deleteCmd = &cobra.Command{
 	Short: "Delete a transaction",
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		selected, ok, err := selectTransactionInteractive("Delete Transaction")
+		selected, ok, err := tui.SelectTransaction("Delete Transaction")
 		if err != nil {
 			return err
 		}
@@ -20,7 +21,7 @@ var deleteCmd = &cobra.Command{
 			return nil
 		}
 
-		confirmed, err := runConfirmPrompt("Delete this transaction?\n" + formatEditableTransaction(selected))
+		confirmed, err := tui.RunConfirmPrompt("Delete this transaction?\n" + tui.FormatEditableTransaction(selected))
 		if err != nil {
 			return err
 		}

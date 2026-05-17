@@ -7,6 +7,7 @@ import (
 	"github.com/amiraminb/coinwarrior/internal/daterange"
 	"github.com/amiraminb/coinwarrior/internal/domain"
 	"github.com/amiraminb/coinwarrior/internal/money"
+	"github.com/amiraminb/coinwarrior/internal/tui"
 	"github.com/charmbracelet/bubbles/table"
 	"github.com/spf13/cobra"
 )
@@ -61,7 +62,7 @@ Supported ranges: today, yesterday, week, lastweek, month, lastmonth, year, last
 			return nil
 		}
 
-		sortTransactionsByDateDesc(items)
+		tui.SortTransactionsByDateDesc(items)
 
 		columns := []table.Column{
 			{Title: "ID", Width: 24},
@@ -92,7 +93,7 @@ Supported ranges: today, yesterday, week, lastweek, month, lastmonth, year, last
 			})
 		}
 
-		renderTable(columns, rows)
+		tui.RenderTable(columns, rows)
 
 		return nil
 	},

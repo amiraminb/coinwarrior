@@ -1,4 +1,4 @@
-package cmd
+package tui
 
 import (
 	"fmt"
@@ -7,7 +7,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-func renderTable(columns []table.Column, rows []table.Row) {
+func RenderTable(columns []table.Column, rows []table.Row) {
 	t := table.New(
 		table.WithColumns(columns),
 		table.WithRows(rows),

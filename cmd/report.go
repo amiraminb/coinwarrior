@@ -10,6 +10,7 @@ import (
 	"github.com/amiraminb/coinwarrior/internal/daterange"
 	"github.com/amiraminb/coinwarrior/internal/domain"
 	"github.com/amiraminb/coinwarrior/internal/money"
+	"github.com/amiraminb/coinwarrior/internal/tui"
 	"github.com/charmbracelet/bubbles/table"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/spf13/cobra"
@@ -50,7 +51,7 @@ Use --details to show transactions separated by category.`,
 			return err
 		}
 
-		fmt.Println(headerStyle.Render(fmt.Sprintf("report %s..%s", start.Format("2006-01-02"), end.Format("2006-01-02"))))
+		fmt.Println(tui.HeaderStyle.Render(fmt.Sprintf("report %s..%s", start.Format("2006-01-02"), end.Format("2006-01-02"))))
 		fmt.Println()
 		if err := printCategorySection(transactions, start, end, reportShowDetails, time.Now()); err != nil {
 			return err
@@ -66,7 +67,7 @@ func runAccountReport() error {
 		return err
 	}
 
-	fmt.Println(headerStyle.Render("account report"))
+	fmt.Println(tui.HeaderStyle.Render("account report"))
 	fmt.Println()
 	printAccountBalancesReport(accounts)
 	fmt.Println()
@@ -94,7 +95,7 @@ func printAccountBalancesReport(accounts []domain.Account) {
 		rows = append(rows, table.Row{account.Name, account.Currency, money.Format(account.BalanceMinor)})
 	}
 
-	renderTable(
+	tui.RenderTable(
 		[]table.Column{
 			{Title: "ACCOUNT", Width: 24},
 			{Title: "CUR", Width: 5},
@@ -127,7 +128,7 @@ func printTotalBalancesReport(accounts []domain.Account) {
 		rows = append(rows, table.Row{currency, money.Format(totals[currency])})
 	}
 
-	renderTable(
+	tui.RenderTable(
 		[]table.Column{
 			{Title: "CUR", Width: 5},
 			{Title: "TOTAL", Width: 14},
@@ -220,7 +221,7 @@ func printCategorySection(transactions []domain.Transaction, start, end time.Tim
 		}
 	}
 
-	renderTable(
+	tui.RenderTable(
 		[]table.Column{
 			{Title: "CATEGORY", Width: 20},
 			{Title: "CUR", Width: 5},
@@ -256,7 +257,7 @@ func printCategorySection(transactions []domain.Transaction, start, end time.Tim
 		fmt.Println()
 		fmt.Println(reportSubSectionStyle.Render("Income / Expense Summary"))
 		fmt.Println()
-		renderTable(
+		tui.RenderTable(
 			[]table.Column{
 				{Title: "CUR", Width: 5},
 				{Title: "INCOME", Width: 14},
@@ -310,7 +311,7 @@ func printMonthlyBudgetSection(start, end, now time.Time) error {
 		})
 	}
 
-	renderTable(
+	tui.RenderTable(
 		[]table.Column{
 			{Title: "CUR", Width: 5},
 			{Title: "BUDGET", Width: 14},
@@ -346,7 +347,7 @@ func renderCompactCategoryDetails(categoryReports []categoryReport) {
 		items := make([]domain.Transaction, len(report.items))
 		copy(items, report.items)
 
-		sortTransactionsByDateDesc(items)
+		tui.SortTransactionsByDateDesc(items)
 
 		displayCategory := report.name
 		if displayCategory == "" {
@@ -365,7 +366,7 @@ func renderCompactCategoryDetails(categoryReports []categoryReport) {
 		}
 	}
 
-	renderTable(
+	tui.RenderTable(
 		[]table.Column{
 			{Title: "CATEGORY", Width: 18},
 			{Title: "DATE", Width: 10},
@@ -387,7 +388,7 @@ func renderSeparateCategoryDetails(categoryReports []categoryReport) {
 		items := make([]domain.Transaction, len(report.items))
 		copy(items, report.items)
 
-		sortTransactionsByDateDesc(items)
+		tui.SortTransactionsByDateDesc(items)
 
 		displayCategory := report.name
 		if displayCategory == "" {
@@ -404,7 +405,7 @@ func renderSeparateCategoryDetails(categoryReports []categoryReport) {
 			rows = append(rows, table.Row{tx.Date, amount, tx.Currency, tx.Account, tx.Note})
 		}
 
-		renderTable(
+		tui.RenderTable(
 			[]table.Column{
 				{Title: "DATE", Width: 10},
 				{Title: "AMOUNT", Width: 12},

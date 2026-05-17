@@ -1,4 +1,4 @@
-package cmd
+package tui
 
 import (
 	"strings"
@@ -43,7 +43,7 @@ func (m confirmModel) View() string {
 	return s
 }
 
-func runConfirmPrompt(question string) (bool, error) {
+func RunConfirmPrompt(question string) (bool, error) {
 	p := tea.NewProgram(confirmModel{question: question})
 
 	finalModel, err := p.Run()

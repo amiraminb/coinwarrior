@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/amiraminb/coinwarrior/internal/repository"
+	"github.com/amiraminb/coinwarrior/internal/tui"
 	"github.com/spf13/cobra"
 )
 
@@ -126,7 +127,7 @@ func setupInitialAccounts(repo repository.Repository) error {
 		return nil
 	}
 
-	addNow, err := runConfirmPrompt("No accounts found. Add one now?")
+	addNow, err := tui.RunConfirmPrompt("No accounts found. Add one now?")
 	if err != nil {
 		return err
 	}
@@ -135,12 +136,12 @@ func setupInitialAccounts(repo repository.Repository) error {
 	}
 
 	for {
-		_, err := runAccountAddInteractive()
+		_, err := tui.RunAccountAdd()
 		if err != nil {
 			return err
 		}
 
-		again, err := runConfirmPrompt("Add another account?")
+		again, err := tui.RunConfirmPrompt("Add another account?")
 		if err != nil {
 			return err
 		}

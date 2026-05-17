@@ -1,4 +1,4 @@
-package cmd
+package tui
 
 import (
 	"fmt"
@@ -64,9 +64,9 @@ func (m transactionListModel) View() string {
 	s += "Select transaction:\n\n"
 
 	for i, tx := range m.transactions {
-		line := "  " + formatEditableTransaction(tx)
+		line := "  " + FormatEditableTransaction(tx)
 		if i == m.cursor {
-			line = focusStyle.Render("> " + formatEditableTransaction(tx))
+			line = focusStyle.Render("> " + FormatEditableTransaction(tx))
 		}
 		s += line + "\n"
 	}
@@ -75,7 +75,7 @@ func (m transactionListModel) View() string {
 	return s
 }
 
-func selectTransactionInteractive(title string) (domain.Transaction, bool, error) {
+func SelectTransaction(title string) (domain.Transaction, bool, error) {
 	transactions, err := loadAllTransactionsForSelection()
 	if err != nil {
 		return domain.Transaction{}, false, err
@@ -180,14 +180,14 @@ func runTransactionListInteractive(title string, transactions []domain.Transacti
 }
 
 func loadAllTransactionsForSelection() ([]domain.Transaction, error) {
-	transactions, err := repo.LoadTransactions()
+	transactions, err := Repo.LoadTransactions()
 	if err != nil {
 		return nil, err
 	}
 
 	items := make([]domain.Transaction, len(transactions))
 	copy(items, transactions)
-	sortTransactionsByDateDesc(items)
+	SortTransactionsByDateDesc(items)
 	return items, nil
 }
 

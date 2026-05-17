@@ -69,13 +69,13 @@ coinw add
 
 ```bash
 coinw list
-coinw list month
+coinw list <range>
 ```
 
 - Generate a report:
 
 ```bash
-coinw report month
+coinw report <range>
 ```
 
 ## Supported List/Report Ranges

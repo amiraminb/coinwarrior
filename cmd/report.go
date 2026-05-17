@@ -144,7 +144,7 @@ func printCategorySection(transactions []domain.Transaction, start, end time.Tim
 
 	byCategory := make(map[string][]domain.Transaction)
 	for _, tx := range transactions {
-		if tx.Type == coininternal.TransactionTypeTransfer {
+		if tx.Type == domain.TransactionTypeTransfer {
 			continue
 		}
 		inRange, err := coininternal.TransactionInRange(tx.Date, start, end)
@@ -174,16 +174,16 @@ func printCategorySection(transactions []domain.Transaction, start, end time.Tim
 		}
 
 		for _, tx := range items {
-			if tx.Type == coininternal.TransactionTypeExpense {
+			if tx.Type == domain.TransactionTypeExpense {
 				currencyExpense[tx.Currency] += tx.AmountMinor
 				report.expenseByCurrency[tx.Currency] += tx.AmountMinor
 				report.totalExpenseMinor += tx.AmountMinor
-			} else if tx.Type == coininternal.TransactionTypeIncome {
+			} else if tx.Type == domain.TransactionTypeIncome {
 				currencyIncome[tx.Currency] += tx.AmountMinor
 			}
 
 			delta := tx.AmountMinor
-			if tx.Type == coininternal.TransactionTypeExpense {
+			if tx.Type == domain.TransactionTypeExpense {
 				delta = -tx.AmountMinor
 			}
 			report.totalsByCurrency[tx.Currency] += delta

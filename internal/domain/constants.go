@@ -1,4 +1,4 @@
-package internal
+package domain
 
 const (
 	TransactionTypeExpense  = "expense"
@@ -14,4 +14,9 @@ const (
 const (
 	BudgetSummaryStatusOpen    = "open"
 	BudgetSummaryStatusPending = "pending"
+)
+
+const (
+	BudgetRolloverStatusCarried = "carried"
+	BudgetRolloverStatusSkipped = "skipped"
 )

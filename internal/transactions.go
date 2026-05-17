@@ -131,7 +131,7 @@ func (s *Service) AddTransaction(txType, amountInput, currency, dateValue, categ
 		return domain.Transaction{}, fmt.Errorf("amount must be greater than zero")
 	}
 
-	if txType != TransactionTypeExpense && txType != TransactionTypeIncome && txType != TransactionTypeTransfer {
+	if txType != domain.TransactionTypeExpense && txType != domain.TransactionTypeIncome && txType != domain.TransactionTypeTransfer {
 		return domain.Transaction{}, fmt.Errorf("invalid transaction type: %s", txType)
 	}
 
@@ -151,9 +151,9 @@ func (s *Service) AddTransaction(txType, amountInput, currency, dateValue, categ
 	category = strings.TrimSpace(category)
 	account = strings.TrimSpace(account)
 	toAccount = strings.TrimSpace(toAccount)
-	if txType == TransactionTypeTransfer {
+	if txType == domain.TransactionTypeTransfer {
 		if category == "" {
-			category = TransferCategory
+			category = domain.TransferCategory
 		}
 	} else {
 		if account == "" {
@@ -175,7 +175,7 @@ func (s *Service) AddTransaction(txType, amountInput, currency, dateValue, categ
 		Note:        strings.TrimSpace(note),
 		CreatedAt:   utcNow.Format(time.RFC3339),
 		UpdatedAt:   utcNow.Format(time.RFC3339),
-		Source:      TransactionSourceManual,
+		Source:      domain.TransactionSourceManual,
 	}
 
 	err = s.mutateLedger(now, func(transactions *[]domain.Transaction, accounts *[]domain.Account, nowUTC string) error {
@@ -298,7 +298,7 @@ func applyTransactionEdits(tx domain.Transaction, edits TransactionEdits, now ti
 	}
 
 	updated.Type = strings.TrimSpace(updated.Type)
-	if updated.Type != TransactionTypeExpense && updated.Type != TransactionTypeIncome && updated.Type != TransactionTypeTransfer {
+	if updated.Type != domain.TransactionTypeExpense && updated.Type != domain.TransactionTypeIncome && updated.Type != domain.TransactionTypeTransfer {
 		return domain.Transaction{}, false, fmt.Errorf("invalid transaction type: %s", updated.Type)
 	}
 
@@ -320,9 +320,9 @@ func applyTransactionEdits(tx domain.Transaction, edits TransactionEdits, now ti
 	updated.ToAccount = strings.TrimSpace(updated.ToAccount)
 	updated.Note = strings.TrimSpace(updated.Note)
 
-	if updated.Type == TransactionTypeTransfer {
+	if updated.Type == domain.TransactionTypeTransfer {
 		if updated.Category == "" {
-			updated.Category = TransferCategory
+			updated.Category = domain.TransferCategory
 		}
 		if updated.Account == "" || updated.ToAccount == "" {
 			return domain.Transaction{}, false, fmt.Errorf("both source and destination accounts are required")
@@ -356,11 +356,11 @@ func applyTransactionEdits(tx domain.Transaction, edits TransactionEdits, now ti
 
 func applyTransactionEffect(accounts []domain.Account, tx domain.Transaction, now string) error {
 	switch tx.Type {
-	case TransactionTypeTransfer:
+	case domain.TransactionTypeTransfer:
 		return transferBetweenAccountsInFile(accounts, tx.Account, tx.ToAccount, tx.Currency, tx.AmountMinor, now)
-	case TransactionTypeExpense, TransactionTypeIncome:
+	case domain.TransactionTypeExpense, domain.TransactionTypeIncome:
 		delta := tx.AmountMinor
-		if tx.Type == TransactionTypeExpense {
+		if tx.Type == domain.TransactionTypeExpense {
 			delta = -delta
 		}
 		return applyAccountDeltaToFile(accounts, tx.Account, tx.Currency, delta, now)
@@ -371,11 +371,11 @@ func applyTransactionEffect(accounts []domain.Account, tx domain.Transaction, no
 
 func revertTransactionEffect(accounts []domain.Account, tx domain.Transaction, now string) error {
 	switch tx.Type {
-	case TransactionTypeTransfer:
+	case domain.TransactionTypeTransfer:
 		return transferBetweenAccountsInFile(accounts, tx.ToAccount, tx.Account, tx.Currency, tx.AmountMinor, now)
-	case TransactionTypeExpense, TransactionTypeIncome:
+	case domain.TransactionTypeExpense, domain.TransactionTypeIncome:
 		delta := tx.AmountMinor
-		if tx.Type == TransactionTypeIncome {
+		if tx.Type == domain.TransactionTypeIncome {
 			delta = -delta
 		}
 		return applyAccountDeltaToFile(accounts, tx.Account, tx.Currency, delta, now)
@@ -396,7 +396,7 @@ func (e TransactionEdits) empty() bool {
 
 func FormatTransactionAmount(tx domain.Transaction) string {
 	amount := FormatMinor(tx.AmountMinor)
-	if tx.Type == TransactionTypeExpense {
+	if tx.Type == domain.TransactionTypeExpense {
 		amount = "-" + amount
 	}
 	return amount

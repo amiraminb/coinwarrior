@@ -76,7 +76,7 @@ Supported ranges: today, yesterday, week, lastweek, month, lastmonth, year, last
 		rows := make([]table.Row, 0, len(items))
 		for _, tx := range items {
 			account := tx.Account
-			if tx.Type == coininternal.TransactionTypeTransfer {
+			if tx.Type == domain.TransactionTypeTransfer {
 				account = tx.Account + " -> " + tx.ToAccount
 			}
 			rows = append(rows, table.Row{

@@ -155,7 +155,7 @@ func (m editModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					break
 				}
 				m.errMessage = ""
-				if m.selected.Type == coininternal.TransactionTypeTransfer {
+				if m.selected.Type == domain.TransactionTypeTransfer {
 					m.step = editStepToAccount
 				} else {
 					m.step = editStepNote
@@ -209,7 +209,7 @@ func (m editModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.step = editStepConfirm
 			case "esc":
 				m.errMessage = ""
-				if m.selected.Type == coininternal.TransactionTypeTransfer {
+				if m.selected.Type == domain.TransactionTypeTransfer {
 					m.step = editStepToAccount
 				} else {
 					m.step = editStepAccount
@@ -290,7 +290,7 @@ func (m editModel) View() string {
 		s += renderField("Amount: ", m.amountInput) + "\n"
 		s += renderField("Category: ", m.categoryInput) + "\n"
 		s += renderField("Account: ", m.accountInput) + "\n"
-		if m.selected.Type == coininternal.TransactionTypeTransfer {
+		if m.selected.Type == domain.TransactionTypeTransfer {
 			s += renderField("To account: ", m.toAccountInput) + "\n"
 		}
 		s += "\n" + renderActiveField("Note: ", m.noteInput) + "\n"
@@ -301,7 +301,7 @@ func (m editModel) View() string {
 		s += renderField("Amount: ", m.amountInput) + "\n"
 		s += renderField("Category: ", m.categoryInput) + "\n"
 		s += renderField("Account: ", m.accountInput) + "\n"
-		if m.selected.Type == coininternal.TransactionTypeTransfer {
+		if m.selected.Type == domain.TransactionTypeTransfer {
 			s += renderField("To account: ", m.toAccountInput) + "\n"
 		}
 		s += renderField("Note: ", m.noteInput) + "\n\n"
@@ -354,7 +354,7 @@ var editCmd = &cobra.Command{
 			Account:  &account,
 			Note:     &note,
 		}
-		if result.selected.Type == coininternal.TransactionTypeTransfer {
+		if result.selected.Type == domain.TransactionTypeTransfer {
 			toAccount := result.toAccountInput
 			edits.ToAccount = &toAccount
 		}
@@ -391,7 +391,7 @@ func formatEditableTransaction(tx domain.Transaction) string {
 	}
 
 	details := tx.Account
-	if tx.Type == coininternal.TransactionTypeTransfer {
+	if tx.Type == domain.TransactionTypeTransfer {
 		details = tx.Account + " -> " + tx.ToAccount
 	}
 

@@ -16,12 +16,7 @@ func findBudgetIndex(budgets []domain.Budget, monthKey, currency string) int {
 	})
 }
 
-const (
-	budgetMonthLayout = "2006-01"
-
-	budgetRolloverStatusCarried = "carried"
-	budgetRolloverStatusSkipped = "skipped"
-)
+const budgetMonthLayout = "2006-01"
 
 type BudgetSummary struct {
 	Budget      domain.Budget
@@ -105,13 +100,13 @@ func (s *Service) setMonthlyBudgetWithNow(monthInput, currency, amountInput stri
 			budgets[targetIndex].RolloverFromMonth = carryover.SourceBudget.Month
 			budgets[targetIndex].UpdatedAt = nowUTC
 
-			budgets[sourceIndex].RolloverStatus = budgetRolloverStatusCarried
+			budgets[sourceIndex].RolloverStatus = domain.BudgetRolloverStatusCarried
 			budgets[sourceIndex].RolledOverMinor = carryover.LeftMinor
 			budgets[sourceIndex].RolledOverIntoMonth = monthKey
 			budgets[sourceIndex].RolledOverAt = nowUTC
 			budgets[sourceIndex].UpdatedAt = nowUTC
 		} else {
-			budgets[sourceIndex].RolloverStatus = budgetRolloverStatusSkipped
+			budgets[sourceIndex].RolloverStatus = domain.BudgetRolloverStatusSkipped
 			budgets[sourceIndex].RolledOverMinor = 0
 			budgets[sourceIndex].RolledOverIntoMonth = ""
 			budgets[sourceIndex].RolledOverAt = nowUTC
@@ -217,7 +212,7 @@ func (s *Service) GetPendingBudgetRollovers(targetMonthInput string, now time.Ti
 			Budget:      budget,
 			SpentMinor:  spent,
 			LeftMinor:   budget.AmountMinor + budget.RolloverMinor - spent,
-			Status:      BudgetSummaryStatusPending,
+			Status:      domain.BudgetSummaryStatusPending,
 			PeriodStart: month,
 			PeriodEnd:   end,
 		})
@@ -267,7 +262,7 @@ func (s *Service) ApplyMonthlyBudgetRollover(monthInput, currency string, carry 
 
 	nowUTC := now.UTC().Format(time.RFC3339)
 	if !carry {
-		budgets[index].RolloverStatus = budgetRolloverStatusSkipped
+		budgets[index].RolloverStatus = domain.BudgetRolloverStatusSkipped
 		budgets[index].RolledOverMinor = 0
 		budgets[index].RolledOverIntoMonth = ""
 		budgets[index].RolledOverAt = nowUTC
@@ -301,7 +296,7 @@ func (s *Service) ApplyMonthlyBudgetRollover(monthInput, currency string, carry 
 		budgets[destIndex].UpdatedAt = nowUTC
 	}
 
-	budgets[index].RolloverStatus = budgetRolloverStatusCarried
+	budgets[index].RolloverStatus = domain.BudgetRolloverStatusCarried
 	budgets[index].RolledOverMinor = left
 	budgets[index].RolledOverIntoMonth = nextMonthKey
 	budgets[index].RolledOverAt = nowUTC
@@ -374,7 +369,7 @@ func expensesForBudgetMonth(transactions []domain.Transaction, budget domain.Bud
 	start, end := budgetMonthBounds(month)
 	spent := int64(0)
 	for _, tx := range transactions {
-		if tx.Type != TransactionTypeExpense {
+		if tx.Type != domain.TransactionTypeExpense {
 			continue
 		}
 		if !strings.EqualFold(tx.Currency, budget.Currency) {
@@ -397,9 +392,9 @@ func budgetSummaryStatus(budget domain.Budget, periodEnd, now time.Time) string 
 		return budget.RolloverStatus
 	}
 	if periodEnd.Before(dateOnly(now)) {
-		return BudgetSummaryStatusPending
+		return domain.BudgetSummaryStatusPending
 	}
-	return BudgetSummaryStatusOpen
+	return domain.BudgetSummaryStatusOpen
 }
 
 func budgetMonthBounds(month time.Time) (time.Time, time.Time) {

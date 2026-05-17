@@ -3,12 +3,10 @@ package internal
 import (
 	"slices"
 	"strings"
-
-	"github.com/amiraminb/coinwarrior/internal/repository"
 )
 
-func LoadCategories() ([]string, error) {
-	categories, err := repository.FRepository.LoadCategories()
+func (s *Service) LoadCategories() ([]string, error) {
+	categories, err := s.repo.LoadCategories()
 	if err != nil {
 		return nil, err
 	}
@@ -18,13 +16,13 @@ func LoadCategories() ([]string, error) {
 	return result, nil
 }
 
-func AddCategory(category string) error {
+func (s *Service) AddCategory(category string) error {
 	clean := strings.TrimSpace(category)
 	if clean == "" {
 		return nil
 	}
 
-	categories, err := repository.FRepository.LoadCategories()
+	categories, err := s.repo.LoadCategories()
 	if err != nil {
 		return err
 	}
@@ -34,6 +32,6 @@ func AddCategory(category string) error {
 	}
 
 	categories = append(categories, clean)
-	return repository.FRepository.SaveCategories(categories)
+	return s.repo.SaveCategories(categories)
 }
 

@@ -6,11 +6,10 @@ import (
 	"time"
 
 	"github.com/amiraminb/coinwarrior/internal/domain"
-	"github.com/amiraminb/coinwarrior/internal/repository"
 )
 
-func LoadAccounts() ([]string, error) {
-	accounts, err := repository.FRepository.LoadAccounts()
+func (s *Service) LoadAccountNames() ([]string, error) {
+	accounts, err := s.repo.LoadAccounts()
 	if err != nil {
 		return nil, err
 	}
@@ -23,7 +22,7 @@ func LoadAccounts() ([]string, error) {
 	return result, nil
 }
 
-func AddAccount(name, currency, openingBalanceInput string) (domain.Account, error) {
+func (s *Service) AddAccount(name, currency, openingBalanceInput string) (domain.Account, error) {
 	accountName := strings.TrimSpace(name)
 	cur := strings.ToUpper(strings.TrimSpace(currency))
 	if accountName == "" {
@@ -38,7 +37,7 @@ func AddAccount(name, currency, openingBalanceInput string) (domain.Account, err
 		return domain.Account{}, err
 	}
 
-	accounts, err := repository.FRepository.LoadAccounts()
+	accounts, err := s.repo.LoadAccounts()
 	if err != nil {
 		return domain.Account{}, err
 	}
@@ -57,14 +56,14 @@ func AddAccount(name, currency, openingBalanceInput string) (domain.Account, err
 	}
 
 	accounts = append(accounts, account)
-	if err := repository.FRepository.SaveAccounts(accounts); err != nil {
+	if err := s.repo.SaveAccounts(accounts); err != nil {
 		return domain.Account{}, err
 	}
 
 	return account, nil
 }
 
-func UpdateAccountBalance(name, amountInput string) (domain.Account, error) {
+func (s *Service) UpdateAccountBalance(name, amountInput string) (domain.Account, error) {
 	accountName := strings.TrimSpace(name)
 	if accountName == "" {
 		return domain.Account{}, fmt.Errorf("account name is required")
@@ -75,7 +74,7 @@ func UpdateAccountBalance(name, amountInput string) (domain.Account, error) {
 		return domain.Account{}, err
 	}
 
-	accounts, err := repository.FRepository.LoadAccounts()
+	accounts, err := s.repo.LoadAccounts()
 	if err != nil {
 		return domain.Account{}, err
 	}
@@ -84,7 +83,7 @@ func UpdateAccountBalance(name, amountInput string) (domain.Account, error) {
 		if strings.EqualFold(accounts[i].Name, accountName) {
 			accounts[i].BalanceMinor = balanceMinor
 			accounts[i].UpdatedAt = time.Now().UTC().Format(time.RFC3339)
-			if err := repository.FRepository.SaveAccounts(accounts); err != nil {
+			if err := s.repo.SaveAccounts(accounts); err != nil {
 				return domain.Account{}, err
 			}
 			return accounts[i], nil

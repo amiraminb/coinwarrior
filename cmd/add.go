@@ -510,11 +510,11 @@ var addCmd = &cobra.Command{
 	Use:   "add",
 	Short: "Add a transaction",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		categories, err := coininternal.LoadCategories()
+		categories, err := svc.LoadCategories()
 		if err != nil {
 			return err
 		}
-		accounts, err := coininternal.LoadAccounts()
+		accounts, err := svc.LoadAccountNames()
 		if err != nil {
 			return err
 		}
@@ -540,18 +540,18 @@ var addCmd = &cobra.Command{
 		}
 
 		if result.createAccount && result.selected != coininternal.TransactionTypeTransfer {
-			if _, err := coininternal.AddAccount(result.accountInput, result.currencyInput, "0"); err != nil {
+			if _, err := svc.AddAccount(result.accountInput, result.currencyInput, "0"); err != nil {
 				return err
 			}
 		}
 
 		if result.selected != coininternal.TransactionTypeTransfer {
-			if err := coininternal.AddCategory(result.categoryInput); err != nil {
+			if err := svc.AddCategory(result.categoryInput); err != nil {
 				return err
 			}
 		}
 
-		tx, err := coininternal.AddTransaction(result.selected, result.amountInput, result.currencyInput, result.dateInput, result.categoryInput, result.accountInput, result.toAccountInput, result.noteInput)
+		tx, err := svc.AddTransaction(result.selected, result.amountInput, result.currencyInput, result.dateInput, result.categoryInput, result.accountInput, result.toAccountInput, result.noteInput)
 		if err != nil {
 			return err
 		}

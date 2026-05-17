@@ -1,6 +1,15 @@
 package cmd
 
-import "github.com/spf13/cobra"
+import (
+	coininternal "github.com/amiraminb/coinwarrior/internal"
+	"github.com/amiraminb/coinwarrior/internal/repository"
+	"github.com/spf13/cobra"
+)
+
+var (
+	repo repository.Repository = repository.NewFileRepository()
+	svc                        = coininternal.NewService(repo)
+)
 
 var rootCmd = &cobra.Command{
 	Use:   "coinw",

@@ -3,7 +3,6 @@ package cmd
 import (
 	"fmt"
 
-	coininternal "github.com/amiraminb/coinwarrior/internal"
 	"github.com/spf13/cobra"
 )
 
@@ -30,7 +29,7 @@ var deleteCmd = &cobra.Command{
 			return nil
 		}
 
-		tx, err := coininternal.DeleteTransaction(selected.ID)
+		tx, err := svc.DeleteTransaction(selected.ID)
 		if err != nil {
 			return err
 		}

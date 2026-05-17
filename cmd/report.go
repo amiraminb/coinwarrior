@@ -9,7 +9,6 @@ import (
 
 	coininternal "github.com/amiraminb/coinwarrior/internal"
 	"github.com/amiraminb/coinwarrior/internal/domain"
-	"github.com/amiraminb/coinwarrior/internal/repository"
 	"github.com/charmbracelet/bubbles/table"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/spf13/cobra"
@@ -45,7 +44,7 @@ Use --details to show transactions separated by category.`,
 			return err
 		}
 
-		transactions, err := repository.FRepository.LoadTransactions()
+		transactions, err := repo.LoadTransactions()
 		if err != nil {
 			return err
 		}
@@ -62,7 +61,7 @@ Use --details to show transactions separated by category.`,
 }
 
 func runAccountReport() error {
-	accounts, err := repository.FRepository.LoadAccounts()
+	accounts, err := repo.LoadAccounts()
 	if err != nil {
 		return err
 	}
@@ -291,7 +290,7 @@ func printMonthlyBudgetSection(start, end, now time.Time) error {
 	fmt.Println(reportSubSectionStyle.Render("Monthly Budget"))
 	fmt.Println()
 
-	summaries, err := coininternal.GetMonthlyBudgetSummaries(monthLabel, now)
+	summaries, err := svc.GetMonthlyBudgetSummaries(monthLabel, now)
 	if err != nil {
 		return err
 	}

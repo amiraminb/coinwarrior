@@ -259,7 +259,7 @@ func runBudgetSetInteractive() (bool, error) {
 	}
 
 	carryoverDecision := false
-	candidate, err := coininternal.GetBudgetCarryoverCandidate(result.monthInput, result.currencyInput, time.Now())
+	candidate, err := svc.GetBudgetCarryoverCandidate(result.monthInput, result.currencyInput, time.Now())
 	if err != nil {
 		return false, err
 	}
@@ -277,7 +277,7 @@ func runBudgetSetInteractive() (bool, error) {
 		}
 	}
 
-	budget, err := coininternal.SetMonthlyBudgetWithCarryover(result.monthInput, result.currencyInput, result.amountInput, carryoverDecision)
+	budget, err := svc.SetMonthlyBudgetWithCarryover(result.monthInput, result.currencyInput, result.amountInput, carryoverDecision)
 	if err != nil {
 		return false, err
 	}
@@ -316,7 +316,7 @@ func runBudgetShow(monthInput string) error {
 		return err
 	}
 
-	summaries, err := coininternal.GetMonthlyBudgetSummaries(monthInput, time.Now())
+	summaries, err := svc.GetMonthlyBudgetSummaries(monthInput, time.Now())
 	if err != nil {
 		return err
 	}

@@ -20,5 +20,3 @@ type FileRepository struct {
 func NewFileRepository() *FileRepository {
 	return &FileRepository{}
 }
-
-var FRepository Repository = NewFileRepository()

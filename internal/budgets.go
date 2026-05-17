@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/amiraminb/coinwarrior/internal/domain"
-	"github.com/amiraminb/coinwarrior/internal/repository"
+
 )
 
 const (
@@ -32,15 +32,15 @@ type BudgetCarryoverCandidate struct {
 	LeftMinor    int64
 }
 
-func SetMonthlyBudget(monthInput, currency, amountInput string) (domain.Budget, error) {
-	return setMonthlyBudgetWithNow(monthInput, currency, amountInput, nil, time.Now())
+func (s *Service) SetMonthlyBudget(monthInput, currency, amountInput string) (domain.Budget, error) {
+	return s.setMonthlyBudgetWithNow(monthInput, currency, amountInput, nil, time.Now())
 }
 
-func SetMonthlyBudgetWithCarryover(monthInput, currency, amountInput string, carryover bool) (domain.Budget, error) {
-	return setMonthlyBudgetWithNow(monthInput, currency, amountInput, &carryover, time.Now())
+func (s *Service) SetMonthlyBudgetWithCarryover(monthInput, currency, amountInput string, carryover bool) (domain.Budget, error) {
+	return s.setMonthlyBudgetWithNow(monthInput, currency, amountInput, &carryover, time.Now())
 }
 
-func setMonthlyBudgetWithNow(monthInput, currency, amountInput string, carryoverDecision *bool, now time.Time) (domain.Budget, error) {
+func (s *Service) setMonthlyBudgetWithNow(monthInput, currency, amountInput string, carryoverDecision *bool, now time.Time) (domain.Budget, error) {
 	month, err := ParseBudgetMonth(monthInput, now)
 	if err != nil {
 		return domain.Budget{}, err
@@ -59,11 +59,11 @@ func setMonthlyBudgetWithNow(monthInput, currency, amountInput string, carryover
 		return domain.Budget{}, fmt.Errorf("budget amount must be greater than zero")
 	}
 
-	budgets, err := repository.FRepository.LoadBudgets()
+	budgets, err := s.repo.LoadBudgets()
 	if err != nil {
 		return domain.Budget{}, err
 	}
-	transactions, err := repository.FRepository.LoadTransactions()
+	transactions, err := s.repo.LoadTransactions()
 	if err != nil {
 		return domain.Budget{}, err
 	}
@@ -119,14 +119,14 @@ func setMonthlyBudgetWithNow(monthInput, currency, amountInput string, carryover
 		}
 	}
 
-	if err := repository.FRepository.SaveBudgets(budgets); err != nil {
+	if err := s.repo.SaveBudgets(budgets); err != nil {
 		return domain.Budget{}, err
 	}
 
 	return budgets[targetIndex], nil
 }
 
-func GetBudgetCarryoverCandidate(monthInput, currency string, now time.Time) (*BudgetCarryoverCandidate, error) {
+func (s *Service) GetBudgetCarryoverCandidate(monthInput, currency string, now time.Time) (*BudgetCarryoverCandidate, error) {
 	month, err := ParseBudgetMonth(monthInput, now)
 	if err != nil {
 		return nil, err
@@ -137,11 +137,11 @@ func GetBudgetCarryoverCandidate(monthInput, currency string, now time.Time) (*B
 		return nil, fmt.Errorf("currency is required")
 	}
 
-	budgets, err := repository.FRepository.LoadBudgets()
+	budgets, err := s.repo.LoadBudgets()
 	if err != nil {
 		return nil, err
 	}
-	transactions, err := repository.FRepository.LoadTransactions()
+	transactions, err := s.repo.LoadTransactions()
 	if err != nil {
 		return nil, err
 	}
@@ -153,17 +153,17 @@ func GetBudgetCarryoverCandidate(monthInput, currency string, now time.Time) (*B
 	return candidate, nil
 }
 
-func GetMonthlyBudgetSummaries(monthInput string, now time.Time) ([]BudgetSummary, error) {
+func (s *Service) GetMonthlyBudgetSummaries(monthInput string, now time.Time) ([]BudgetSummary, error) {
 	month, err := ParseBudgetMonth(monthInput, now)
 	if err != nil {
 		return nil, err
 	}
 
-	budgets, err := repository.FRepository.LoadBudgets()
+	budgets, err := s.repo.LoadBudgets()
 	if err != nil {
 		return nil, err
 	}
-	transactions, err := repository.FRepository.LoadTransactions()
+	transactions, err := s.repo.LoadTransactions()
 	if err != nil {
 		return nil, err
 	}
@@ -171,12 +171,12 @@ func GetMonthlyBudgetSummaries(monthInput string, now time.Time) ([]BudgetSummar
 	return summarizeBudgetsForMonth(budgets, transactions, month, now)
 }
 
-func GetPendingBudgetRollovers(targetMonthInput string, now time.Time) ([]BudgetSummary, error) {
-	budgets, err := repository.FRepository.LoadBudgets()
+func (s *Service) GetPendingBudgetRollovers(targetMonthInput string, now time.Time) ([]BudgetSummary, error) {
+	budgets, err := s.repo.LoadBudgets()
 	if err != nil {
 		return nil, err
 	}
-	transactions, err := repository.FRepository.LoadTransactions()
+	transactions, err := s.repo.LoadTransactions()
 	if err != nil {
 		return nil, err
 	}
@@ -227,7 +227,7 @@ func GetPendingBudgetRollovers(targetMonthInput string, now time.Time) ([]Budget
 	return summaries, nil
 }
 
-func ApplyMonthlyBudgetRollover(monthInput, currency string, carry bool, now time.Time) (domain.Budget, *domain.Budget, error) {
+func (s *Service) ApplyMonthlyBudgetRollover(monthInput, currency string, carry bool, now time.Time) (domain.Budget, *domain.Budget, error) {
 	month, err := ParseBudgetMonth(monthInput, now)
 	if err != nil {
 		return domain.Budget{}, nil, err
@@ -238,11 +238,11 @@ func ApplyMonthlyBudgetRollover(monthInput, currency string, carry bool, now tim
 		return domain.Budget{}, nil, fmt.Errorf("currency is required")
 	}
 
-	budgets, err := repository.FRepository.LoadBudgets()
+	budgets, err := s.repo.LoadBudgets()
 	if err != nil {
 		return domain.Budget{}, nil, err
 	}
-	transactions, err := repository.FRepository.LoadTransactions()
+	transactions, err := s.repo.LoadTransactions()
 	if err != nil {
 		return domain.Budget{}, nil, err
 	}
@@ -278,7 +278,7 @@ func ApplyMonthlyBudgetRollover(monthInput, currency string, carry bool, now tim
 		budgets[index].RolledOverIntoMonth = ""
 		budgets[index].RolledOverAt = nowUTC
 		budgets[index].UpdatedAt = nowUTC
-		if err := repository.FRepository.SaveBudgets(budgets); err != nil {
+		if err := s.repo.SaveBudgets(budgets); err != nil {
 			return domain.Budget{}, nil, err
 		}
 		return budgets[index], nil, nil
@@ -319,7 +319,7 @@ func ApplyMonthlyBudgetRollover(monthInput, currency string, carry bool, now tim
 	budgets[index].RolledOverAt = nowUTC
 	budgets[index].UpdatedAt = nowUTC
 
-	if err := repository.FRepository.SaveBudgets(budgets); err != nil {
+	if err := s.repo.SaveBudgets(budgets); err != nil {
 		return domain.Budget{}, nil, err
 	}
 

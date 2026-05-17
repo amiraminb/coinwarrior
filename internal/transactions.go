@@ -7,17 +7,16 @@ import (
 	"time"
 
 	"github.com/amiraminb/coinwarrior/internal/domain"
-	"github.com/amiraminb/coinwarrior/internal/repository"
 )
 
 type ledgerMutator func(transactions *[]domain.Transaction, accounts *[]domain.Account, nowUTC string) error
 
-func mutateLedger(now time.Time, mutate ledgerMutator) error {
-	transactions, err := repository.FRepository.LoadTransactions()
+func (s *Service) mutateLedger(now time.Time, mutate ledgerMutator) error {
+	transactions, err := s.repo.LoadTransactions()
 	if err != nil {
 		return err
 	}
-	accounts, err := repository.FRepository.LoadAccounts()
+	accounts, err := s.repo.LoadAccounts()
 	if err != nil {
 		return err
 	}
@@ -29,11 +28,11 @@ func mutateLedger(now time.Time, mutate ledgerMutator) error {
 		return err
 	}
 
-	if err := repository.FRepository.SaveAccounts(accounts); err != nil {
+	if err := s.repo.SaveAccounts(accounts); err != nil {
 		return err
 	}
-	if err := repository.FRepository.SaveTransactions(transactions); err != nil {
-		if rollbackErr := repository.FRepository.SaveAccounts(originalAccounts); rollbackErr != nil {
+	if err := s.repo.SaveTransactions(transactions); err != nil {
+		if rollbackErr := s.repo.SaveAccounts(originalAccounts); rollbackErr != nil {
 			return fmt.Errorf("save transactions: %w; rollback accounts: %v", err, rollbackErr)
 		}
 		return err
@@ -112,7 +111,7 @@ func NewTransactionID(now time.Time) string {
 	return fmt.Sprintf("txn_%d", now.UnixNano())
 }
 
-func AddTransaction(txType, amountInput, currency, dateValue, category, account, toAccount, note string) (domain.Transaction, error) {
+func (s *Service) AddTransaction(txType, amountInput, currency, dateValue, category, account, toAccount, note string) (domain.Transaction, error) {
 	amountMinor, err := ParseAmount(amountInput)
 	if err != nil {
 		return domain.Transaction{}, err
@@ -168,7 +167,7 @@ func AddTransaction(txType, amountInput, currency, dateValue, category, account,
 		Source:      "manual",
 	}
 
-	err = mutateLedger(now, func(transactions *[]domain.Transaction, accounts *[]domain.Account, nowUTC string) error {
+	err = s.mutateLedger(now, func(transactions *[]domain.Transaction, accounts *[]domain.Account, nowUTC string) error {
 		if err := applyTransactionEffect(*accounts, tx, nowUTC); err != nil {
 			return err
 		}
@@ -181,15 +180,15 @@ func AddTransaction(txType, amountInput, currency, dateValue, category, account,
 	return tx, nil
 }
 
-func EditTransaction(id string, edits TransactionEdits) (domain.Transaction, error) {
-	return editTransactionWithNow(id, edits, time.Now())
+func (s *Service) EditTransaction(id string, edits TransactionEdits) (domain.Transaction, error) {
+	return s.editTransactionWithNow(id, edits, time.Now())
 }
 
-func DeleteTransaction(id string) (domain.Transaction, error) {
-	return deleteTransactionWithNow(id, time.Now())
+func (s *Service) DeleteTransaction(id string) (domain.Transaction, error) {
+	return s.deleteTransactionWithNow(id, time.Now())
 }
 
-func editTransactionWithNow(id string, edits TransactionEdits, now time.Time) (domain.Transaction, error) {
+func (s *Service) editTransactionWithNow(id string, edits TransactionEdits, now time.Time) (domain.Transaction, error) {
 	txID := strings.TrimSpace(id)
 	if txID == "" {
 		return domain.Transaction{}, fmt.Errorf("transaction id is required")
@@ -199,7 +198,7 @@ func editTransactionWithNow(id string, edits TransactionEdits, now time.Time) (d
 	}
 
 	var result domain.Transaction
-	err := mutateLedger(now, func(transactions *[]domain.Transaction, accounts *[]domain.Account, nowUTC string) error {
+	err := s.mutateLedger(now, func(transactions *[]domain.Transaction, accounts *[]domain.Account, nowUTC string) error {
 		index := -1
 		for i := range *transactions {
 			if (*transactions)[i].ID == txID {
@@ -238,14 +237,14 @@ func editTransactionWithNow(id string, edits TransactionEdits, now time.Time) (d
 	return result, nil
 }
 
-func deleteTransactionWithNow(id string, now time.Time) (domain.Transaction, error) {
+func (s *Service) deleteTransactionWithNow(id string, now time.Time) (domain.Transaction, error) {
 	txID := strings.TrimSpace(id)
 	if txID == "" {
 		return domain.Transaction{}, fmt.Errorf("transaction id is required")
 	}
 
 	var deleted domain.Transaction
-	err := mutateLedger(now, func(transactions *[]domain.Transaction, accounts *[]domain.Account, nowUTC string) error {
+	err := s.mutateLedger(now, func(transactions *[]domain.Transaction, accounts *[]domain.Account, nowUTC string) error {
 		index := -1
 		for i := range *transactions {
 			if (*transactions)[i].ID == txID {

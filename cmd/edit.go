@@ -369,7 +369,7 @@ var editCmd = &cobra.Command{
 			edits.ToAccount = &toAccount
 		}
 
-		tx, err := coininternal.EditTransaction(result.selected.ID, edits)
+		tx, err := svc.EditTransaction(result.selected.ID, edits)
 		if err != nil {
 			return err
 		}

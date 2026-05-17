@@ -6,7 +6,6 @@ import (
 
 	coininternal "github.com/amiraminb/coinwarrior/internal"
 	"github.com/amiraminb/coinwarrior/internal/domain"
-	"github.com/amiraminb/coinwarrior/internal/repository"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
 )
@@ -373,7 +372,7 @@ func runAccountAddInteractive() (bool, error) {
 		openingBalance = "0"
 	}
 
-	account, err := coininternal.AddAccount(name, currency, openingBalance)
+	account, err := svc.AddAccount(name, currency, openingBalance)
 	if err != nil {
 		return false, err
 	}
@@ -383,7 +382,7 @@ func runAccountAddInteractive() (bool, error) {
 }
 
 func runAccountUpdateInteractive() (bool, error) {
-	accounts, err := repository.FRepository.LoadAccounts()
+	accounts, err := repo.LoadAccounts()
 	if err != nil {
 		return false, err
 	}
@@ -403,7 +402,7 @@ func runAccountUpdateInteractive() (bool, error) {
 		return false, nil
 	}
 
-	account, err := coininternal.UpdateAccountBalance(result.selectedAccount.Name, result.amountInput)
+	account, err := svc.UpdateAccountBalance(result.selectedAccount.Name, result.amountInput)
 	if err != nil {
 		return false, err
 	}

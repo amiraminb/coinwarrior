@@ -7,7 +7,6 @@ import (
 
 	coininternal "github.com/amiraminb/coinwarrior/internal"
 	"github.com/amiraminb/coinwarrior/internal/domain"
-	"github.com/amiraminb/coinwarrior/internal/repository"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -181,7 +180,7 @@ func runTransactionListInteractive(title string, transactions []domain.Transacti
 }
 
 func loadAllTransactionsForSelection() ([]domain.Transaction, error) {
-	transactions, err := repository.FRepository.LoadTransactions()
+	transactions, err := repo.LoadTransactions()
 	if err != nil {
 		return nil, err
 	}

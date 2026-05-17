@@ -2,13 +2,19 @@ package internal
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"time"
 
 	"github.com/amiraminb/coinwarrior/internal/domain"
-
 )
+
+func findBudgetIndex(budgets []domain.Budget, monthKey, currency string) int {
+	return slices.IndexFunc(budgets, func(b domain.Budget) bool {
+		return b.Month == monthKey && strings.EqualFold(b.Currency, currency)
+	})
+}
 
 const (
 	budgetMonthLayout = "2006-01"
@@ -74,13 +80,7 @@ func (s *Service) setMonthlyBudgetWithNow(monthInput, currency, amountInput stri
 		return domain.Budget{}, err
 	}
 	nowUTC := now.UTC().Format(time.RFC3339)
-	targetIndex := -1
-	for i := range budgets {
-		if budgets[i].Month == monthKey && strings.EqualFold(budgets[i].Currency, cur) {
-			targetIndex = i
-			break
-		}
-	}
+	targetIndex := findBudgetIndex(budgets, monthKey, cur)
 
 	if targetIndex == -1 {
 		budgets = append(budgets, domain.Budget{
@@ -247,13 +247,7 @@ func (s *Service) ApplyMonthlyBudgetRollover(monthInput, currency string, carry 
 		return domain.Budget{}, nil, err
 	}
 
-	index := -1
-	for i := range budgets {
-		if budgets[i].Month == monthKey && strings.EqualFold(budgets[i].Currency, cur) {
-			index = i
-			break
-		}
-	}
+	index := findBudgetIndex(budgets, monthKey, cur)
 	if index == -1 {
 		return domain.Budget{}, nil, fmt.Errorf("budget for %s %s not found", monthKey, cur)
 	}
@@ -286,13 +280,7 @@ func (s *Service) ApplyMonthlyBudgetRollover(monthInput, currency string, carry 
 
 	nextMonth := month.AddDate(0, 1, 0)
 	nextMonthKey := FormatBudgetMonth(nextMonth)
-	destIndex := -1
-	for i := range budgets {
-		if budgets[i].Month == nextMonthKey && strings.EqualFold(budgets[i].Currency, cur) {
-			destIndex = i
-			break
-		}
-	}
+	destIndex := findBudgetIndex(budgets, nextMonthKey, cur)
 
 	if destIndex == -1 {
 		budgets = append(budgets, domain.Budget{
@@ -433,13 +421,7 @@ func budgetCarryoverCandidate(budgets []domain.Budget, transactions []domain.Tra
 	previousMonth := targetMonth.AddDate(0, -1, 0)
 	previousMonthKey := FormatBudgetMonth(previousMonth)
 
-	sourceIndex := -1
-	for i := range budgets {
-		if budgets[i].Month == previousMonthKey && strings.EqualFold(budgets[i].Currency, currency) {
-			sourceIndex = i
-			break
-		}
-	}
+	sourceIndex := findBudgetIndex(budgets, previousMonthKey, currency)
 	if sourceIndex == -1 {
 		return nil, -1, nil
 	}

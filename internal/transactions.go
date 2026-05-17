@@ -2,12 +2,19 @@ package internal
 
 import (
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/amiraminb/coinwarrior/internal/domain"
 )
+
+func findTransactionIndex(transactions []domain.Transaction, id string) int {
+	return slices.IndexFunc(transactions, func(tx domain.Transaction) bool {
+		return tx.ID == id
+	})
+}
 
 type ledgerMutator func(transactions *[]domain.Transaction, accounts *[]domain.Account, nowUTC string) error
 
@@ -199,13 +206,7 @@ func (s *Service) editTransactionWithNow(id string, edits TransactionEdits, now 
 
 	var result domain.Transaction
 	err := s.mutateLedger(now, func(transactions *[]domain.Transaction, accounts *[]domain.Account, nowUTC string) error {
-		index := -1
-		for i := range *transactions {
-			if (*transactions)[i].ID == txID {
-				index = i
-				break
-			}
-		}
+		index := findTransactionIndex(*transactions, txID)
 		if index == -1 {
 			return fmt.Errorf("transaction '%s' not found", txID)
 		}
@@ -245,13 +246,7 @@ func (s *Service) deleteTransactionWithNow(id string, now time.Time) (domain.Tra
 
 	var deleted domain.Transaction
 	err := s.mutateLedger(now, func(transactions *[]domain.Transaction, accounts *[]domain.Account, nowUTC string) error {
-		index := -1
-		for i := range *transactions {
-			if (*transactions)[i].ID == txID {
-				index = i
-				break
-			}
-		}
+		index := findTransactionIndex(*transactions, txID)
 		if index == -1 {
 			return fmt.Errorf("transaction '%s' not found", txID)
 		}

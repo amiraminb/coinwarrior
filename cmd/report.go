@@ -444,26 +444,6 @@ func formatPercent(part, total int64) string {
 	return fmt.Sprintf("%.1f%%", (float64(part)*100)/float64(total))
 }
 
-func renderTable(columns []table.Column, rows []table.Row) {
-	t := table.New(
-		table.WithColumns(columns),
-		table.WithRows(rows),
-		table.WithFocused(false),
-		table.WithHeight(len(rows)+1),
-	)
-
-	styles := table.DefaultStyles()
-	styles.Header = styles.Header.
-		BorderStyle(lipgloss.NormalBorder()).
-		BorderForeground(lipgloss.Color("240")).
-		BorderBottom(true).
-		Bold(true)
-	styles.Cell = styles.Cell.Foreground(lipgloss.Color("252"))
-	t.SetStyles(styles)
-
-	fmt.Println(t.View())
-}
-
 func init() {
 	reportCmd.Flags().BoolVar(&reportShowDetails, "details", false, "Show detailed transactions separated by category")
 	rootCmd.AddCommand(reportCmd)

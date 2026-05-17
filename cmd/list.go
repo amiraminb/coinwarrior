@@ -7,7 +7,6 @@ import (
 	coininternal "github.com/amiraminb/coinwarrior/internal"
 	"github.com/amiraminb/coinwarrior/internal/domain"
 	"github.com/charmbracelet/bubbles/table"
-	"github.com/charmbracelet/lipgloss"
 	"github.com/spf13/cobra"
 )
 
@@ -92,24 +91,7 @@ Supported ranges: today, yesterday, week, lastweek, month, lastmonth, year, last
 			})
 		}
 
-		t := table.New(
-			table.WithColumns(columns),
-			table.WithRows(rows),
-			table.WithFocused(false),
-			table.WithHeight(len(rows)+1),
-		)
-
-		styles := table.DefaultStyles()
-		styles.Header = styles.Header.
-			BorderStyle(lipgloss.NormalBorder()).
-			BorderForeground(lipgloss.Color("240")).
-			BorderBottom(true).
-			Bold(true)
-		styles.Cell = styles.Cell.
-			Foreground(lipgloss.Color("252"))
-		t.SetStyles(styles)
-
-		fmt.Println(t.View())
+		renderTable(columns, rows)
 
 		return nil
 	},

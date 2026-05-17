@@ -16,6 +16,10 @@ func findTransactionIndex(transactions []domain.Transaction, id string) int {
 	})
 }
 
+func normalizeCurrency(s string) string {
+	return strings.ToUpper(strings.TrimSpace(s))
+}
+
 type ledgerMutator func(transactions *[]domain.Transaction, accounts *[]domain.Account, nowUTC string) error
 
 func (s *Service) mutateLedger(now time.Time, mutate ledgerMutator) error {
@@ -131,7 +135,7 @@ func (s *Service) AddTransaction(txType, amountInput, currency, dateValue, categ
 		return domain.Transaction{}, fmt.Errorf("invalid transaction type: %s", txType)
 	}
 
-	currency = strings.ToUpper(strings.TrimSpace(currency))
+	currency = normalizeCurrency(currency)
 	if currency == "" {
 		return domain.Transaction{}, fmt.Errorf("currency is required")
 	}
@@ -298,7 +302,7 @@ func applyTransactionEdits(tx domain.Transaction, edits TransactionEdits, now ti
 		return domain.Transaction{}, false, fmt.Errorf("invalid transaction type: %s", updated.Type)
 	}
 
-	updated.Currency = strings.ToUpper(strings.TrimSpace(updated.Currency))
+	updated.Currency = normalizeCurrency(updated.Currency)
 	if updated.Currency == "" {
 		return domain.Transaction{}, false, fmt.Errorf("currency is required")
 	}

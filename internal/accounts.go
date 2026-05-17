@@ -24,7 +24,7 @@ func (s *Service) LoadAccountNames() ([]string, error) {
 
 func (s *Service) AddAccount(name, currency, openingBalanceInput string) (domain.Account, error) {
 	accountName := strings.TrimSpace(name)
-	cur := strings.ToUpper(strings.TrimSpace(currency))
+	cur := normalizeCurrency(currency)
 	if accountName == "" {
 		return domain.Account{}, fmt.Errorf("account name is required")
 	}
@@ -95,7 +95,7 @@ func (s *Service) UpdateAccountBalance(name, amountInput string) (domain.Account
 
 func applyAccountDeltaToFile(accounts []domain.Account, accountName, currency string, deltaMinor int64, now string) error {
 	name := strings.TrimSpace(accountName)
-	cur := strings.ToUpper(strings.TrimSpace(currency))
+	cur := normalizeCurrency(currency)
 	if name == "" {
 		return fmt.Errorf("account is required")
 	}
@@ -120,7 +120,7 @@ func applyAccountDeltaToFile(accounts []domain.Account, accountName, currency st
 func transferBetweenAccountsInFile(accounts []domain.Account, fromAccount, toAccount, currency string, amountMinor int64, now string) error {
 	from := strings.TrimSpace(fromAccount)
 	to := strings.TrimSpace(toAccount)
-	cur := strings.ToUpper(strings.TrimSpace(currency))
+	cur := normalizeCurrency(currency)
 
 	if from == "" || to == "" {
 		return fmt.Errorf("both source and destination accounts are required")
@@ -150,8 +150,8 @@ func transferBetweenAccountsInFile(accounts []domain.Account, fromAccount, toAcc
 		return fmt.Errorf("account '%s' not found", to)
 	}
 
-	fromCurrency := strings.ToUpper(strings.TrimSpace(accounts[fromIdx].Currency))
-	toCurrency := strings.ToUpper(strings.TrimSpace(accounts[toIdx].Currency))
+	fromCurrency := normalizeCurrency(accounts[fromIdx].Currency)
+	toCurrency := normalizeCurrency(accounts[toIdx].Currency)
 	if fromCurrency != cur {
 		return fmt.Errorf("account '%s' uses currency %s, got %s", accounts[fromIdx].Name, fromCurrency, cur)
 	}

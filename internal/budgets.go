@@ -52,7 +52,7 @@ func (s *Service) setMonthlyBudgetWithNow(monthInput, currency, amountInput stri
 		return domain.Budget{}, err
 	}
 
-	cur := strings.ToUpper(strings.TrimSpace(currency))
+	cur := normalizeCurrency(currency)
 	if cur == "" {
 		return domain.Budget{}, fmt.Errorf("currency is required")
 	}
@@ -132,7 +132,7 @@ func (s *Service) GetBudgetCarryoverCandidate(monthInput, currency string, now t
 		return nil, err
 	}
 
-	cur := strings.ToUpper(strings.TrimSpace(currency))
+	cur := normalizeCurrency(currency)
 	if cur == "" {
 		return nil, fmt.Errorf("currency is required")
 	}
@@ -233,7 +233,7 @@ func (s *Service) ApplyMonthlyBudgetRollover(monthInput, currency string, carry 
 		return domain.Budget{}, nil, err
 	}
 	monthKey := FormatBudgetMonth(month)
-	cur := strings.ToUpper(strings.TrimSpace(currency))
+	cur := normalizeCurrency(currency)
 	if cur == "" {
 		return domain.Budget{}, nil, fmt.Errorf("currency is required")
 	}

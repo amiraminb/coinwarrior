@@ -37,17 +37,6 @@ const (
 	accountUpdateStepDone
 )
 
-type accountMenuChoice struct {
-	label  string
-	action accountAction
-}
-
-type accountMenuModel struct {
-	choices  []accountMenuChoice
-	cursor   int
-	selected accountAction
-}
-
 type accountAddModel struct {
 	step accountAddStep
 
@@ -84,25 +73,11 @@ func newAccountUpdateModel(accounts []domain.Account) accountUpdateModel {
 	}
 }
 
-func newAccountMenuModel() accountMenuModel {
-	return accountMenuModel{
-		choices: []accountMenuChoice{
-			{label: "Add account", action: accountActionAdd},
-			{label: "Update account balance", action: accountActionUpdate},
-			{label: "Quit", action: accountActionQuit},
-		},
-	}
-}
-
 func (m accountAddModel) Init() tea.Cmd {
 	return nil
 }
 
 func (m accountUpdateModel) Init() tea.Cmd {
-	return nil
-}
-
-func (m accountMenuModel) Init() tea.Cmd {
 	return nil
 }
 
@@ -252,29 +227,6 @@ func (m accountUpdateModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m accountMenuModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		switch msg.String() {
-		case "ctrl+c", "q", "esc":
-			return m, tea.Quit
-		case "up", "k":
-			if m.cursor > 0 {
-				m.cursor--
-			}
-		case "down", "j":
-			if m.cursor < len(m.choices)-1 {
-				m.cursor++
-			}
-		case "enter":
-			m.selected = m.choices[m.cursor].action
-			return m, tea.Quit
-		}
-	}
-
-	return m, nil
-}
-
 func (m accountAddModel) View() string {
 	s := ""
 
@@ -352,22 +304,6 @@ func (m accountUpdateModel) View() string {
 	return s
 }
 
-func (m accountMenuModel) View() string {
-	s := "Account\n\n"
-	s += "Choose an action:\n\n"
-
-	for i, choice := range m.choices {
-		line := "  " + choice.label
-		if i == m.cursor {
-			line = focusStyle.Render("> " + choice.label)
-		}
-		s += line + "\n"
-	}
-
-	s += "\n" + mutedStyle.Render("(use ↑/↓ and enter, esc to cancel, q to quit)") + "\n"
-	return s
-}
-
 func renderAccountField(label, value string) string {
 	return label + valueStyle.Render(value)
 }
@@ -416,15 +352,16 @@ func init() {
 }
 
 func runAccountMenuInteractive() (accountAction, error) {
-	p := tea.NewProgram(newAccountMenuModel())
-
-	finalModel, err := p.Run()
+	items := []selectionItem[accountAction]{
+		{label: "Add account", value: accountActionAdd},
+		{label: "Update account balance", value: accountActionUpdate},
+		{label: "Quit", value: accountActionQuit},
+	}
+	action, _, err := runSelection("Account", "Choose an action:", items)
 	if err != nil {
 		return "", err
 	}
-
-	result := finalModel.(accountMenuModel)
-	return result.selected, nil
+	return action, nil
 }
 
 func runAccountAddInteractive() (bool, error) {

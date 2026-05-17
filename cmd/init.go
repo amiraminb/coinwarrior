@@ -5,7 +5,6 @@ import (
 	"os"
 
 	"github.com/amiraminb/coinwarrior/internal/repository"
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
 )
 
@@ -153,61 +152,3 @@ func setupInitialAccounts(repo repository.Repository) error {
 	return nil
 }
 
-type confirmModel struct {
-	question string
-	cursor   int
-	answer   bool
-}
-
-func (m confirmModel) Init() tea.Cmd {
-	return nil
-}
-
-func (m confirmModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		switch msg.String() {
-		case "ctrl+c", "q":
-			return m, tea.Quit
-		case "left", "h", "up", "k":
-			m.cursor = 0
-		case "right", "l", "down", "j":
-			m.cursor = 1
-		case "enter":
-			m.answer = m.cursor == 0
-			return m, tea.Quit
-		}
-	}
-
-	return m, nil
-}
-
-func (m confirmModel) View() string {
-	s := m.question + "\n\n"
-
-	yes := "  Yes"
-	no := "  No"
-	if m.cursor == 0 {
-		yes = focusStyle.Render("> Yes")
-	} else {
-		no = focusStyle.Render("> No")
-	}
-
-	s += yes + "\n"
-	s += no + "\n\n"
-	s += mutedStyle.Render("(use ←/→ or ↑/↓ and enter)") + "\n"
-
-	return s
-}
-
-func runConfirmPrompt(question string) (bool, error) {
-	p := tea.NewProgram(confirmModel{question: question})
-
-	finalModel, err := p.Run()
-	if err != nil {
-		return false, err
-	}
-
-	result := finalModel.(confirmModel)
-	return result.answer, nil
-}

@@ -19,25 +19,6 @@ const (
 	transactionLookupQuit    transactionLookupAction = "quit"
 )
 
-type transactionLookupChoice struct {
-	label  string
-	action transactionLookupAction
-}
-
-type transactionLookupMenuModel struct {
-	title    string
-	choices  []transactionLookupChoice
-	cursor   int
-	selected transactionLookupAction
-}
-
-type transactionMonthPromptModel struct {
-	title      string
-	input      string
-	confirmed  bool
-	errMessage string
-}
-
 type transactionIDPromptModel struct {
 	title      string
 	input      string
@@ -52,24 +33,6 @@ type transactionListModel struct {
 	selected     domain.Transaction
 }
 
-func newTransactionLookupMenuModel(title string) transactionLookupMenuModel {
-	return transactionLookupMenuModel{
-		title: title,
-		choices: []transactionLookupChoice{
-			{label: "Show month transactions", action: transactionLookupByMonth},
-			{label: "Provide transaction ID", action: transactionLookupByID},
-			{label: "Cancel", action: transactionLookupQuit},
-		},
-	}
-}
-
-func newTransactionMonthPromptModel(title string) transactionMonthPromptModel {
-	return transactionMonthPromptModel{
-		title: title,
-		input: coininternal.FormatBudgetMonth(time.Now()),
-	}
-}
-
 func newTransactionIDPromptModel(title string) transactionIDPromptModel {
 	return transactionIDPromptModel{title: title}
 }
@@ -80,67 +43,8 @@ func newTransactionListModel(title string, transactions []domain.Transaction) tr
 	return transactionListModel{title: title, transactions: items}
 }
 
-func (m transactionLookupMenuModel) Init() tea.Cmd  { return nil }
-func (m transactionMonthPromptModel) Init() tea.Cmd { return nil }
-func (m transactionIDPromptModel) Init() tea.Cmd    { return nil }
-func (m transactionListModel) Init() tea.Cmd        { return nil }
-
-func (m transactionLookupMenuModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		switch msg.String() {
-		case "ctrl+c", "q", "esc":
-			return m, tea.Quit
-		case "up", "k":
-			if m.cursor > 0 {
-				m.cursor--
-			}
-		case "down", "j":
-			if m.cursor < len(m.choices)-1 {
-				m.cursor++
-			}
-		case "enter":
-			m.selected = m.choices[m.cursor].action
-			return m, tea.Quit
-		}
-	}
-
-	return m, nil
-}
-
-func (m transactionMonthPromptModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		switch msg.String() {
-		case "ctrl+c", "q":
-			return m, tea.Quit
-		case "enter":
-			if _, err := coininternal.ParseBudgetMonth(m.input, time.Now()); err != nil {
-				m.errMessage = err.Error()
-				return m, nil
-			}
-			m.confirmed = true
-			return m, tea.Quit
-		case "esc":
-			return m, tea.Quit
-		case "backspace":
-			m.errMessage = ""
-			if len(m.input) > 0 {
-				m.input = m.input[:len(m.input)-1]
-			}
-		default:
-			if len(msg.String()) == 1 {
-				ch := msg.String()
-				if (ch >= "0" && ch <= "9") || ch == "-" {
-					m.input += ch
-					m.errMessage = ""
-				}
-			}
-		}
-	}
-
-	return m, nil
-}
+func (m transactionIDPromptModel) Init() tea.Cmd { return nil }
+func (m transactionListModel) Init() tea.Cmd     { return nil }
 
 func (m transactionIDPromptModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
@@ -197,30 +101,6 @@ func (m transactionListModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	return m, nil
-}
-
-func (m transactionLookupMenuModel) View() string {
-	s := m.title + "\n\n"
-	s += "How do you want to find the transaction?\n\n"
-
-	for i, choice := range m.choices {
-		line := "  " + choice.label
-		if i == m.cursor {
-			line = focusStyle.Render("> " + choice.label)
-		}
-		s += line + "\n"
-	}
-
-	s += "\n" + mutedStyle.Render("(use ↑/↓ and enter, esc to cancel, q to quit)") + "\n"
-	return s
-}
-
-func (m transactionMonthPromptModel) View() string {
-	s := m.title + "\n\n"
-	s += renderActiveEditField("Month (YYYY-MM): ", m.input) + "\n"
-	s += renderEditError(m.errMessage)
-	s += mutedStyle.Render("(enter to continue, esc to cancel, q to quit)") + "\n"
-	return s
 }
 
 func (m transactionIDPromptModel) View() string {
@@ -315,31 +195,16 @@ func selectTransactionInteractive(title string) (domain.Transaction, bool, error
 }
 
 func runTransactionLookupMenuInteractive(title string) (transactionLookupAction, bool, error) {
-	p := tea.NewProgram(newTransactionLookupMenuModel(title))
-	finalModel, err := p.Run()
-	if err != nil {
-		return "", false, err
+	items := []selectionItem[transactionLookupAction]{
+		{label: "Show month transactions", value: transactionLookupByMonth},
+		{label: "Provide transaction ID", value: transactionLookupByID},
+		{label: "Cancel", value: transactionLookupQuit},
 	}
-
-	result := finalModel.(transactionLookupMenuModel)
-	if result.selected == "" {
-		return "", false, nil
-	}
-	return result.selected, true, nil
+	return runSelection(title, "How do you want to find the transaction?", items)
 }
 
 func runTransactionMonthPromptInteractive(title string) (string, bool, error) {
-	p := tea.NewProgram(newTransactionMonthPromptModel(title))
-	finalModel, err := p.Run()
-	if err != nil {
-		return "", false, err
-	}
-
-	result := finalModel.(transactionMonthPromptModel)
-	if !result.confirmed {
-		return "", false, nil
-	}
-	return strings.TrimSpace(result.input), true, nil
+	return runMonthPrompt(title)
 }
 
 func runTransactionIDPromptInteractive(title string) (string, bool, error) {

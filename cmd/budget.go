@@ -20,23 +20,6 @@ const (
 	budgetActionQuit budgetAction = "quit"
 )
 
-type budgetMenuChoice struct {
-	label  string
-	action budgetAction
-}
-
-type budgetMenuModel struct {
-	choices  []budgetMenuChoice
-	cursor   int
-	selected budgetAction
-}
-
-type budgetMonthPromptModel struct {
-	input      string
-	confirmed  bool
-	errMessage string
-}
-
 type budgetSetStep int
 
 const (
@@ -261,109 +244,6 @@ func init() {
 	rootCmd.AddCommand(budgetCmd)
 }
 
-func newBudgetMenuModel() budgetMenuModel {
-	return budgetMenuModel{
-		choices: []budgetMenuChoice{
-			{label: "Show monthly budgets", action: budgetActionShow},
-			{label: "Set monthly budget", action: budgetActionSet},
-			{label: "Quit", action: budgetActionQuit},
-		},
-	}
-}
-
-func (m budgetMenuModel) Init() tea.Cmd {
-	return nil
-}
-
-func (m budgetMenuModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		switch msg.String() {
-		case "ctrl+c", "q", "esc":
-			return m, tea.Quit
-		case "up", "k":
-			if m.cursor > 0 {
-				m.cursor--
-			}
-		case "down", "j":
-			if m.cursor < len(m.choices)-1 {
-				m.cursor++
-			}
-		case "enter":
-			m.selected = m.choices[m.cursor].action
-			return m, tea.Quit
-		}
-	}
-
-	return m, nil
-}
-
-func (m budgetMenuModel) View() string {
-	s := "Budget\n\n"
-	s += "Choose an action:\n\n"
-
-	for i, choice := range m.choices {
-		line := "  " + choice.label
-		if i == m.cursor {
-			line = focusStyle.Render("> " + choice.label)
-		}
-		s += line + "\n"
-	}
-
-	s += "\n" + mutedStyle.Render("(use ↑/↓ and enter, esc to cancel, q to quit)") + "\n"
-	return s
-}
-
-func newBudgetMonthPromptModel() budgetMonthPromptModel {
-	return budgetMonthPromptModel{input: coininternal.FormatBudgetMonth(time.Now())}
-}
-
-func (m budgetMonthPromptModel) Init() tea.Cmd {
-	return nil
-}
-
-func (m budgetMonthPromptModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		switch msg.String() {
-		case "ctrl+c", "q":
-			return m, tea.Quit
-		case "enter":
-			if _, err := coininternal.ParseBudgetMonth(m.input, time.Now()); err != nil {
-				m.errMessage = err.Error()
-				return m, nil
-			}
-			m.confirmed = true
-			return m, tea.Quit
-		case "esc":
-			return m, tea.Quit
-		case "backspace":
-			m.errMessage = ""
-			if len(m.input) > 0 {
-				m.input = m.input[:len(m.input)-1]
-			}
-		default:
-			if len(msg.String()) == 1 {
-				ch := msg.String()
-				if (ch >= "0" && ch <= "9") || ch == "-" {
-					m.input += ch
-					m.errMessage = ""
-				}
-			}
-		}
-	}
-
-	return m, nil
-}
-
-func (m budgetMonthPromptModel) View() string {
-	s := "Show Budgets\n\n"
-	s += renderBudgetActiveField("Month (YYYY-MM): ", m.input) + "\n"
-	s += renderBudgetError(m.errMessage)
-	s += mutedStyle.Render("(enter to continue, esc to cancel, q to quit)") + "\n"
-	return s
-}
-
 func runBudgetSetInteractive() (bool, error) {
 	p := tea.NewProgram(newBudgetSetModel())
 
@@ -414,31 +294,20 @@ func runBudgetSetInteractive() (bool, error) {
 }
 
 func runBudgetMenuInteractive() (budgetAction, error) {
-	p := tea.NewProgram(newBudgetMenuModel())
-
-	finalModel, err := p.Run()
+	items := []selectionItem[budgetAction]{
+		{label: "Show monthly budgets", value: budgetActionShow},
+		{label: "Set monthly budget", value: budgetActionSet},
+		{label: "Quit", value: budgetActionQuit},
+	}
+	action, _, err := runSelection("Budget", "Choose an action:", items)
 	if err != nil {
 		return "", err
 	}
-
-	result := finalModel.(budgetMenuModel)
-	return result.selected, nil
+	return action, nil
 }
 
 func runBudgetMonthPromptInteractive() (string, bool, error) {
-	p := tea.NewProgram(newBudgetMonthPromptModel())
-
-	finalModel, err := p.Run()
-	if err != nil {
-		return "", false, err
-	}
-
-	result := finalModel.(budgetMonthPromptModel)
-	if !result.confirmed {
-		return "", false, nil
-	}
-
-	return strings.TrimSpace(result.input), true, nil
+	return runMonthPrompt("Show Budgets")
 }
 
 func runBudgetShow(monthInput string) error {

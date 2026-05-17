@@ -47,32 +47,32 @@ If `~/.local/bin` is not on your `PATH`, either add it or run with the full path
 
 ## Quick Start
 
-1. Initialize data files:
+- Initialize data files:
 
 ```bash
 coinw init
 ```
 
-1. Add at least one account:
+- Add at least one account:
 
 ```bash
 coinw account
 ```
 
-1. Add a transaction:
+- Add a transaction:
 
 ```bash
 coinw add
 ```
 
-1. List transactions:
+- List transactions:
 
 ```bash
 coinw list
 coinw list month
 ```
 
-1. Generate a report:
+- Generate a report:
 
 ```bash
 coinw report month

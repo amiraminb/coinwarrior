@@ -11,6 +11,8 @@ type Repository interface {
 	SaveCategories([]string) error
 	LoadBudgets() ([]model.Budget, error)
 	SaveBudgets([]model.Budget) error
+	LoadRecurringRules() ([]model.RecurringRule, error)
+	SaveRecurringRules([]model.RecurringRule) error
 }
 
 type FileRepository struct {

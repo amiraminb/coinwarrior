@@ -49,7 +49,6 @@ Use --details to show transactions separated by category.`,
 			return err
 		}
 
-		headerStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("250"))
 		fmt.Println(headerStyle.Render(fmt.Sprintf("report %s..%s", start.Format("2006-01-02"), end.Format("2006-01-02"))))
 		fmt.Println()
 		if err := printCategorySection(transactions, start, end, reportShowDetails, time.Now()); err != nil {
@@ -66,7 +65,6 @@ func runAccountReport() error {
 		return err
 	}
 
-	headerStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("250"))
 	fmt.Println(headerStyle.Render("account report"))
 	fmt.Println()
 	printAccountBalancesReport(accounts)

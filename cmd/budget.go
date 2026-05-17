@@ -8,7 +8,6 @@ import (
 	coininternal "github.com/amiraminb/coinwarrior/internal"
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 	"github.com/spf13/cobra"
 )
 
@@ -322,7 +321,6 @@ func runBudgetShow(monthInput string) error {
 	}
 
 	monthLabel := coininternal.FormatBudgetMonth(month)
-	headerStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("250"))
 	fmt.Println(headerStyle.Render("budget " + monthLabel))
 	fmt.Println()
 

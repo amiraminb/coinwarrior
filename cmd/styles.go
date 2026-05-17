@@ -8,4 +8,5 @@ var (
 	warnStyle   = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("214"))
 	valueStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("111"))
 	cursorStyle = lipgloss.NewStyle().Background(lipgloss.Color("42")).Foreground(lipgloss.Color("0"))
+	headerStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("250"))
 )

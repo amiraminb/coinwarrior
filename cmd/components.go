@@ -5,6 +5,7 @@ import (
 	"time"
 
 	coininternal "github.com/amiraminb/coinwarrior/internal"
+	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -150,80 +151,82 @@ func runSelection[T comparable](title, prompt string, items []selectionItem[T]) 
 	return result.selected, true, nil
 }
 
-type monthPromptModel struct {
+type textPromptModel struct {
 	title      string
-	input      string
+	prompt     string
+	input      textinput.Model
+	validate   func(string) error
 	confirmed  bool
 	errMessage string
 }
 
-func newMonthPromptModel(title string) monthPromptModel {
-	return monthPromptModel{
-		title: title,
-		input: coininternal.FormatBudgetMonth(time.Now()),
-	}
+func newTextPromptModel(title, prompt, initial string, validate func(string) error) textPromptModel {
+	ti := textinput.New()
+	ti.Prompt = prompt
+	ti.SetValue(initial)
+	ti.Focus()
+	return textPromptModel{title: title, prompt: prompt, input: ti, validate: validate}
 }
 
-func (m monthPromptModel) Init() tea.Cmd { return nil }
+func (m textPromptModel) Init() tea.Cmd { return textinput.Blink }
 
-func (m monthPromptModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		switch msg.String() {
-		case "ctrl+c", "q":
-			return m, tea.Quit
-		case "enter":
-			if _, err := coininternal.ParseBudgetMonth(m.input, time.Now()); err != nil {
-				m.errMessage = err.Error()
-				return m, nil
-			}
-			m.confirmed = true
+func (m textPromptModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if key, ok := msg.(tea.KeyMsg); ok {
+		switch key.String() {
+		case "ctrl+c":
 			return m, tea.Quit
 		case "esc":
 			return m, tea.Quit
-		case "backspace":
-			m.errMessage = ""
-			if len(m.input) > 0 {
-				m.input = m.input[:len(m.input)-1]
-			}
-		default:
-			if len(msg.String()) == 1 {
-				ch := msg.String()
-				if (ch >= "0" && ch <= "9") || ch == "-" {
-					m.input += ch
-					m.errMessage = ""
+		case "enter":
+			if m.validate != nil {
+				if err := m.validate(strings.TrimSpace(m.input.Value())); err != nil {
+					m.errMessage = err.Error()
+					return m, nil
 				}
 			}
+			m.confirmed = true
+			return m, tea.Quit
 		}
 	}
 
-	return m, nil
+	var cmd tea.Cmd
+	m.input, cmd = m.input.Update(msg)
+	m.errMessage = ""
+	return m, cmd
 }
 
-func (m monthPromptModel) View() string {
+func (m textPromptModel) View() string {
 	s := ""
 	if m.title != "" {
 		s += m.title + "\n\n"
 	}
-	s += "Month (YYYY-MM): " + valueStyle.Render(m.input) + cursorStyle.Render(" ") + "\n"
+	s += m.input.View() + "\n"
 	if m.errMessage != "" {
 		s += warnStyle.Render(m.errMessage) + "\n"
 	}
-	s += mutedStyle.Render("(enter to continue, esc to cancel, q to quit)") + "\n"
+	s += mutedStyle.Render("(enter to continue, esc to cancel, ctrl+c to quit)") + "\n"
 	return s
 }
 
-func runMonthPrompt(title string) (string, bool, error) {
-	p := tea.NewProgram(newMonthPromptModel(title))
+func runTextPrompt(title, prompt, initial string, validate func(string) error) (string, bool, error) {
+	p := tea.NewProgram(newTextPromptModel(title, prompt, initial, validate))
 
 	finalModel, err := p.Run()
 	if err != nil {
 		return "", false, err
 	}
 
-	result := finalModel.(monthPromptModel)
+	result := finalModel.(textPromptModel)
 	if !result.confirmed {
 		return "", false, nil
 	}
-	return strings.TrimSpace(result.input), true, nil
+	return strings.TrimSpace(result.input.Value()), true, nil
+}
+
+func runMonthPrompt(title string) (string, bool, error) {
+	validate := func(s string) error {
+		_, err := coininternal.ParseBudgetMonth(s, time.Now())
+		return err
+	}
+	return runTextPrompt(title, "Month (YYYY-MM): ", coininternal.FormatBudgetMonth(time.Now()), validate)
 }

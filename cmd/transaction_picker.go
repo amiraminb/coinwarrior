@@ -19,22 +19,11 @@ const (
 	transactionLookupQuit    transactionLookupAction = "quit"
 )
 
-type transactionIDPromptModel struct {
-	title      string
-	input      string
-	confirmed  bool
-	errMessage string
-}
-
 type transactionListModel struct {
 	title        string
 	transactions []domain.Transaction
 	cursor       int
 	selected     domain.Transaction
-}
-
-func newTransactionIDPromptModel(title string) transactionIDPromptModel {
-	return transactionIDPromptModel{title: title}
 }
 
 func newTransactionListModel(title string, transactions []domain.Transaction) transactionListModel {
@@ -43,39 +32,7 @@ func newTransactionListModel(title string, transactions []domain.Transaction) tr
 	return transactionListModel{title: title, transactions: items}
 }
 
-func (m transactionIDPromptModel) Init() tea.Cmd { return nil }
-func (m transactionListModel) Init() tea.Cmd     { return nil }
-
-func (m transactionIDPromptModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		switch msg.String() {
-		case "ctrl+c", "q":
-			return m, tea.Quit
-		case "enter":
-			if strings.TrimSpace(m.input) == "" {
-				m.errMessage = "transaction id is required"
-				return m, nil
-			}
-			m.confirmed = true
-			return m, tea.Quit
-		case "esc":
-			return m, tea.Quit
-		case "backspace":
-			m.errMessage = ""
-			if len(m.input) > 0 {
-				m.input = m.input[:len(m.input)-1]
-			}
-		default:
-			if len(msg.String()) == 1 {
-				m.input += msg.String()
-				m.errMessage = ""
-			}
-		}
-	}
-
-	return m, nil
-}
+func (m transactionListModel) Init() tea.Cmd { return nil }
 
 func (m transactionListModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
@@ -101,14 +58,6 @@ func (m transactionListModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	return m, nil
-}
-
-func (m transactionIDPromptModel) View() string {
-	s := m.title + "\n\n"
-	s += renderActiveEditField("Transaction ID: ", m.input) + "\n"
-	s += renderEditError(m.errMessage)
-	s += mutedStyle.Render("(enter to continue, esc to cancel, q to quit)") + "\n"
-	return s
 }
 
 func (m transactionListModel) View() string {
@@ -208,17 +157,13 @@ func runTransactionMonthPromptInteractive(title string) (string, bool, error) {
 }
 
 func runTransactionIDPromptInteractive(title string) (string, bool, error) {
-	p := tea.NewProgram(newTransactionIDPromptModel(title))
-	finalModel, err := p.Run()
-	if err != nil {
-		return "", false, err
+	validate := func(s string) error {
+		if s == "" {
+			return fmt.Errorf("transaction id is required")
+		}
+		return nil
 	}
-
-	result := finalModel.(transactionIDPromptModel)
-	if !result.confirmed {
-		return "", false, nil
-	}
-	return strings.TrimSpace(result.input), true, nil
+	return runTextPrompt(title, "Transaction ID: ", "", validate)
 }
 
 func runTransactionListInteractive(title string, transactions []domain.Transaction) (domain.Transaction, bool, error) {

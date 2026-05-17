@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/amiraminb/coinwarrior/internal/repository"
@@ -28,21 +29,11 @@ func AddCategory(category string) error {
 		return err
 	}
 
-	for _, existing := range categories {
-		if strings.EqualFold(existing, clean) {
-			return nil
-		}
+	if slices.ContainsFunc(categories, func(s string) bool { return strings.EqualFold(s, clean) }) {
+		return nil
 	}
 
 	categories = append(categories, clean)
 	return repository.FRepository.SaveCategories(categories)
 }
 
-func CategoryExists(categories []string, category string) bool {
-	for _, existing := range categories {
-		if strings.EqualFold(existing, category) {
-			return true
-		}
-	}
-	return false
-}

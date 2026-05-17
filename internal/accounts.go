@@ -23,15 +23,6 @@ func LoadAccounts() ([]string, error) {
 	return result, nil
 }
 
-func AccountExists(accounts []string, account string) bool {
-	for _, existing := range accounts {
-		if strings.EqualFold(existing, account) {
-			return true
-		}
-	}
-	return false
-}
-
 func ApplyTransactionToAccount(accountName, currency string, deltaMinor int64) error {
 	name := strings.TrimSpace(accountName)
 	cur := strings.ToUpper(strings.TrimSpace(currency))

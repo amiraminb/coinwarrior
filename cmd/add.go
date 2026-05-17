@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -9,6 +10,12 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
 )
+
+func containsFold(items []string, target string) bool {
+	return slices.ContainsFunc(items, func(s string) bool {
+		return strings.EqualFold(s, target)
+	})
+}
 
 type addStep int
 
@@ -181,7 +188,7 @@ func (m addModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "enter":
 				draft := strings.TrimSpace(m.categoryDraft)
 				if draft != "" {
-					if coininternal.CategoryExists(m.categories, draft) {
+					if containsFold(m.categories, draft) {
 						m.categoryInput = draft
 						m.step = stepAccountSelect
 						break
@@ -255,7 +262,7 @@ func (m addModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "enter":
 				draft := strings.TrimSpace(m.accountDraft)
 				if draft != "" {
-					if coininternal.AccountExists(m.accounts, draft) {
+					if containsFold(m.accounts, draft) {
 						m.accountInput = draft
 						m.step = stepDone
 						return m, tea.Quit

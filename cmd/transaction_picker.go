@@ -206,12 +206,12 @@ func (m transactionLookupMenuModel) View() string {
 	for i, choice := range m.choices {
 		line := "  " + choice.label
 		if i == m.cursor {
-			line = editFocusStyle.Render("> " + choice.label)
+			line = focusStyle.Render("> " + choice.label)
 		}
 		s += line + "\n"
 	}
 
-	s += "\n" + editMutedStyle.Render("(use ↑/↓ and enter, esc to cancel, q to quit)") + "\n"
+	s += "\n" + mutedStyle.Render("(use ↑/↓ and enter, esc to cancel, q to quit)") + "\n"
 	return s
 }
 
@@ -219,7 +219,7 @@ func (m transactionMonthPromptModel) View() string {
 	s := m.title + "\n\n"
 	s += renderActiveEditField("Month (YYYY-MM): ", m.input) + "\n"
 	s += renderEditError(m.errMessage)
-	s += editMutedStyle.Render("(enter to continue, esc to cancel, q to quit)") + "\n"
+	s += mutedStyle.Render("(enter to continue, esc to cancel, q to quit)") + "\n"
 	return s
 }
 
@@ -227,7 +227,7 @@ func (m transactionIDPromptModel) View() string {
 	s := m.title + "\n\n"
 	s += renderActiveEditField("Transaction ID: ", m.input) + "\n"
 	s += renderEditError(m.errMessage)
-	s += editMutedStyle.Render("(enter to continue, esc to cancel, q to quit)") + "\n"
+	s += mutedStyle.Render("(enter to continue, esc to cancel, q to quit)") + "\n"
 	return s
 }
 
@@ -238,12 +238,12 @@ func (m transactionListModel) View() string {
 	for i, tx := range m.transactions {
 		line := "  " + formatEditableTransaction(tx)
 		if i == m.cursor {
-			line = editFocusStyle.Render("> " + formatEditableTransaction(tx))
+			line = focusStyle.Render("> " + formatEditableTransaction(tx))
 		}
 		s += line + "\n"
 	}
 
-	s += "\n" + editMutedStyle.Render("(use ↑/↓ and enter, esc to cancel, q to quit)") + "\n"
+	s += "\n" + mutedStyle.Render("(use ↑/↓ and enter, esc to cancel, q to quit)") + "\n"
 	return s
 }
 

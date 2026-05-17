@@ -9,7 +9,6 @@ import (
 	coininternal "github.com/amiraminb/coinwarrior/internal"
 	"github.com/amiraminb/coinwarrior/internal/domain"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 	"github.com/spf13/cobra"
 )
 
@@ -41,14 +40,6 @@ type editModel struct {
 	confirmed     bool
 	errMessage    string
 }
-
-var (
-	editFocusStyle  = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("42"))
-	editMutedStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("245"))
-	editWarnStyle   = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("214"))
-	editValueStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("111"))
-	editCursorStyle = lipgloss.NewStyle().Background(lipgloss.Color("42")).Foreground(lipgloss.Color("0"))
-)
 
 func newEditModel(selected domain.Transaction) editModel {
 	return editModel{
@@ -262,19 +253,19 @@ func (m editModel) View() string {
 		s += renderEditField("Type: ", m.selected.Type) + "\n\n"
 		s += renderActiveEditField("Date: ", m.dateInput) + "\n"
 		s += renderEditError(m.errMessage)
-		s += editMutedStyle.Render("(enter to continue, esc to go back, q to quit)") + "\n"
+		s += mutedStyle.Render("(enter to continue, esc to go back, q to quit)") + "\n"
 	case editStepAmount:
 		s += renderEditField("Editing: ", m.selected.ID) + "\n"
 		s += renderEditField("Date: ", m.dateInput) + "\n\n"
 		s += renderActiveEditField("Amount: ", m.amountInput) + "\n"
 		s += renderEditError(m.errMessage)
-		s += editMutedStyle.Render("(enter to continue, esc to go back, q to quit)") + "\n"
+		s += mutedStyle.Render("(enter to continue, esc to go back, q to quit)") + "\n"
 	case editStepCategory:
 		s += renderEditField("Editing: ", m.selected.ID) + "\n"
 		s += renderEditField("Date: ", m.dateInput) + "\n"
 		s += renderEditField("Amount: ", m.amountInput) + "\n\n"
 		s += renderActiveEditField("Category: ", m.categoryInput) + "\n"
-		s += editMutedStyle.Render("(enter to continue, esc to go back, q to quit)") + "\n"
+		s += mutedStyle.Render("(enter to continue, esc to go back, q to quit)") + "\n"
 	case editStepAccount:
 		s += renderEditField("Editing: ", m.selected.ID) + "\n"
 		s += renderEditField("Date: ", m.dateInput) + "\n"
@@ -282,7 +273,7 @@ func (m editModel) View() string {
 		s += renderEditField("Category: ", m.categoryInput) + "\n\n"
 		s += renderActiveEditField("Account: ", m.accountInput) + "\n"
 		s += renderEditError(m.errMessage)
-		s += editMutedStyle.Render("(enter to continue, esc to go back, q to quit)") + "\n"
+		s += mutedStyle.Render("(enter to continue, esc to go back, q to quit)") + "\n"
 	case editStepToAccount:
 		s += renderEditField("Editing: ", m.selected.ID) + "\n"
 		s += renderEditField("Date: ", m.dateInput) + "\n"
@@ -291,7 +282,7 @@ func (m editModel) View() string {
 		s += renderEditField("From account: ", m.accountInput) + "\n\n"
 		s += renderActiveEditField("To account: ", m.toAccountInput) + "\n"
 		s += renderEditError(m.errMessage)
-		s += editMutedStyle.Render("(enter to continue, esc to go back, q to quit)") + "\n"
+		s += mutedStyle.Render("(enter to continue, esc to go back, q to quit)") + "\n"
 	case editStepNote:
 		s += renderEditField("Editing: ", m.selected.ID) + "\n"
 		s += renderEditField("Date: ", m.dateInput) + "\n"
@@ -302,7 +293,7 @@ func (m editModel) View() string {
 			s += renderEditField("To account: ", m.toAccountInput) + "\n"
 		}
 		s += "\n" + renderActiveEditField("Note: ", m.noteInput) + "\n"
-		s += editMutedStyle.Render("(enter to continue, esc to go back, q to quit)") + "\n"
+		s += mutedStyle.Render("(enter to continue, esc to go back, q to quit)") + "\n"
 	case editStepConfirm:
 		s += renderEditField("Editing: ", m.selected.ID) + "\n"
 		s += renderEditField("Date: ", m.dateInput) + "\n"
@@ -313,21 +304,21 @@ func (m editModel) View() string {
 			s += renderEditField("To account: ", m.toAccountInput) + "\n"
 		}
 		s += renderEditField("Note: ", m.noteInput) + "\n\n"
-		s += editWarnStyle.Render("Save transaction changes?") + "\n\n"
+		s += warnStyle.Render("Save transaction changes?") + "\n\n"
 
 		yes := "  Yes"
 		no := "  No"
 		if m.confirmCursor == 0 {
-			yes = editFocusStyle.Render("> Yes")
+			yes = focusStyle.Render("> Yes")
 		} else {
-			no = editFocusStyle.Render("> No")
+			no = focusStyle.Render("> No")
 		}
 
 		s += yes + "\n"
 		s += no + "\n\n"
-		s += editMutedStyle.Render("(use ←/→ or ↑/↓, enter to confirm, esc to go back, q to quit)") + "\n"
+		s += mutedStyle.Render("(use ←/→ or ↑/↓, enter to confirm, esc to go back, q to quit)") + "\n"
 	case editStepDone:
-		s += editMutedStyle.Render("Done") + "\n"
+		s += mutedStyle.Render("Done") + "\n"
 	}
 
 	return s
@@ -425,7 +416,7 @@ func formatEditableTransaction(tx domain.Transaction) string {
 }
 
 func renderEditField(label, value string) string {
-	return label + editValueStyle.Render(value)
+	return label + valueStyle.Render(value)
 }
 
 func renderActiveEditField(label, value string) string {
@@ -435,10 +426,10 @@ func renderActiveEditField(label, value string) string {
 func renderEditCursor(value string) string {
 	rendered := ""
 	if value != "" {
-		rendered = editValueStyle.Render(value)
+		rendered = valueStyle.Render(value)
 	}
 
-	return rendered + editCursorStyle.Render(" ")
+	return rendered + cursorStyle.Render(" ")
 }
 
 func renderEditError(message string) string {
@@ -446,7 +437,7 @@ func renderEditError(message string) string {
 		return ""
 	}
 
-	return editWarnStyle.Render(message) + "\n"
+	return warnStyle.Render(message) + "\n"
 }
 
 func formatEditAmountInput(amountMinor int64) string {

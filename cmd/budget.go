@@ -59,14 +59,6 @@ type budgetSetModel struct {
 	errMessage    string
 }
 
-var (
-	budgetFocusStyle  = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("42"))
-	budgetMutedStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("245"))
-	budgetWarnStyle   = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("214"))
-	budgetValueStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("111"))
-	budgetCursorStyle = lipgloss.NewStyle().Background(lipgloss.Color("42")).Foreground(lipgloss.Color("0"))
-)
-
 func newBudgetSetModel() budgetSetModel {
 	return budgetSetModel{
 		step:          budgetSetStepMonth,
@@ -196,37 +188,37 @@ func (m budgetSetModel) View() string {
 	case budgetSetStepMonth:
 		s += renderBudgetActiveField("Month (YYYY-MM): ", m.monthInput) + "\n"
 		s += renderBudgetError(m.errMessage)
-		s += budgetMutedStyle.Render("(enter to continue, q to quit)") + "\n"
+		s += mutedStyle.Render("(enter to continue, q to quit)") + "\n"
 	case budgetSetStepCurrency:
 		s += renderBudgetField("Month: ", m.monthInput) + "\n\n"
 		s += renderBudgetActiveField("Currency: ", m.currencyInput) + "\n"
 		s += renderBudgetError(m.errMessage)
-		s += budgetMutedStyle.Render("(enter to continue, esc to go back, q to quit)") + "\n"
+		s += mutedStyle.Render("(enter to continue, esc to go back, q to quit)") + "\n"
 	case budgetSetStepAmount:
 		s += renderBudgetField("Month: ", m.monthInput) + "\n"
 		s += renderBudgetField("Currency: ", strings.ToUpper(strings.TrimSpace(m.currencyInput))) + "\n\n"
 		s += renderBudgetActiveField("Budget amount: ", m.amountInput) + "\n"
 		s += renderBudgetError(m.errMessage)
-		s += budgetMutedStyle.Render("(enter to continue, esc to go back, q to quit)") + "\n"
+		s += mutedStyle.Render("(enter to continue, esc to go back, q to quit)") + "\n"
 	case budgetSetStepConfirm:
 		s += renderBudgetField("Month: ", m.monthInput) + "\n"
 		s += renderBudgetField("Currency: ", strings.ToUpper(strings.TrimSpace(m.currencyInput))) + "\n"
 		s += renderBudgetField("Budget amount: ", m.amountInput) + "\n\n"
-		s += budgetWarnStyle.Render("Save monthly budget?") + "\n\n"
+		s += warnStyle.Render("Save monthly budget?") + "\n\n"
 
 		yes := "  Yes"
 		no := "  No"
 		if m.confirmCursor == 0 {
-			yes = budgetFocusStyle.Render("> Yes")
+			yes = focusStyle.Render("> Yes")
 		} else {
-			no = budgetFocusStyle.Render("> No")
+			no = focusStyle.Render("> No")
 		}
 
 		s += yes + "\n"
 		s += no + "\n\n"
-		s += budgetMutedStyle.Render("(use ←/→ or ↑/↓, enter to confirm, esc to go back, q to quit)") + "\n"
+		s += mutedStyle.Render("(use ←/→ or ↑/↓, enter to confirm, esc to go back, q to quit)") + "\n"
 	case budgetSetStepDone:
-		s += budgetMutedStyle.Render("Done") + "\n"
+		s += mutedStyle.Render("Done") + "\n"
 	}
 
 	return s
@@ -313,12 +305,12 @@ func (m budgetMenuModel) View() string {
 	for i, choice := range m.choices {
 		line := "  " + choice.label
 		if i == m.cursor {
-			line = budgetFocusStyle.Render("> " + choice.label)
+			line = focusStyle.Render("> " + choice.label)
 		}
 		s += line + "\n"
 	}
 
-	s += "\n" + budgetMutedStyle.Render("(use ↑/↓ and enter, esc to cancel, q to quit)") + "\n"
+	s += "\n" + mutedStyle.Render("(use ↑/↓ and enter, esc to cancel, q to quit)") + "\n"
 	return s
 }
 
@@ -368,7 +360,7 @@ func (m budgetMonthPromptModel) View() string {
 	s := "Show Budgets\n\n"
 	s += renderBudgetActiveField("Month (YYYY-MM): ", m.input) + "\n"
 	s += renderBudgetError(m.errMessage)
-	s += budgetMutedStyle.Render("(enter to continue, esc to cancel, q to quit)") + "\n"
+	s += mutedStyle.Render("(enter to continue, esc to cancel, q to quit)") + "\n"
 	return s
 }
 
@@ -498,7 +490,7 @@ func runBudgetShow(monthInput string) error {
 }
 
 func renderBudgetField(label, value string) string {
-	return label + budgetValueStyle.Render(value)
+	return label + valueStyle.Render(value)
 }
 
 func renderBudgetActiveField(label, value string) string {
@@ -508,10 +500,10 @@ func renderBudgetActiveField(label, value string) string {
 func renderBudgetCursor(value string) string {
 	rendered := ""
 	if value != "" {
-		rendered = budgetValueStyle.Render(value)
+		rendered = valueStyle.Render(value)
 	}
 
-	return rendered + budgetCursorStyle.Render(" ")
+	return rendered + cursorStyle.Render(" ")
 }
 
 func renderBudgetError(message string) string {
@@ -519,5 +511,5 @@ func renderBudgetError(message string) string {
 		return ""
 	}
 
-	return budgetWarnStyle.Render(message) + "\n"
+	return warnStyle.Render(message) + "\n"
 }

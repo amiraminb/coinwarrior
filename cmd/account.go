@@ -8,7 +8,6 @@ import (
 	"github.com/amiraminb/coinwarrior/internal/domain"
 	"github.com/amiraminb/coinwarrior/internal/repository"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 	"github.com/spf13/cobra"
 )
 
@@ -69,14 +68,6 @@ type accountUpdateModel struct {
 	confirmed       bool
 	errMessage      string
 }
-
-var (
-	accountFocusStyle  = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("42"))
-	accountMutedStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("245"))
-	accountWarnStyle   = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("214"))
-	accountValueStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("111"))
-	accountCursorStyle = lipgloss.NewStyle().Background(lipgloss.Color("42")).Foreground(lipgloss.Color("0"))
-)
 
 func newAccountAddModel() accountAddModel {
 	return accountAddModel{
@@ -307,7 +298,7 @@ func (m accountAddModel) View() string {
 		s += renderAccountField("Opening balance: ", m.openingBalanceInput) + "\n\n"
 	}
 
-	s += accountMutedStyle.Render("(enter to continue, esc to go back, q to quit)") + "\n"
+	s += mutedStyle.Render("(enter to continue, esc to go back, q to quit)") + "\n"
 
 	return s
 }
@@ -321,41 +312,41 @@ func (m accountUpdateModel) View() string {
 		for i, account := range m.accounts {
 			line := fmt.Sprintf("  %s (%s %s)", account.Name, account.Currency, coininternal.FormatMinor(account.BalanceMinor))
 			if i == m.cursor {
-				line = accountFocusStyle.Render(fmt.Sprintf("> %s (%s %s)", account.Name, account.Currency, coininternal.FormatMinor(account.BalanceMinor)))
+				line = focusStyle.Render(fmt.Sprintf("> %s (%s %s)", account.Name, account.Currency, coininternal.FormatMinor(account.BalanceMinor)))
 			}
 			s += line + "\n"
 		}
-		s += "\n" + accountMutedStyle.Render("(use ↑/↓ and enter, q to quit)") + "\n"
+		s += "\n" + mutedStyle.Render("(use ↑/↓ and enter, q to quit)") + "\n"
 	case accountUpdateStepAmount:
 		s += renderAccountField("Account: ", m.selectedAccount.Name) + "\n"
 		s += renderAccountField("Currency: ", m.selectedAccount.Currency) + "\n"
 		s += renderAccountField("Current balance: ", coininternal.FormatMinor(m.selectedAccount.BalanceMinor)) + "\n\n"
 		s += renderActiveAccountField("Enter new balance: ", m.amountInput) + "\n"
 		if m.errMessage != "" {
-			s += accountWarnStyle.Render(m.errMessage) + "\n"
+			s += warnStyle.Render(m.errMessage) + "\n"
 		}
-		s += "\n" + accountMutedStyle.Render("(enter to continue, esc to go back, q to quit)") + "\n"
+		s += "\n" + mutedStyle.Render("(enter to continue, esc to go back, q to quit)") + "\n"
 	case accountUpdateStepConfirm:
 		newBalanceMinor, _ := coininternal.ParseAmount(m.amountInput)
 		s += renderAccountField("Account: ", m.selectedAccount.Name) + "\n"
 		s += renderAccountField("Currency: ", m.selectedAccount.Currency) + "\n"
 		s += renderAccountField("Current balance: ", coininternal.FormatMinor(m.selectedAccount.BalanceMinor)) + "\n"
 		s += renderAccountField("New balance: ", coininternal.FormatMinor(newBalanceMinor)) + "\n\n"
-		s += accountWarnStyle.Render("Confirm account balance update?") + "\n\n"
+		s += warnStyle.Render("Confirm account balance update?") + "\n\n"
 
 		yes := "  Yes"
 		no := "  No"
 		if m.confirmCursor == 0 {
-			yes = accountFocusStyle.Render("> Yes")
+			yes = focusStyle.Render("> Yes")
 		} else {
-			no = accountFocusStyle.Render("> No")
+			no = focusStyle.Render("> No")
 		}
 
 		s += yes + "\n"
 		s += no + "\n\n"
-		s += accountMutedStyle.Render("(use ←/→ or ↑/↓, enter to confirm, esc to go back, q to quit)") + "\n"
+		s += mutedStyle.Render("(use ←/→ or ↑/↓, enter to confirm, esc to go back, q to quit)") + "\n"
 	case accountUpdateStepDone:
-		s += accountMutedStyle.Render("Done") + "\n"
+		s += mutedStyle.Render("Done") + "\n"
 	}
 
 	return s
@@ -368,17 +359,17 @@ func (m accountMenuModel) View() string {
 	for i, choice := range m.choices {
 		line := "  " + choice.label
 		if i == m.cursor {
-			line = accountFocusStyle.Render("> " + choice.label)
+			line = focusStyle.Render("> " + choice.label)
 		}
 		s += line + "\n"
 	}
 
-	s += "\n" + accountMutedStyle.Render("(use ↑/↓ and enter, esc to cancel, q to quit)") + "\n"
+	s += "\n" + mutedStyle.Render("(use ↑/↓ and enter, esc to cancel, q to quit)") + "\n"
 	return s
 }
 
 func renderAccountField(label, value string) string {
-	return label + accountValueStyle.Render(value)
+	return label + valueStyle.Render(value)
 }
 
 func renderActiveAccountField(label, value string) string {
@@ -388,10 +379,10 @@ func renderActiveAccountField(label, value string) string {
 func renderAccountCursor(value string) string {
 	rendered := ""
 	if value != "" {
-		rendered = accountValueStyle.Render(value)
+		rendered = valueStyle.Render(value)
 	}
 
-	return rendered + accountCursorStyle.Render(" ")
+	return rendered + cursorStyle.Render(" ")
 }
 
 var accountCmd = &cobra.Command{

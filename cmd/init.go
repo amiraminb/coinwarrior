@@ -188,14 +188,14 @@ func (m confirmModel) View() string {
 	yes := "  Yes"
 	no := "  No"
 	if m.cursor == 0 {
-		yes = accountFocusStyle.Render("> Yes")
+		yes = focusStyle.Render("> Yes")
 	} else {
-		no = accountFocusStyle.Render("> No")
+		no = focusStyle.Render("> No")
 	}
 
 	s += yes + "\n"
 	s += no + "\n\n"
-	s += accountMutedStyle.Render("(use ←/→ or ↑/↓ and enter)") + "\n"
+	s += mutedStyle.Render("(use ←/→ or ↑/↓ and enter)") + "\n"
 
 	return s
 }

@@ -1,16 +1,16 @@
 package repository
 
-import "github.com/amiraminb/coinwarrior/internal/domain"
+import "github.com/amiraminb/coinwarrior/internal/model"
 
 type Repository interface {
-	LoadAccounts() ([]domain.Account, error)
-	SaveAccounts([]domain.Account) error
-	LoadTransactions() ([]domain.Transaction, error)
-	SaveTransactions([]domain.Transaction) error
+	LoadAccounts() ([]model.Account, error)
+	SaveAccounts([]model.Account) error
+	LoadTransactions() ([]model.Transaction, error)
+	SaveTransactions([]model.Transaction) error
 	LoadCategories() ([]string, error)
 	SaveCategories([]string) error
-	LoadBudgets() ([]domain.Budget, error)
-	SaveBudgets([]domain.Budget) error
+	LoadBudgets() ([]model.Budget, error)
+	SaveBudgets([]model.Budget) error
 }
 
 type FileRepository struct {

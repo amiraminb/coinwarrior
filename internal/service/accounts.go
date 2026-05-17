@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/amiraminb/coinwarrior/internal/domain"
+	"github.com/amiraminb/coinwarrior/internal/model"
 	"github.com/amiraminb/coinwarrior/internal/money"
 )
 
@@ -23,33 +23,33 @@ func (s *Service) LoadAccountNames() ([]string, error) {
 	return result, nil
 }
 
-func (s *Service) AddAccount(name, currency, openingBalanceInput string) (domain.Account, error) {
+func (s *Service) AddAccount(name, currency, openingBalanceInput string) (model.Account, error) {
 	accountName := strings.TrimSpace(name)
 	cur := money.NormalizeCurrency(currency)
 	if accountName == "" {
-		return domain.Account{}, fmt.Errorf("account name is required")
+		return model.Account{}, fmt.Errorf("account name is required")
 	}
 	if cur == "" {
-		return domain.Account{}, fmt.Errorf("currency is required")
+		return model.Account{}, fmt.Errorf("currency is required")
 	}
 
 	balanceMinor, err := money.Parse(openingBalanceInput)
 	if err != nil {
-		return domain.Account{}, err
+		return model.Account{}, err
 	}
 
 	accounts, err := s.repo.LoadAccounts()
 	if err != nil {
-		return domain.Account{}, err
+		return model.Account{}, err
 	}
 
 	for _, existing := range accounts {
 		if strings.EqualFold(existing.Name, accountName) {
-			return domain.Account{}, fmt.Errorf("account '%s' already exists", existing.Name)
+			return model.Account{}, fmt.Errorf("account '%s' already exists", existing.Name)
 		}
 	}
 
-	account := domain.Account{
+	account := model.Account{
 		Name:         accountName,
 		Currency:     cur,
 		BalanceMinor: balanceMinor,
@@ -58,26 +58,26 @@ func (s *Service) AddAccount(name, currency, openingBalanceInput string) (domain
 
 	accounts = append(accounts, account)
 	if err := s.repo.SaveAccounts(accounts); err != nil {
-		return domain.Account{}, err
+		return model.Account{}, err
 	}
 
 	return account, nil
 }
 
-func (s *Service) UpdateAccountBalance(name, amountInput string) (domain.Account, error) {
+func (s *Service) UpdateAccountBalance(name, amountInput string) (model.Account, error) {
 	accountName := strings.TrimSpace(name)
 	if accountName == "" {
-		return domain.Account{}, fmt.Errorf("account name is required")
+		return model.Account{}, fmt.Errorf("account name is required")
 	}
 
 	balanceMinor, err := money.Parse(amountInput)
 	if err != nil {
-		return domain.Account{}, err
+		return model.Account{}, err
 	}
 
 	accounts, err := s.repo.LoadAccounts()
 	if err != nil {
-		return domain.Account{}, err
+		return model.Account{}, err
 	}
 
 	for i := range accounts {
@@ -85,16 +85,16 @@ func (s *Service) UpdateAccountBalance(name, amountInput string) (domain.Account
 			accounts[i].BalanceMinor = balanceMinor
 			accounts[i].UpdatedAt = time.Now().UTC().Format(time.RFC3339)
 			if err := s.repo.SaveAccounts(accounts); err != nil {
-				return domain.Account{}, err
+				return model.Account{}, err
 			}
 			return accounts[i], nil
 		}
 	}
 
-	return domain.Account{}, fmt.Errorf("account '%s' not found", accountName)
+	return model.Account{}, fmt.Errorf("account '%s' not found", accountName)
 }
 
-func applyAccountDeltaToFile(accounts []domain.Account, accountName, currency string, deltaMinor int64, now string) error {
+func applyAccountDeltaToFile(accounts []model.Account, accountName, currency string, deltaMinor int64, now string) error {
 	name := strings.TrimSpace(accountName)
 	cur := money.NormalizeCurrency(currency)
 	if name == "" {
@@ -118,7 +118,7 @@ func applyAccountDeltaToFile(accounts []domain.Account, accountName, currency st
 	return fmt.Errorf("account '%s' not found", name)
 }
 
-func transferBetweenAccountsInFile(accounts []domain.Account, fromAccount, toAccount, currency string, amountMinor int64, now string) error {
+func transferBetweenAccountsInFile(accounts []model.Account, fromAccount, toAccount, currency string, amountMinor int64, now string) error {
 	from := strings.TrimSpace(fromAccount)
 	to := strings.TrimSpace(toAccount)
 	cur := money.NormalizeCurrency(currency)

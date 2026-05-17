@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/amiraminb/coinwarrior/internal/domain"
+	"github.com/amiraminb/coinwarrior/internal/model"
 	"github.com/amiraminb/coinwarrior/internal/money"
 	"github.com/amiraminb/coinwarrior/internal/service"
 	tea "github.com/charmbracelet/bubbletea"
@@ -29,7 +29,7 @@ const (
 type editModel struct {
 	step editStep
 
-	selected       domain.Transaction
+	selected       model.Transaction
 	dateInput      string
 	amountInput    string
 	categoryInput  string
@@ -42,7 +42,7 @@ type editModel struct {
 	errMessage    string
 }
 
-func newEditModel(selected domain.Transaction) editModel {
+func newEditModel(selected model.Transaction) editModel {
 	return editModel{
 		step:           editStepDate,
 		selected:       selected,
@@ -155,7 +155,7 @@ func (m editModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					break
 				}
 				m.errMessage = ""
-				if m.selected.Type == domain.TransactionTypeTransfer {
+				if m.selected.Type == model.TransactionTypeTransfer {
 					m.step = editStepToAccount
 				} else {
 					m.step = editStepNote
@@ -209,7 +209,7 @@ func (m editModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.step = editStepConfirm
 			case "esc":
 				m.errMessage = ""
-				if m.selected.Type == domain.TransactionTypeTransfer {
+				if m.selected.Type == model.TransactionTypeTransfer {
 					m.step = editStepToAccount
 				} else {
 					m.step = editStepAccount
@@ -290,7 +290,7 @@ func (m editModel) View() string {
 		s += renderField("Amount: ", m.amountInput) + "\n"
 		s += renderField("Category: ", m.categoryInput) + "\n"
 		s += renderField("Account: ", m.accountInput) + "\n"
-		if m.selected.Type == domain.TransactionTypeTransfer {
+		if m.selected.Type == model.TransactionTypeTransfer {
 			s += renderField("To account: ", m.toAccountInput) + "\n"
 		}
 		s += "\n" + renderActiveField("Note: ", m.noteInput) + "\n"
@@ -301,7 +301,7 @@ func (m editModel) View() string {
 		s += renderField("Amount: ", m.amountInput) + "\n"
 		s += renderField("Category: ", m.categoryInput) + "\n"
 		s += renderField("Account: ", m.accountInput) + "\n"
-		if m.selected.Type == domain.TransactionTypeTransfer {
+		if m.selected.Type == model.TransactionTypeTransfer {
 			s += renderField("To account: ", m.toAccountInput) + "\n"
 		}
 		s += renderField("Note: ", m.noteInput) + "\n\n"
@@ -350,7 +350,7 @@ func RunEditTransaction() error {
 		Account:  &account,
 		Note:     &note,
 	}
-	if result.selected.Type == domain.TransactionTypeTransfer {
+	if result.selected.Type == model.TransactionTypeTransfer {
 		toAccount := result.toAccountInput
 		edits.ToAccount = &toAccount
 	}
@@ -364,8 +364,8 @@ func RunEditTransaction() error {
 	return nil
 }
 
-func SortTransactionsByDateDesc(transactions []domain.Transaction) {
-	slices.SortFunc(transactions, func(a, b domain.Transaction) int {
+func SortTransactionsByDateDesc(transactions []model.Transaction) {
+	slices.SortFunc(transactions, func(a, b model.Transaction) int {
 		if a.Date != b.Date {
 			return cmp.Compare(b.Date, a.Date)
 		}
@@ -373,7 +373,7 @@ func SortTransactionsByDateDesc(transactions []domain.Transaction) {
 	})
 }
 
-func FormatEditableTransaction(tx domain.Transaction) string {
+func FormatEditableTransaction(tx model.Transaction) string {
 	amount := money.FormatTransaction(tx)
 
 	category := strings.TrimSpace(tx.Category)
@@ -382,7 +382,7 @@ func FormatEditableTransaction(tx domain.Transaction) string {
 	}
 
 	details := tx.Account
-	if tx.Type == domain.TransactionTypeTransfer {
+	if tx.Type == model.TransactionTypeTransfer {
 		details = tx.Account + " -> " + tx.ToAccount
 	}
 

@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/amiraminb/coinwarrior/internal/domain"
+	"github.com/amiraminb/coinwarrior/internal/model"
 )
 
 func Parse(input string) (int64, error) {
@@ -82,9 +82,9 @@ func Format(amountMinor int64) string {
 	return fmt.Sprintf("%s.%02d", wholeFormatted, fraction)
 }
 
-func FormatTransaction(tx domain.Transaction) string {
+func FormatTransaction(tx model.Transaction) string {
 	amount := Format(tx.AmountMinor)
-	if tx.Type == domain.TransactionTypeExpense {
+	if tx.Type == model.TransactionTypeExpense {
 		amount = "-" + amount
 	}
 	return amount

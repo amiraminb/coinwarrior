@@ -1,6 +1,6 @@
 package repository
 
-import "github.com/amiraminb/coinwarrior/internal/domain"
+import "github.com/amiraminb/coinwarrior/internal/model"
 
 type categoriesDocument struct {
 	SchemaVersion int      `json:"schema_version"`
@@ -15,8 +15,8 @@ func (r *FileRepository) LoadCategories() ([]string, error) {
 	return loadDocument(path, func(d categoriesDocument) []string {
 		return d.Categories
 	}, func() []string {
-		categories := make([]string, len(domain.DefaultCategories))
-		copy(categories, domain.DefaultCategories)
+		categories := make([]string, len(model.DefaultCategories))
+		copy(categories, model.DefaultCategories)
 		return categories
 	})
 }

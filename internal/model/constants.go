@@ -1,4 +1,4 @@
-package domain
+package model
 
 const (
 	TransactionTypeExpense  = "expense"

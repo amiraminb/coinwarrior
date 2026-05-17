@@ -8,18 +8,18 @@ import (
 	"time"
 
 	"github.com/amiraminb/coinwarrior/internal/daterange"
-	"github.com/amiraminb/coinwarrior/internal/domain"
+	"github.com/amiraminb/coinwarrior/internal/model"
 	"github.com/amiraminb/coinwarrior/internal/money"
 )
 
-func findBudgetIndex(budgets []domain.Budget, monthKey, currency string) int {
-	return slices.IndexFunc(budgets, func(b domain.Budget) bool {
+func findBudgetIndex(budgets []model.Budget, monthKey, currency string) int {
+	return slices.IndexFunc(budgets, func(b model.Budget) bool {
 		return b.Month == monthKey && strings.EqualFold(b.Currency, currency)
 	})
 }
 
 type BudgetSummary struct {
-	Budget      domain.Budget
+	Budget      model.Budget
 	SpentMinor  int64
 	LeftMinor   int64
 	Status      string
@@ -28,57 +28,57 @@ type BudgetSummary struct {
 }
 
 type BudgetCarryoverCandidate struct {
-	SourceBudget domain.Budget
+	SourceBudget model.Budget
 	TargetMonth  string
 	LeftMinor    int64
 }
 
-func (s *Service) SetMonthlyBudget(monthInput, currency, amountInput string) (domain.Budget, error) {
+func (s *Service) SetMonthlyBudget(monthInput, currency, amountInput string) (model.Budget, error) {
 	return s.setMonthlyBudgetWithNow(monthInput, currency, amountInput, nil, time.Now())
 }
 
-func (s *Service) SetMonthlyBudgetWithCarryover(monthInput, currency, amountInput string, carryover bool) (domain.Budget, error) {
+func (s *Service) SetMonthlyBudgetWithCarryover(monthInput, currency, amountInput string, carryover bool) (model.Budget, error) {
 	return s.setMonthlyBudgetWithNow(monthInput, currency, amountInput, &carryover, time.Now())
 }
 
-func (s *Service) setMonthlyBudgetWithNow(monthInput, currency, amountInput string, carryoverDecision *bool, now time.Time) (domain.Budget, error) {
+func (s *Service) setMonthlyBudgetWithNow(monthInput, currency, amountInput string, carryoverDecision *bool, now time.Time) (model.Budget, error) {
 	month, err := daterange.ParseMonth(monthInput, now)
 	if err != nil {
-		return domain.Budget{}, err
+		return model.Budget{}, err
 	}
 
 	cur := money.NormalizeCurrency(currency)
 	if cur == "" {
-		return domain.Budget{}, fmt.Errorf("currency is required")
+		return model.Budget{}, fmt.Errorf("currency is required")
 	}
 
 	amountMinor, err := money.Parse(amountInput)
 	if err != nil {
-		return domain.Budget{}, err
+		return model.Budget{}, err
 	}
 	if amountMinor <= 0 {
-		return domain.Budget{}, fmt.Errorf("budget amount must be greater than zero")
+		return model.Budget{}, fmt.Errorf("budget amount must be greater than zero")
 	}
 
 	budgets, err := s.repo.LoadBudgets()
 	if err != nil {
-		return domain.Budget{}, err
+		return model.Budget{}, err
 	}
 	transactions, err := s.repo.LoadTransactions()
 	if err != nil {
-		return domain.Budget{}, err
+		return model.Budget{}, err
 	}
 
 	monthKey := daterange.FormatMonth(month)
 	carryover, sourceIndex, err := budgetCarryoverCandidate(budgets, transactions, month, cur, now)
 	if err != nil {
-		return domain.Budget{}, err
+		return model.Budget{}, err
 	}
 	nowUTC := now.UTC().Format(time.RFC3339)
 	targetIndex := findBudgetIndex(budgets, monthKey, cur)
 
 	if targetIndex == -1 {
-		budgets = append(budgets, domain.Budget{
+		budgets = append(budgets, model.Budget{
 			Month:       monthKey,
 			Currency:    cur,
 			AmountMinor: amountMinor,
@@ -94,19 +94,19 @@ func (s *Service) setMonthlyBudgetWithNow(monthInput, currency, amountInput stri
 	if carryover != nil && carryoverDecision != nil {
 		if *carryoverDecision {
 			if from := strings.TrimSpace(budgets[targetIndex].RolloverFromMonth); from != "" && from != carryover.SourceBudget.Month {
-				return domain.Budget{}, fmt.Errorf("budget for %s %s already has rollover from %s", monthKey, cur, from)
+				return model.Budget{}, fmt.Errorf("budget for %s %s already has rollover from %s", monthKey, cur, from)
 			}
 			budgets[targetIndex].RolloverMinor = carryover.LeftMinor
 			budgets[targetIndex].RolloverFromMonth = carryover.SourceBudget.Month
 			budgets[targetIndex].UpdatedAt = nowUTC
 
-			budgets[sourceIndex].RolloverStatus = domain.BudgetRolloverStatusCarried
+			budgets[sourceIndex].RolloverStatus = model.BudgetRolloverStatusCarried
 			budgets[sourceIndex].RolledOverMinor = carryover.LeftMinor
 			budgets[sourceIndex].RolledOverIntoMonth = monthKey
 			budgets[sourceIndex].RolledOverAt = nowUTC
 			budgets[sourceIndex].UpdatedAt = nowUTC
 		} else {
-			budgets[sourceIndex].RolloverStatus = domain.BudgetRolloverStatusSkipped
+			budgets[sourceIndex].RolloverStatus = model.BudgetRolloverStatusSkipped
 			budgets[sourceIndex].RolledOverMinor = 0
 			budgets[sourceIndex].RolledOverIntoMonth = ""
 			budgets[sourceIndex].RolledOverAt = nowUTC
@@ -115,7 +115,7 @@ func (s *Service) setMonthlyBudgetWithNow(monthInput, currency, amountInput stri
 	}
 
 	if err := s.repo.SaveBudgets(budgets); err != nil {
-		return domain.Budget{}, err
+		return model.Budget{}, err
 	}
 
 	return budgets[targetIndex], nil
@@ -212,7 +212,7 @@ func (s *Service) GetPendingBudgetRollovers(targetMonthInput string, now time.Ti
 			Budget:      budget,
 			SpentMinor:  spent,
 			LeftMinor:   budget.AmountMinor + budget.RolloverMinor - spent,
-			Status:      domain.BudgetSummaryStatusPending,
+			Status:      model.BudgetSummaryStatusPending,
 			PeriodStart: month,
 			PeriodEnd:   end,
 		})
@@ -222,53 +222,53 @@ func (s *Service) GetPendingBudgetRollovers(targetMonthInput string, now time.Ti
 	return summaries, nil
 }
 
-func (s *Service) ApplyMonthlyBudgetRollover(monthInput, currency string, carry bool, now time.Time) (domain.Budget, *domain.Budget, error) {
+func (s *Service) ApplyMonthlyBudgetRollover(monthInput, currency string, carry bool, now time.Time) (model.Budget, *model.Budget, error) {
 	month, err := daterange.ParseMonth(monthInput, now)
 	if err != nil {
-		return domain.Budget{}, nil, err
+		return model.Budget{}, nil, err
 	}
 	monthKey := daterange.FormatMonth(month)
 	cur := money.NormalizeCurrency(currency)
 	if cur == "" {
-		return domain.Budget{}, nil, fmt.Errorf("currency is required")
+		return model.Budget{}, nil, fmt.Errorf("currency is required")
 	}
 
 	budgets, err := s.repo.LoadBudgets()
 	if err != nil {
-		return domain.Budget{}, nil, err
+		return model.Budget{}, nil, err
 	}
 	transactions, err := s.repo.LoadTransactions()
 	if err != nil {
-		return domain.Budget{}, nil, err
+		return model.Budget{}, nil, err
 	}
 
 	index := findBudgetIndex(budgets, monthKey, cur)
 	if index == -1 {
-		return domain.Budget{}, nil, fmt.Errorf("budget for %s %s not found", monthKey, cur)
+		return model.Budget{}, nil, fmt.Errorf("budget for %s %s not found", monthKey, cur)
 	}
 
 	_, end := daterange.MonthBounds(month)
 	if !end.Before(daterange.DateOnly(now)) {
-		return domain.Budget{}, nil, fmt.Errorf("budget period %s is still open", monthKey)
+		return model.Budget{}, nil, fmt.Errorf("budget period %s is still open", monthKey)
 	}
 	if strings.TrimSpace(budgets[index].RolloverStatus) != "" {
-		return domain.Budget{}, nil, fmt.Errorf("budget for %s %s already has rollover decision '%s'", monthKey, cur, budgets[index].RolloverStatus)
+		return model.Budget{}, nil, fmt.Errorf("budget for %s %s already has rollover decision '%s'", monthKey, cur, budgets[index].RolloverStatus)
 	}
 
 	left, err := budgetLeftForMonth(transactions, budgets[index], month)
 	if err != nil {
-		return domain.Budget{}, nil, err
+		return model.Budget{}, nil, err
 	}
 
 	nowUTC := now.UTC().Format(time.RFC3339)
 	if !carry {
-		budgets[index].RolloverStatus = domain.BudgetRolloverStatusSkipped
+		budgets[index].RolloverStatus = model.BudgetRolloverStatusSkipped
 		budgets[index].RolledOverMinor = 0
 		budgets[index].RolledOverIntoMonth = ""
 		budgets[index].RolledOverAt = nowUTC
 		budgets[index].UpdatedAt = nowUTC
 		if err := s.repo.SaveBudgets(budgets); err != nil {
-			return domain.Budget{}, nil, err
+			return model.Budget{}, nil, err
 		}
 		return budgets[index], nil, nil
 	}
@@ -278,7 +278,7 @@ func (s *Service) ApplyMonthlyBudgetRollover(monthInput, currency string, carry 
 	destIndex := findBudgetIndex(budgets, nextMonthKey, cur)
 
 	if destIndex == -1 {
-		budgets = append(budgets, domain.Budget{
+		budgets = append(budgets, model.Budget{
 			Month:             nextMonthKey,
 			Currency:          cur,
 			AmountMinor:       0,
@@ -289,21 +289,21 @@ func (s *Service) ApplyMonthlyBudgetRollover(monthInput, currency string, carry 
 		destIndex = len(budgets) - 1
 	} else {
 		if from := strings.TrimSpace(budgets[destIndex].RolloverFromMonth); from != "" && from != monthKey {
-			return domain.Budget{}, nil, fmt.Errorf("budget for %s %s already has rollover from %s", nextMonthKey, cur, from)
+			return model.Budget{}, nil, fmt.Errorf("budget for %s %s already has rollover from %s", nextMonthKey, cur, from)
 		}
 		budgets[destIndex].RolloverMinor = left
 		budgets[destIndex].RolloverFromMonth = monthKey
 		budgets[destIndex].UpdatedAt = nowUTC
 	}
 
-	budgets[index].RolloverStatus = domain.BudgetRolloverStatusCarried
+	budgets[index].RolloverStatus = model.BudgetRolloverStatusCarried
 	budgets[index].RolledOverMinor = left
 	budgets[index].RolledOverIntoMonth = nextMonthKey
 	budgets[index].RolledOverAt = nowUTC
 	budgets[index].UpdatedAt = nowUTC
 
 	if err := s.repo.SaveBudgets(budgets); err != nil {
-		return domain.Budget{}, nil, err
+		return model.Budget{}, nil, err
 	}
 
 	source := budgets[index]
@@ -311,7 +311,7 @@ func (s *Service) ApplyMonthlyBudgetRollover(monthInput, currency string, carry 
 	return source, &destination, nil
 }
 
-func summarizeBudgetsForMonth(budgets []domain.Budget, transactions []domain.Transaction, month time.Time, now time.Time) ([]BudgetSummary, error) {
+func summarizeBudgetsForMonth(budgets []model.Budget, transactions []model.Transaction, month time.Time, now time.Time) ([]BudgetSummary, error) {
 	start, end := daterange.MonthBounds(month)
 	monthKey := daterange.FormatMonth(month)
 	summaries := make([]BudgetSummary, 0)
@@ -339,7 +339,7 @@ func summarizeBudgetsForMonth(budgets []domain.Budget, transactions []domain.Tra
 	return summaries, nil
 }
 
-func budgetLeftForMonth(transactions []domain.Transaction, budget domain.Budget, month time.Time) (int64, error) {
+func budgetLeftForMonth(transactions []model.Transaction, budget model.Budget, month time.Time) (int64, error) {
 	spent, err := expensesForBudgetMonth(transactions, budget, month)
 	if err != nil {
 		return 0, err
@@ -347,11 +347,11 @@ func budgetLeftForMonth(transactions []domain.Transaction, budget domain.Budget,
 	return budget.AmountMinor + budget.RolloverMinor - spent, nil
 }
 
-func expensesForBudgetMonth(transactions []domain.Transaction, budget domain.Budget, month time.Time) (int64, error) {
+func expensesForBudgetMonth(transactions []model.Transaction, budget model.Budget, month time.Time) (int64, error) {
 	start, end := daterange.MonthBounds(month)
 	spent := int64(0)
 	for _, tx := range transactions {
-		if tx.Type != domain.TransactionTypeExpense {
+		if tx.Type != model.TransactionTypeExpense {
 			continue
 		}
 		if !strings.EqualFold(tx.Currency, budget.Currency) {
@@ -369,14 +369,14 @@ func expensesForBudgetMonth(transactions []domain.Transaction, budget domain.Bud
 	return spent, nil
 }
 
-func budgetSummaryStatus(budget domain.Budget, periodEnd, now time.Time) string {
+func budgetSummaryStatus(budget model.Budget, periodEnd, now time.Time) string {
 	if strings.TrimSpace(budget.RolloverStatus) != "" {
 		return budget.RolloverStatus
 	}
 	if periodEnd.Before(daterange.DateOnly(now)) {
-		return domain.BudgetSummaryStatusPending
+		return model.BudgetSummaryStatusPending
 	}
-	return domain.BudgetSummaryStatusOpen
+	return model.BudgetSummaryStatusOpen
 }
 
 func sortBudgetSummaries(summaries []BudgetSummary) {
@@ -388,7 +388,7 @@ func sortBudgetSummaries(summaries []BudgetSummary) {
 	})
 }
 
-func budgetCarryoverCandidate(budgets []domain.Budget, transactions []domain.Transaction, targetMonth time.Time, currency string, now time.Time) (*BudgetCarryoverCandidate, int, error) {
+func budgetCarryoverCandidate(budgets []model.Budget, transactions []model.Transaction, targetMonth time.Time, currency string, now time.Time) (*BudgetCarryoverCandidate, int, error) {
 	previousMonth := targetMonth.AddDate(0, -1, 0)
 	previousMonthKey := daterange.FormatMonth(previousMonth)
 

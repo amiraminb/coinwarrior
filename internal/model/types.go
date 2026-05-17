@@ -1,4 +1,4 @@
-package domain
+package model
 
 type Transaction struct {
 	ID          string   `json:"id"`

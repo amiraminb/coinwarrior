@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/amiraminb/coinwarrior/internal/domain"
+	"github.com/amiraminb/coinwarrior/internal/model"
 	"github.com/amiraminb/coinwarrior/internal/money"
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -46,10 +46,10 @@ type accountAddModel struct {
 type accountUpdateModel struct {
 	step accountUpdateStep
 
-	accounts []domain.Account
+	accounts []model.Account
 	cursor   int
 
-	selectedAccount domain.Account
+	selectedAccount model.Account
 	amountInput     string
 	confirmCursor   int
 	confirmed       bool
@@ -64,7 +64,7 @@ func newAccountAddModel() accountAddModel {
 	}
 }
 
-func newAccountUpdateModel(accounts []domain.Account) accountUpdateModel {
+func newAccountUpdateModel(accounts []model.Account) accountUpdateModel {
 	return accountUpdateModel{
 		step:     accountUpdateStepSelect,
 		accounts: accounts,

@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/amiraminb/coinwarrior/internal/daterange"
-	"github.com/amiraminb/coinwarrior/internal/domain"
+	"github.com/amiraminb/coinwarrior/internal/model"
 	"github.com/amiraminb/coinwarrior/internal/money"
 	"github.com/amiraminb/coinwarrior/internal/tui"
 	"github.com/charmbracelet/bubbles/table"
@@ -77,14 +77,14 @@ func runAccountReport() error {
 	return nil
 }
 
-func printAccountBalancesReport(accounts []domain.Account) {
+func printAccountBalancesReport(accounts []model.Account) {
 	fmt.Println(reportSubSectionStyle.Render("Account Balances"))
 	if len(accounts) == 0 {
 		fmt.Println("  no accounts")
 		return
 	}
 
-	items := make([]domain.Account, len(accounts))
+	items := make([]model.Account, len(accounts))
 	copy(items, accounts)
 	sort.Slice(items, func(i, j int) bool {
 		return items[i].Name < items[j].Name
@@ -105,7 +105,7 @@ func printAccountBalancesReport(accounts []domain.Account) {
 	)
 }
 
-func printTotalBalancesReport(accounts []domain.Account) {
+func printTotalBalancesReport(accounts []model.Account) {
 	fmt.Println(reportSubSectionStyle.Render("Total Balances"))
 	if len(accounts) == 0 {
 		fmt.Println("  no balances")
@@ -137,16 +137,16 @@ func printTotalBalancesReport(accounts []domain.Account) {
 	)
 }
 
-func printCategorySection(transactions []domain.Transaction, start, end time.Time, showDetails bool, now time.Time) error {
+func printCategorySection(transactions []model.Transaction, start, end time.Time, showDetails bool, now time.Time) error {
 	fmt.Println(reportSectionStyle.Render("Range Categories"))
 	fmt.Println()
 	if err := printMonthlyBudgetSection(start, end, now); err != nil {
 		return err
 	}
 
-	byCategory := make(map[string][]domain.Transaction)
+	byCategory := make(map[string][]model.Transaction)
 	for _, tx := range transactions {
-		if tx.Type == domain.TransactionTypeTransfer {
+		if tx.Type == model.TransactionTypeTransfer {
 			continue
 		}
 		inRange, err := daterange.Contains(tx.Date, start, end)
@@ -176,16 +176,16 @@ func printCategorySection(transactions []domain.Transaction, start, end time.Tim
 		}
 
 		for _, tx := range items {
-			if tx.Type == domain.TransactionTypeExpense {
+			if tx.Type == model.TransactionTypeExpense {
 				currencyExpense[tx.Currency] += tx.AmountMinor
 				report.expenseByCurrency[tx.Currency] += tx.AmountMinor
 				report.totalExpenseMinor += tx.AmountMinor
-			} else if tx.Type == domain.TransactionTypeIncome {
+			} else if tx.Type == model.TransactionTypeIncome {
 				currencyIncome[tx.Currency] += tx.AmountMinor
 			}
 
 			delta := tx.AmountMinor
-			if tx.Type == domain.TransactionTypeExpense {
+			if tx.Type == model.TransactionTypeExpense {
 				delta = -tx.AmountMinor
 			}
 			report.totalsByCurrency[tx.Currency] += delta
@@ -344,7 +344,7 @@ func budgetMonthForRange(start, end time.Time) (string, bool) {
 func renderCompactCategoryDetails(categoryReports []categoryReport) {
 	detailRows := make([]table.Row, 0)
 	for _, report := range categoryReports {
-		items := make([]domain.Transaction, len(report.items))
+		items := make([]model.Transaction, len(report.items))
 		copy(items, report.items)
 
 		tui.SortTransactionsByDateDesc(items)
@@ -385,7 +385,7 @@ func renderSeparateCategoryDetails(categoryReports []categoryReport) {
 			fmt.Println()
 		}
 
-		items := make([]domain.Transaction, len(report.items))
+		items := make([]model.Transaction, len(report.items))
 		copy(items, report.items)
 
 		tui.SortTransactionsByDateDesc(items)
@@ -420,7 +420,7 @@ func renderSeparateCategoryDetails(categoryReports []categoryReport) {
 
 type categoryReport struct {
 	name              string
-	items             []domain.Transaction
+	items             []model.Transaction
 	totalsByCurrency  map[string]int64
 	expenseByCurrency map[string]int64
 	totalExpenseMinor int64

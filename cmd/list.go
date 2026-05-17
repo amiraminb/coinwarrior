@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/amiraminb/coinwarrior/internal/daterange"
-	"github.com/amiraminb/coinwarrior/internal/domain"
+	"github.com/amiraminb/coinwarrior/internal/model"
 	"github.com/amiraminb/coinwarrior/internal/money"
 	"github.com/amiraminb/coinwarrior/internal/tui"
 	"github.com/charmbracelet/bubbles/table"
@@ -34,7 +34,7 @@ Supported ranges: today, yesterday, week, lastweek, month, lastmonth, year, last
 			return nil
 		}
 
-		items := make([]domain.Transaction, len(transactions))
+		items := make([]model.Transaction, len(transactions))
 		copy(items, transactions)
 
 		if len(args) == 1 {
@@ -43,7 +43,7 @@ Supported ranges: today, yesterday, week, lastweek, month, lastmonth, year, last
 				return err
 			}
 
-			filtered := make([]domain.Transaction, 0, len(items))
+			filtered := make([]model.Transaction, 0, len(items))
 			for _, tx := range items {
 				inRange, err := daterange.Contains(tx.Date, start, end)
 				if err != nil {
@@ -78,7 +78,7 @@ Supported ranges: today, yesterday, week, lastweek, month, lastmonth, year, last
 		rows := make([]table.Row, 0, len(items))
 		for _, tx := range items {
 			account := tx.Account
-			if tx.Type == domain.TransactionTypeTransfer {
+			if tx.Type == model.TransactionTypeTransfer {
 				account = tx.Account + " -> " + tx.ToAccount
 			}
 			rows = append(rows, table.Row{

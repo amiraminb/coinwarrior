@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/amiraminb/coinwarrior/internal/daterange"
-	"github.com/amiraminb/coinwarrior/internal/domain"
+	"github.com/amiraminb/coinwarrior/internal/model"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -20,13 +20,13 @@ const (
 
 type transactionListModel struct {
 	title        string
-	transactions []domain.Transaction
+	transactions []model.Transaction
 	cursor       int
-	selected     domain.Transaction
+	selected     model.Transaction
 }
 
-func newTransactionListModel(title string, transactions []domain.Transaction) transactionListModel {
-	items := make([]domain.Transaction, len(transactions))
+func newTransactionListModel(title string, transactions []model.Transaction) transactionListModel {
+	items := make([]model.Transaction, len(transactions))
 	copy(items, transactions)
 	return transactionListModel{title: title, transactions: items}
 }
@@ -75,60 +75,60 @@ func (m transactionListModel) View() string {
 	return s
 }
 
-func SelectTransaction(title string) (domain.Transaction, bool, error) {
+func SelectTransaction(title string) (model.Transaction, bool, error) {
 	transactions, err := loadAllTransactionsForSelection()
 	if err != nil {
-		return domain.Transaction{}, false, err
+		return model.Transaction{}, false, err
 	}
 	if len(transactions) == 0 {
-		return domain.Transaction{}, false, fmt.Errorf("no transactions available")
+		return model.Transaction{}, false, fmt.Errorf("no transactions available")
 	}
 
 	action, ok, err := runTransactionLookupMenuInteractive(title)
 	if err != nil {
-		return domain.Transaction{}, false, err
+		return model.Transaction{}, false, err
 	}
 	if !ok || action == transactionLookupQuit {
-		return domain.Transaction{}, false, nil
+		return model.Transaction{}, false, nil
 	}
 
 	switch action {
 	case transactionLookupByMonth:
 		monthInput, ok, err := runTransactionMonthPromptInteractive(title)
 		if err != nil {
-			return domain.Transaction{}, false, err
+			return model.Transaction{}, false, err
 		}
 		if !ok {
-			return domain.Transaction{}, false, nil
+			return model.Transaction{}, false, nil
 		}
 
 		month, err := daterange.ParseMonth(monthInput, time.Now())
 		if err != nil {
-			return domain.Transaction{}, false, err
+			return model.Transaction{}, false, err
 		}
 		filtered, err := filterTransactionsByMonth(transactions, month)
 		if err != nil {
-			return domain.Transaction{}, false, err
+			return model.Transaction{}, false, err
 		}
 		if len(filtered) == 0 {
-			return domain.Transaction{}, false, fmt.Errorf("no transactions found for %s", daterange.FormatMonth(month))
+			return model.Transaction{}, false, fmt.Errorf("no transactions found for %s", daterange.FormatMonth(month))
 		}
 
 		selected, ok, err := runTransactionListInteractive(title, filtered)
 		if err != nil {
-			return domain.Transaction{}, false, err
+			return model.Transaction{}, false, err
 		}
 		if !ok {
-			return domain.Transaction{}, false, nil
+			return model.Transaction{}, false, nil
 		}
 		return selected, true, nil
 	case transactionLookupByID:
 		id, ok, err := runTransactionIDPromptInteractive(title)
 		if err != nil {
-			return domain.Transaction{}, false, err
+			return model.Transaction{}, false, err
 		}
 		if !ok {
-			return domain.Transaction{}, false, nil
+			return model.Transaction{}, false, nil
 		}
 
 		for _, tx := range transactions {
@@ -136,9 +136,9 @@ func SelectTransaction(title string) (domain.Transaction, bool, error) {
 				return tx, true, nil
 			}
 		}
-		return domain.Transaction{}, false, fmt.Errorf("transaction '%s' not found", strings.TrimSpace(id))
+		return model.Transaction{}, false, fmt.Errorf("transaction '%s' not found", strings.TrimSpace(id))
 	default:
-		return domain.Transaction{}, false, nil
+		return model.Transaction{}, false, nil
 	}
 }
 
@@ -165,37 +165,37 @@ func runTransactionIDPromptInteractive(title string) (string, bool, error) {
 	return runTextPrompt(title, "Transaction ID: ", "", validate)
 }
 
-func runTransactionListInteractive(title string, transactions []domain.Transaction) (domain.Transaction, bool, error) {
+func runTransactionListInteractive(title string, transactions []model.Transaction) (model.Transaction, bool, error) {
 	p := tea.NewProgram(newTransactionListModel(title, transactions))
 	finalModel, err := p.Run()
 	if err != nil {
-		return domain.Transaction{}, false, err
+		return model.Transaction{}, false, err
 	}
 
 	result := finalModel.(transactionListModel)
 	if result.selected.ID == "" {
-		return domain.Transaction{}, false, nil
+		return model.Transaction{}, false, nil
 	}
 	return result.selected, true, nil
 }
 
-func loadAllTransactionsForSelection() ([]domain.Transaction, error) {
+func loadAllTransactionsForSelection() ([]model.Transaction, error) {
 	transactions, err := Repo.LoadTransactions()
 	if err != nil {
 		return nil, err
 	}
 
-	items := make([]domain.Transaction, len(transactions))
+	items := make([]model.Transaction, len(transactions))
 	copy(items, transactions)
 	SortTransactionsByDateDesc(items)
 	return items, nil
 }
 
-func filterTransactionsByMonth(transactions []domain.Transaction, month time.Time) ([]domain.Transaction, error) {
+func filterTransactionsByMonth(transactions []model.Transaction, month time.Time) ([]model.Transaction, error) {
 	start := time.Date(month.Year(), month.Month(), 1, 0, 0, 0, 0, month.Location())
 	end := start.AddDate(0, 1, -1)
 
-	filtered := make([]domain.Transaction, 0)
+	filtered := make([]model.Transaction, 0)
 	for _, tx := range transactions {
 		inRange, err := daterange.Contains(tx.Date, start, end)
 		if err != nil {

@@ -1,29 +1,29 @@
 package repository
 
-import "github.com/amiraminb/coinwarrior/internal/domain"
+import "github.com/amiraminb/coinwarrior/internal/model"
 
 type budgetsDocument struct {
 	SchemaVersion int             `json:"schema_version"`
-	Budgets       []domain.Budget `json:"budgets"`
+	Budgets       []model.Budget `json:"budgets"`
 }
 
-func (r *FileRepository) LoadBudgets() ([]domain.Budget, error) {
+func (r *FileRepository) LoadBudgets() ([]model.Budget, error) {
 	path, err := r.DataFilePath(BudgetsFileName)
 	if err != nil {
 		return nil, err
 	}
-	return loadDocument(path, func(d budgetsDocument) []domain.Budget {
+	return loadDocument(path, func(d budgetsDocument) []model.Budget {
 		return d.Budgets
 	}, nil)
 }
 
-func (r *FileRepository) SaveBudgets(budgets []domain.Budget) error {
+func (r *FileRepository) SaveBudgets(budgets []model.Budget) error {
 	path, err := r.DataFilePath(BudgetsFileName)
 	if err != nil {
 		return err
 	}
 	if budgets == nil {
-		budgets = []domain.Budget{}
+		budgets = []model.Budget{}
 	}
 	return saveDocument(path, budgetsDocument{SchemaVersion: 1, Budgets: budgets})
 }

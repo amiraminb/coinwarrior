@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/amiraminb/coinwarrior/internal/domain"
+	"github.com/amiraminb/coinwarrior/internal/model"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -67,7 +67,7 @@ func newAddModel(categories []string, accounts []string) addModel {
 	return addModel{
 		step:          stepType,
 		cursor:        0,
-		choices:       []string{domain.TransactionTypeExpense, domain.TransactionTypeIncome, domain.TransactionTypeTransfer},
+		choices:       []string{model.TransactionTypeExpense, model.TransactionTypeIncome, model.TransactionTypeTransfer},
 		dateInput:     time.Now().Format("2006-01-02"),
 		currencyInput: "CAD",
 		categories:    categories,
@@ -143,7 +143,7 @@ func (m addModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			switch msg.String() {
 			case "enter":
 				if m.currencyInput != "" {
-					if m.selected == domain.TransactionTypeTransfer {
+					if m.selected == model.TransactionTypeTransfer {
 						m.step = stepAccountSelect
 					} else {
 						m.step = stepCategorySelect
@@ -225,7 +225,7 @@ func (m addModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		case stepAccountSelect:
 			maxCursor := len(m.accounts)
-			if m.selected == domain.TransactionTypeTransfer {
+			if m.selected == model.TransactionTypeTransfer {
 				if len(m.accounts) == 0 {
 					maxCursor = 0
 				} else {
@@ -245,14 +245,14 @@ func (m addModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if m.accountCursor < len(m.accounts) {
 					m.accountInput = m.accounts[m.accountCursor]
 					m.createAccount = false
-					if m.selected == domain.TransactionTypeTransfer {
+					if m.selected == model.TransactionTypeTransfer {
 						m.step = stepTransferToAccountSelect
 					} else {
 						m.step = stepNote
 					}
 					break
 				}
-				if m.selected != domain.TransactionTypeTransfer {
+				if m.selected != model.TransactionTypeTransfer {
 					m.step = stepAccountInput
 				}
 			}
@@ -327,7 +327,7 @@ func (m addModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.step = stepDone
 				return m, tea.Quit
 			case "esc":
-				if m.selected == domain.TransactionTypeTransfer {
+				if m.selected == model.TransactionTypeTransfer {
 					m.step = stepTransferToAccountSelect
 				} else {
 					m.step = stepAccountSelect
@@ -417,7 +417,7 @@ func (m addModel) View() string {
 		s += renderField("Amount: ", m.amountInput) + "\n"
 		s += renderField("Date: ", m.dateInput) + "\n"
 		s += renderField("Currency: ", m.currencyInput) + "\n"
-		if m.selected != domain.TransactionTypeTransfer {
+		if m.selected != model.TransactionTypeTransfer {
 			s += renderField("Category: ", m.categoryInput) + "\n\n"
 			s += "Select account:\n\n"
 		} else {
@@ -430,7 +430,7 @@ func (m addModel) View() string {
 			}
 			s += line + "\n"
 		}
-		if m.selected != domain.TransactionTypeTransfer {
+		if m.selected != model.TransactionTypeTransfer {
 			newOptionLine := "  [New account]"
 			if m.accountCursor == len(m.accounts) {
 				newOptionLine = focusStyle.Render("> [New account]")
@@ -489,13 +489,13 @@ func (m addModel) View() string {
 		s += renderField("Amount: ", m.amountInput) + "\n"
 		s += renderField("Date: ", m.dateInput) + "\n"
 		s += renderField("Currency: ", m.currencyInput) + "\n"
-		if m.selected != domain.TransactionTypeTransfer {
+		if m.selected != model.TransactionTypeTransfer {
 			s += renderField("Category: ", m.categoryInput) + "\n"
 			s += renderField("Account: ", m.accountInput) + "\n\n"
 		} else {
 			s += renderField("From account: ", m.accountInput) + "\n"
 			s += renderField("To account: ", m.toAccountInput) + "\n"
-			s += renderField("Category: ", domain.TransferCategory) + "\n\n"
+			s += renderField("Category: ", model.TransferCategory) + "\n\n"
 		}
 		s += renderActiveField("Enter note (optional): ", m.noteInput) + "\n"
 		s += mutedStyle.Render("(enter to save, esc to go back, q to quit)") + "\n"
@@ -526,22 +526,22 @@ func RunAddTransaction() error {
 		fmt.Println("add cancelled")
 		return nil
 	}
-	if result.selected != domain.TransactionTypeTransfer && result.categoryInput == "" {
+	if result.selected != model.TransactionTypeTransfer && result.categoryInput == "" {
 		fmt.Println("add cancelled")
 		return nil
 	}
-	if result.selected == domain.TransactionTypeTransfer && (result.toAccountInput == "" || strings.EqualFold(result.accountInput, result.toAccountInput)) {
+	if result.selected == model.TransactionTypeTransfer && (result.toAccountInput == "" || strings.EqualFold(result.accountInput, result.toAccountInput)) {
 		fmt.Println("add cancelled")
 		return nil
 	}
 
-	if result.createAccount && result.selected != domain.TransactionTypeTransfer {
+	if result.createAccount && result.selected != model.TransactionTypeTransfer {
 		if _, err := Svc.AddAccount(result.accountInput, result.currencyInput, "0"); err != nil {
 			return err
 		}
 	}
 
-	if result.selected != domain.TransactionTypeTransfer {
+	if result.selected != model.TransactionTypeTransfer {
 		if err := Svc.AddCategory(result.categoryInput); err != nil {
 			return err
 		}

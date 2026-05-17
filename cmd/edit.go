@@ -383,10 +383,7 @@ func sortTransactionsByDateDesc(transactions []domain.Transaction) {
 }
 
 func formatEditableTransaction(tx domain.Transaction) string {
-	amount := coininternal.FormatMinor(tx.AmountMinor)
-	if tx.Type == coininternal.TransactionTypeExpense {
-		amount = "-" + amount
-	}
+	amount := coininternal.FormatTransactionAmount(tx)
 
 	category := strings.TrimSpace(tx.Category)
 	if category == "" {

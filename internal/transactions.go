@@ -395,6 +395,14 @@ func (e TransactionEdits) empty() bool {
 	return e.Date == nil && e.Amount == nil && e.Category == nil && e.Account == nil && e.ToAccount == nil && e.Note == nil
 }
 
+func FormatTransactionAmount(tx domain.Transaction) string {
+	amount := FormatMinor(tx.AmountMinor)
+	if tx.Type == TransactionTypeExpense {
+		amount = "-" + amount
+	}
+	return amount
+}
+
 func FormatMinor(amountMinor int64) string {
 	negative := amountMinor < 0
 	if negative {

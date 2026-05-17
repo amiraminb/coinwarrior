@@ -353,10 +353,7 @@ func renderCompactCategoryDetails(categoryReports []categoryReport) {
 		}
 
 		for idx, tx := range items {
-			amount := coininternal.FormatMinor(tx.AmountMinor)
-			if tx.Type == coininternal.TransactionTypeExpense {
-				amount = "-" + amount
-			}
+			amount := coininternal.FormatTransactionAmount(tx)
 
 			categoryCell := ""
 			if idx == 0 {
@@ -401,10 +398,7 @@ func renderSeparateCategoryDetails(categoryReports []categoryReport) {
 
 		rows := make([]table.Row, 0, len(items))
 		for _, tx := range items {
-			amount := coininternal.FormatMinor(tx.AmountMinor)
-			if tx.Type == coininternal.TransactionTypeExpense {
-				amount = "-" + amount
-			}
+			amount := coininternal.FormatTransactionAmount(tx)
 
 			rows = append(rows, table.Row{tx.Date, amount, tx.Currency, tx.Account, tx.Note})
 		}

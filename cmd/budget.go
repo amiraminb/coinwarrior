@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	coininternal "github.com/amiraminb/coinwarrior/internal"
+	"github.com/amiraminb/coinwarrior/internal/daterange"
 	"github.com/amiraminb/coinwarrior/internal/money"
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
@@ -45,7 +45,7 @@ type budgetSetModel struct {
 func newBudgetSetModel() budgetSetModel {
 	return budgetSetModel{
 		step:          budgetSetStepMonth,
-		monthInput:    coininternal.FormatBudgetMonth(time.Now()),
+		monthInput:    daterange.FormatMonth(time.Now()),
 		currencyInput: "CAD",
 	}
 }
@@ -66,7 +66,7 @@ func (m budgetSetModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case budgetSetStepMonth:
 			switch msg.String() {
 			case "enter":
-				if _, err := coininternal.ParseBudgetMonth(m.monthInput, time.Now()); err != nil {
+				if _, err := daterange.ParseMonth(m.monthInput, time.Now()); err != nil {
 					m.errMessage = err.Error()
 					break
 				}
@@ -301,7 +301,7 @@ func runBudgetMonthPromptInteractive() (string, bool, error) {
 }
 
 func runBudgetShow(monthInput string) error {
-	month, err := coininternal.ParseBudgetMonth(monthInput, time.Now())
+	month, err := daterange.ParseMonth(monthInput, time.Now())
 	if err != nil {
 		return err
 	}
@@ -311,7 +311,7 @@ func runBudgetShow(monthInput string) error {
 		return err
 	}
 
-	monthLabel := coininternal.FormatBudgetMonth(month)
+	monthLabel := daterange.FormatMonth(month)
 	fmt.Println(headerStyle.Render("budget " + monthLabel))
 	fmt.Println()
 

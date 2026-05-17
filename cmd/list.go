@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	coininternal "github.com/amiraminb/coinwarrior/internal"
+	"github.com/amiraminb/coinwarrior/internal/daterange"
 	"github.com/amiraminb/coinwarrior/internal/domain"
 	"github.com/amiraminb/coinwarrior/internal/money"
 	"github.com/charmbracelet/bubbles/table"
@@ -37,14 +37,14 @@ Supported ranges: today, yesterday, week, lastweek, month, lastmonth, year, last
 		copy(items, transactions)
 
 		if len(args) == 1 {
-			start, end, err := coininternal.ResolveDateRange(args[0], time.Now())
+			start, end, err := daterange.Resolve(args[0], time.Now())
 			if err != nil {
 				return err
 			}
 
 			filtered := make([]domain.Transaction, 0, len(items))
 			for _, tx := range items {
-				inRange, err := coininternal.TransactionInRange(tx.Date, start, end)
+				inRange, err := daterange.Contains(tx.Date, start, end)
 				if err != nil {
 					return fmt.Errorf("invalid transaction date '%s' for %s", tx.Date, tx.ID)
 				}

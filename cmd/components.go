@@ -4,7 +4,7 @@ import (
 	"strings"
 	"time"
 
-	coininternal "github.com/amiraminb/coinwarrior/internal"
+	"github.com/amiraminb/coinwarrior/internal/daterange"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -214,8 +214,8 @@ func runTextPrompt(title, prompt, initial string, validate func(string) error) (
 
 func runMonthPrompt(title string) (string, bool, error) {
 	validate := func(s string) error {
-		_, err := coininternal.ParseBudgetMonth(s, time.Now())
+		_, err := daterange.ParseMonth(s, time.Now())
 		return err
 	}
-	return runTextPrompt(title, "Month (YYYY-MM): ", coininternal.FormatBudgetMonth(time.Now()), validate)
+	return runTextPrompt(title, "Month (YYYY-MM): ", daterange.FormatMonth(time.Now()), validate)
 }

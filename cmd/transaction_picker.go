@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	coininternal "github.com/amiraminb/coinwarrior/internal"
+	"github.com/amiraminb/coinwarrior/internal/daterange"
 	"github.com/amiraminb/coinwarrior/internal/domain"
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -102,7 +102,7 @@ func selectTransactionInteractive(title string) (domain.Transaction, bool, error
 			return domain.Transaction{}, false, nil
 		}
 
-		month, err := coininternal.ParseBudgetMonth(monthInput, time.Now())
+		month, err := daterange.ParseMonth(monthInput, time.Now())
 		if err != nil {
 			return domain.Transaction{}, false, err
 		}
@@ -111,7 +111,7 @@ func selectTransactionInteractive(title string) (domain.Transaction, bool, error
 			return domain.Transaction{}, false, err
 		}
 		if len(filtered) == 0 {
-			return domain.Transaction{}, false, fmt.Errorf("no transactions found for %s", coininternal.FormatBudgetMonth(month))
+			return domain.Transaction{}, false, fmt.Errorf("no transactions found for %s", daterange.FormatMonth(month))
 		}
 
 		selected, ok, err := runTransactionListInteractive(title, filtered)
@@ -197,7 +197,7 @@ func filterTransactionsByMonth(transactions []domain.Transaction, month time.Tim
 
 	filtered := make([]domain.Transaction, 0)
 	for _, tx := range transactions {
-		inRange, err := coininternal.TransactionInRange(tx.Date, start, end)
+		inRange, err := daterange.Contains(tx.Date, start, end)
 		if err != nil {
 			return nil, err
 		}

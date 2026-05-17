@@ -1,4 +1,4 @@
-package internal
+package daterange
 
 import (
 	"fmt"
@@ -6,15 +6,18 @@ import (
 	"time"
 )
 
-const dateLayout = "2006-01-02"
+const (
+	dateLayout  = "2006-01-02"
+	monthLayout = "2006-01"
+)
 
-func ResolveDateRange(input string, now time.Time) (time.Time, time.Time, error) {
+func Resolve(input string, now time.Time) (time.Time, time.Time, error) {
 	r := strings.TrimSpace(strings.ToLower(input))
 	if r == "" {
 		return time.Time{}, time.Time{}, fmt.Errorf("range cannot be empty")
 	}
 
-	today := dateOnly(now)
+	today := DateOnly(now)
 
 	switch r {
 	case "today":
@@ -71,7 +74,7 @@ func ResolveDateRange(input string, now time.Time) (time.Time, time.Time, error)
 	return start, end, nil
 }
 
-func TransactionInRange(dateValue string, start, end time.Time) (bool, error) {
+func Contains(dateValue string, start, end time.Time) (bool, error) {
 	txDate, err := time.ParseInLocation(dateLayout, dateValue, start.Location())
 	if err != nil {
 		return false, err
@@ -84,7 +87,31 @@ func TransactionInRange(dateValue string, start, end time.Time) (bool, error) {
 	return true, nil
 }
 
-func dateOnly(t time.Time) time.Time {
+func ParseMonth(input string, now time.Time) (time.Time, error) {
+	trimmed := strings.TrimSpace(input)
+	if trimmed == "" {
+		return time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location()), nil
+	}
+
+	month, err := time.ParseInLocation(monthLayout, trimmed, now.Location())
+	if err != nil {
+		return time.Time{}, fmt.Errorf("invalid month format: %s", input)
+	}
+
+	return time.Date(month.Year(), month.Month(), 1, 0, 0, 0, 0, now.Location()), nil
+}
+
+func FormatMonth(month time.Time) string {
+	return time.Date(month.Year(), month.Month(), 1, 0, 0, 0, 0, month.Location()).Format(monthLayout)
+}
+
+func MonthBounds(month time.Time) (time.Time, time.Time) {
+	start := time.Date(month.Year(), month.Month(), 1, 0, 0, 0, 0, month.Location())
+	end := start.AddDate(0, 1, -1)
+	return start, end
+}
+
+func DateOnly(t time.Time) time.Time {
 	return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
 }
 

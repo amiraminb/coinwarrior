@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	coininternal "github.com/amiraminb/coinwarrior/internal"
+	"github.com/amiraminb/coinwarrior/internal/daterange"
 	"github.com/amiraminb/coinwarrior/internal/domain"
 	"github.com/amiraminb/coinwarrior/internal/money"
 	"github.com/charmbracelet/bubbles/table"
@@ -40,7 +40,7 @@ Use --details to show transactions separated by category.`,
 			return runAccountReport()
 		}
 
-		start, end, err := coininternal.ResolveDateRange(args[0], time.Now())
+		start, end, err := daterange.Resolve(args[0], time.Now())
 		if err != nil {
 			return err
 		}
@@ -148,7 +148,7 @@ func printCategorySection(transactions []domain.Transaction, start, end time.Tim
 		if tx.Type == domain.TransactionTypeTransfer {
 			continue
 		}
-		inRange, err := coininternal.TransactionInRange(tx.Date, start, end)
+		inRange, err := daterange.Contains(tx.Date, start, end)
 		if err != nil || !inRange {
 			continue
 		}
@@ -337,7 +337,7 @@ func budgetMonthForRange(start, end time.Time) (string, bool) {
 		return "", false
 	}
 
-	return coininternal.FormatBudgetMonth(start), true
+	return daterange.FormatMonth(start), true
 }
 
 func renderCompactCategoryDetails(categoryReports []categoryReport) {

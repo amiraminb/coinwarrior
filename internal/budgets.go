@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/amiraminb/coinwarrior/internal/daterange"
 	"github.com/amiraminb/coinwarrior/internal/domain"
 	"github.com/amiraminb/coinwarrior/internal/money"
 )
@@ -16,8 +17,6 @@ func findBudgetIndex(budgets []domain.Budget, monthKey, currency string) int {
 		return b.Month == monthKey && strings.EqualFold(b.Currency, currency)
 	})
 }
-
-const budgetMonthLayout = "2006-01"
 
 type BudgetSummary struct {
 	Budget      domain.Budget
@@ -43,7 +42,7 @@ func (s *Service) SetMonthlyBudgetWithCarryover(monthInput, currency, amountInpu
 }
 
 func (s *Service) setMonthlyBudgetWithNow(monthInput, currency, amountInput string, carryoverDecision *bool, now time.Time) (domain.Budget, error) {
-	month, err := ParseBudgetMonth(monthInput, now)
+	month, err := daterange.ParseMonth(monthInput, now)
 	if err != nil {
 		return domain.Budget{}, err
 	}
@@ -70,7 +69,7 @@ func (s *Service) setMonthlyBudgetWithNow(monthInput, currency, amountInput stri
 		return domain.Budget{}, err
 	}
 
-	monthKey := FormatBudgetMonth(month)
+	monthKey := daterange.FormatMonth(month)
 	carryover, sourceIndex, err := budgetCarryoverCandidate(budgets, transactions, month, cur, now)
 	if err != nil {
 		return domain.Budget{}, err
@@ -123,7 +122,7 @@ func (s *Service) setMonthlyBudgetWithNow(monthInput, currency, amountInput stri
 }
 
 func (s *Service) GetBudgetCarryoverCandidate(monthInput, currency string, now time.Time) (*BudgetCarryoverCandidate, error) {
-	month, err := ParseBudgetMonth(monthInput, now)
+	month, err := daterange.ParseMonth(monthInput, now)
 	if err != nil {
 		return nil, err
 	}
@@ -150,7 +149,7 @@ func (s *Service) GetBudgetCarryoverCandidate(monthInput, currency string, now t
 }
 
 func (s *Service) GetMonthlyBudgetSummaries(monthInput string, now time.Time) ([]BudgetSummary, error) {
-	month, err := ParseBudgetMonth(monthInput, now)
+	month, err := daterange.ParseMonth(monthInput, now)
 	if err != nil {
 		return nil, err
 	}
@@ -179,15 +178,15 @@ func (s *Service) GetPendingBudgetRollovers(targetMonthInput string, now time.Ti
 
 	var targetMonth string
 	if strings.TrimSpace(targetMonthInput) != "" {
-		month, err := ParseBudgetMonth(targetMonthInput, now)
+		month, err := daterange.ParseMonth(targetMonthInput, now)
 		if err != nil {
 			return nil, err
 		}
-		targetMonth = FormatBudgetMonth(month)
+		targetMonth = daterange.FormatMonth(month)
 	}
 
 	summaries := make([]BudgetSummary, 0)
-	today := dateOnly(now)
+	today := daterange.DateOnly(now)
 	for _, budget := range budgets {
 		if targetMonth != "" && budget.Month != targetMonth {
 			continue
@@ -196,11 +195,11 @@ func (s *Service) GetPendingBudgetRollovers(targetMonthInput string, now time.Ti
 			continue
 		}
 
-		month, err := ParseBudgetMonth(budget.Month, now)
+		month, err := daterange.ParseMonth(budget.Month, now)
 		if err != nil {
 			return nil, err
 		}
-		_, end := budgetMonthBounds(month)
+		_, end := daterange.MonthBounds(month)
 		if !end.Before(today) {
 			continue
 		}
@@ -224,11 +223,11 @@ func (s *Service) GetPendingBudgetRollovers(targetMonthInput string, now time.Ti
 }
 
 func (s *Service) ApplyMonthlyBudgetRollover(monthInput, currency string, carry bool, now time.Time) (domain.Budget, *domain.Budget, error) {
-	month, err := ParseBudgetMonth(monthInput, now)
+	month, err := daterange.ParseMonth(monthInput, now)
 	if err != nil {
 		return domain.Budget{}, nil, err
 	}
-	monthKey := FormatBudgetMonth(month)
+	monthKey := daterange.FormatMonth(month)
 	cur := money.NormalizeCurrency(currency)
 	if cur == "" {
 		return domain.Budget{}, nil, fmt.Errorf("currency is required")
@@ -248,8 +247,8 @@ func (s *Service) ApplyMonthlyBudgetRollover(monthInput, currency string, carry 
 		return domain.Budget{}, nil, fmt.Errorf("budget for %s %s not found", monthKey, cur)
 	}
 
-	_, end := budgetMonthBounds(month)
-	if !end.Before(dateOnly(now)) {
+	_, end := daterange.MonthBounds(month)
+	if !end.Before(daterange.DateOnly(now)) {
 		return domain.Budget{}, nil, fmt.Errorf("budget period %s is still open", monthKey)
 	}
 	if strings.TrimSpace(budgets[index].RolloverStatus) != "" {
@@ -275,7 +274,7 @@ func (s *Service) ApplyMonthlyBudgetRollover(monthInput, currency string, carry 
 	}
 
 	nextMonth := month.AddDate(0, 1, 0)
-	nextMonthKey := FormatBudgetMonth(nextMonth)
+	nextMonthKey := daterange.FormatMonth(nextMonth)
 	destIndex := findBudgetIndex(budgets, nextMonthKey, cur)
 
 	if destIndex == -1 {
@@ -312,27 +311,9 @@ func (s *Service) ApplyMonthlyBudgetRollover(monthInput, currency string, carry 
 	return source, &destination, nil
 }
 
-func ParseBudgetMonth(input string, now time.Time) (time.Time, error) {
-	trimmed := strings.TrimSpace(input)
-	if trimmed == "" {
-		return time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location()), nil
-	}
-
-	month, err := time.ParseInLocation(budgetMonthLayout, trimmed, now.Location())
-	if err != nil {
-		return time.Time{}, fmt.Errorf("invalid month format: %s", input)
-	}
-
-	return time.Date(month.Year(), month.Month(), 1, 0, 0, 0, 0, now.Location()), nil
-}
-
-func FormatBudgetMonth(month time.Time) string {
-	return time.Date(month.Year(), month.Month(), 1, 0, 0, 0, 0, month.Location()).Format(budgetMonthLayout)
-}
-
 func summarizeBudgetsForMonth(budgets []domain.Budget, transactions []domain.Transaction, month time.Time, now time.Time) ([]BudgetSummary, error) {
-	start, end := budgetMonthBounds(month)
-	monthKey := FormatBudgetMonth(month)
+	start, end := daterange.MonthBounds(month)
+	monthKey := daterange.FormatMonth(month)
 	summaries := make([]BudgetSummary, 0)
 
 	for _, budget := range budgets {
@@ -367,7 +348,7 @@ func budgetLeftForMonth(transactions []domain.Transaction, budget domain.Budget,
 }
 
 func expensesForBudgetMonth(transactions []domain.Transaction, budget domain.Budget, month time.Time) (int64, error) {
-	start, end := budgetMonthBounds(month)
+	start, end := daterange.MonthBounds(month)
 	spent := int64(0)
 	for _, tx := range transactions {
 		if tx.Type != domain.TransactionTypeExpense {
@@ -376,7 +357,7 @@ func expensesForBudgetMonth(transactions []domain.Transaction, budget domain.Bud
 		if !strings.EqualFold(tx.Currency, budget.Currency) {
 			continue
 		}
-		inRange, err := TransactionInRange(tx.Date, start, end)
+		inRange, err := daterange.Contains(tx.Date, start, end)
 		if err != nil {
 			return 0, err
 		}
@@ -392,16 +373,10 @@ func budgetSummaryStatus(budget domain.Budget, periodEnd, now time.Time) string 
 	if strings.TrimSpace(budget.RolloverStatus) != "" {
 		return budget.RolloverStatus
 	}
-	if periodEnd.Before(dateOnly(now)) {
+	if periodEnd.Before(daterange.DateOnly(now)) {
 		return domain.BudgetSummaryStatusPending
 	}
 	return domain.BudgetSummaryStatusOpen
-}
-
-func budgetMonthBounds(month time.Time) (time.Time, time.Time) {
-	start := time.Date(month.Year(), month.Month(), 1, 0, 0, 0, 0, month.Location())
-	end := start.AddDate(0, 1, -1)
-	return start, end
 }
 
 func sortBudgetSummaries(summaries []BudgetSummary) {
@@ -415,7 +390,7 @@ func sortBudgetSummaries(summaries []BudgetSummary) {
 
 func budgetCarryoverCandidate(budgets []domain.Budget, transactions []domain.Transaction, targetMonth time.Time, currency string, now time.Time) (*BudgetCarryoverCandidate, int, error) {
 	previousMonth := targetMonth.AddDate(0, -1, 0)
-	previousMonthKey := FormatBudgetMonth(previousMonth)
+	previousMonthKey := daterange.FormatMonth(previousMonth)
 
 	sourceIndex := findBudgetIndex(budgets, previousMonthKey, currency)
 	if sourceIndex == -1 {
@@ -425,8 +400,8 @@ func budgetCarryoverCandidate(budgets []domain.Budget, transactions []domain.Tra
 		return nil, -1, nil
 	}
 
-	_, end := budgetMonthBounds(previousMonth)
-	if !end.Before(dateOnly(now)) {
+	_, end := daterange.MonthBounds(previousMonth)
+	if !end.Before(daterange.DateOnly(now)) {
 		return nil, -1, nil
 	}
 
@@ -437,7 +412,7 @@ func budgetCarryoverCandidate(budgets []domain.Budget, transactions []domain.Tra
 
 	return &BudgetCarryoverCandidate{
 		SourceBudget: budgets[sourceIndex],
-		TargetMonth:  FormatBudgetMonth(targetMonth),
+		TargetMonth:  daterange.FormatMonth(targetMonth),
 		LeftMinor:    left,
 	}, sourceIndex, nil
 }

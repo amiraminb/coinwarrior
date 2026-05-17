@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	coininternal "github.com/amiraminb/coinwarrior/internal"
+	"github.com/amiraminb/coinwarrior/internal/service"
 	"github.com/amiraminb/coinwarrior/internal/domain"
 	"github.com/amiraminb/coinwarrior/internal/money"
 	tea "github.com/charmbracelet/bubbletea"
@@ -348,7 +348,7 @@ var editCmd = &cobra.Command{
 		account := result.accountInput
 		note := result.noteInput
 
-		edits := coininternal.TransactionEdits{
+		edits := service.TransactionEdits{
 			Date:     &date,
 			Amount:   &amount,
 			Category: &category,

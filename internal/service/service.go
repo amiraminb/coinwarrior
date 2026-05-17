@@ -1,4 +1,4 @@
-package internal
+package service
 
 import "github.com/amiraminb/coinwarrior/internal/repository"
 
@@ -6,6 +6,6 @@ type Service struct {
 	repo repository.Repository
 }
 
-func NewService(repo repository.Repository) *Service {
+func New(repo repository.Repository) *Service {
 	return &Service{repo: repo}
 }

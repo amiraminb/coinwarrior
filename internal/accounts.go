@@ -23,57 +23,6 @@ func LoadAccounts() ([]string, error) {
 	return result, nil
 }
 
-func ApplyTransactionToAccount(accountName, currency string, deltaMinor int64) error {
-	name := strings.TrimSpace(accountName)
-	cur := strings.ToUpper(strings.TrimSpace(currency))
-	if name == "" {
-		return fmt.Errorf("account is required")
-	}
-	if cur == "" {
-		return fmt.Errorf("currency is required")
-	}
-
-	accounts, err := repository.FRepository.LoadAccounts()
-	if err != nil {
-		return err
-	}
-
-	now := time.Now().UTC().Format(time.RFC3339)
-	if err := applyAccountDeltaToFile(accounts, name, cur, deltaMinor, now); err != nil {
-		return err
-	}
-
-	return repository.FRepository.SaveAccounts(accounts)
-}
-
-func TransferBetweenAccounts(fromAccount, toAccount, currency string, amountMinor int64) error {
-	from := strings.TrimSpace(fromAccount)
-	to := strings.TrimSpace(toAccount)
-	cur := strings.ToUpper(strings.TrimSpace(currency))
-
-	if from == "" || to == "" {
-		return fmt.Errorf("both source and destination accounts are required")
-	}
-	if strings.EqualFold(from, to) {
-		return fmt.Errorf("source and destination accounts must be different")
-	}
-	if amountMinor <= 0 {
-		return fmt.Errorf("transfer amount must be greater than zero")
-	}
-
-	accounts, err := repository.FRepository.LoadAccounts()
-	if err != nil {
-		return err
-	}
-
-	now := time.Now().UTC().Format(time.RFC3339)
-	if err := transferBetweenAccountsInFile(accounts, from, to, cur, amountMinor, now); err != nil {
-		return err
-	}
-
-	return repository.FRepository.SaveAccounts(accounts)
-}
-
 func AddAccount(name, currency, openingBalanceInput string) (domain.Account, error) {
 	accountName := strings.TrimSpace(name)
 	cur := strings.ToUpper(strings.TrimSpace(currency))

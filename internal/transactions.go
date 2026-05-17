@@ -10,6 +10,38 @@ import (
 	"github.com/amiraminb/coinwarrior/internal/repository"
 )
 
+type ledgerMutator func(transactions *[]domain.Transaction, accounts *[]domain.Account, nowUTC string) error
+
+func mutateLedger(now time.Time, mutate ledgerMutator) error {
+	transactions, err := repository.FRepository.LoadTransactions()
+	if err != nil {
+		return err
+	}
+	accounts, err := repository.FRepository.LoadAccounts()
+	if err != nil {
+		return err
+	}
+
+	originalAccounts := cloneAccounts(accounts)
+	nowUTC := now.UTC().Format(time.RFC3339)
+
+	if err := mutate(&transactions, &accounts, nowUTC); err != nil {
+		return err
+	}
+
+	if err := repository.FRepository.SaveAccounts(accounts); err != nil {
+		return err
+	}
+	if err := repository.FRepository.SaveTransactions(transactions); err != nil {
+		if rollbackErr := repository.FRepository.SaveAccounts(originalAccounts); rollbackErr != nil {
+			return fmt.Errorf("save transactions: %w; rollback accounts: %v", err, rollbackErr)
+		}
+		return err
+	}
+
+	return nil
+}
+
 type TransactionEdits struct {
 	Date      *string
 	Amount    *string
@@ -119,13 +151,8 @@ func AddTransaction(txType, amountInput, currency, dateValue, category, account,
 		}
 	}
 
-	transactions, err := repository.FRepository.LoadTransactions()
-	if err != nil {
-		return domain.Transaction{}, err
-	}
-
-	localNow := time.Now()
-	utcNow := localNow.UTC()
+	now := time.Now()
+	utcNow := now.UTC()
 	tx := domain.Transaction{
 		ID:          NewTransactionID(utcNow),
 		Type:        txType,
@@ -141,35 +168,16 @@ func AddTransaction(txType, amountInput, currency, dateValue, category, account,
 		Source:      "manual",
 	}
 
-	if txType == TransactionTypeTransfer {
-		if err := TransferBetweenAccounts(account, toAccount, currency, amountMinor); err != nil {
-			return domain.Transaction{}, err
+	err = mutateLedger(now, func(transactions *[]domain.Transaction, accounts *[]domain.Account, nowUTC string) error {
+		if err := applyTransactionEffect(*accounts, tx, nowUTC); err != nil {
+			return err
 		}
-	} else {
-		delta := amountMinor
-		if txType == TransactionTypeExpense {
-			delta = -amountMinor
-		}
-
-		if err := ApplyTransactionToAccount(account, currency, delta); err != nil {
-			return domain.Transaction{}, err
-		}
-	}
-
-	transactions = append(transactions, tx)
-	if err := repository.FRepository.SaveTransactions(transactions); err != nil {
-		if txType == TransactionTypeTransfer {
-			_ = TransferBetweenAccounts(toAccount, account, currency, amountMinor)
-		} else {
-			delta := amountMinor
-			if txType == TransactionTypeExpense {
-				delta = -amountMinor
-			}
-			_ = ApplyTransactionToAccount(account, currency, -delta)
-		}
+		*transactions = append(*transactions, tx)
+		return nil
+	})
+	if err != nil {
 		return domain.Transaction{}, err
 	}
-
 	return tx, nil
 }
 
@@ -190,60 +198,44 @@ func editTransactionWithNow(id string, edits TransactionEdits, now time.Time) (d
 		return domain.Transaction{}, fmt.Errorf("no changes provided")
 	}
 
-	transactions, err := repository.FRepository.LoadTransactions()
+	var result domain.Transaction
+	err := mutateLedger(now, func(transactions *[]domain.Transaction, accounts *[]domain.Account, nowUTC string) error {
+		index := -1
+		for i := range *transactions {
+			if (*transactions)[i].ID == txID {
+				index = i
+				break
+			}
+		}
+		if index == -1 {
+			return fmt.Errorf("transaction '%s' not found", txID)
+		}
+
+		original := (*transactions)[index]
+		updated, changed, err := applyTransactionEdits(original, edits, now)
+		if err != nil {
+			return err
+		}
+		if !changed {
+			result = original
+			return nil
+		}
+
+		if err := revertTransactionEffect(*accounts, original, nowUTC); err != nil {
+			return err
+		}
+		if err := applyTransactionEffect(*accounts, updated, nowUTC); err != nil {
+			return err
+		}
+
+		(*transactions)[index] = updated
+		result = updated
+		return nil
+	})
 	if err != nil {
 		return domain.Transaction{}, err
 	}
-	accounts, err := repository.FRepository.LoadAccounts()
-	if err != nil {
-		return domain.Transaction{}, err
-	}
-
-	index := -1
-	for i := range transactions {
-		if transactions[i].ID == txID {
-			index = i
-			break
-		}
-	}
-	if index == -1 {
-		return domain.Transaction{}, fmt.Errorf("transaction '%s' not found", txID)
-	}
-
-	original := transactions[index]
-	updated, changed, err := applyTransactionEdits(original, edits, now)
-	if err != nil {
-		return domain.Transaction{}, err
-	}
-	if !changed {
-		return original, nil
-	}
-
-	originalAccounts := cloneAccounts(accounts)
-	nowUTC := now.UTC().Format(time.RFC3339)
-
-	if err := revertTransactionEffect(accounts, original, nowUTC); err != nil {
-		return domain.Transaction{}, err
-	}
-	if err := applyTransactionEffect(accounts, updated, nowUTC); err != nil {
-		if rollbackErr := applyTransactionEffect(accounts, original, nowUTC); rollbackErr != nil {
-			return domain.Transaction{}, fmt.Errorf("%w; rollback failed: %v", err, rollbackErr)
-		}
-		return domain.Transaction{}, err
-	}
-
-	transactions[index] = updated
-	if err := repository.FRepository.SaveAccounts(accounts); err != nil {
-		return domain.Transaction{}, err
-	}
-	if err := repository.FRepository.SaveTransactions(transactions); err != nil {
-		if rollbackErr := repository.FRepository.SaveAccounts(originalAccounts); rollbackErr != nil {
-			return domain.Transaction{}, fmt.Errorf("save transactions: %w; rollback accounts: %v", err, rollbackErr)
-		}
-		return domain.Transaction{}, err
-	}
-
-	return updated, nil
+	return result, nil
 }
 
 func deleteTransactionWithNow(id string, now time.Time) (domain.Transaction, error) {
@@ -252,45 +244,29 @@ func deleteTransactionWithNow(id string, now time.Time) (domain.Transaction, err
 		return domain.Transaction{}, fmt.Errorf("transaction id is required")
 	}
 
-	transactions, err := repository.FRepository.LoadTransactions()
+	var deleted domain.Transaction
+	err := mutateLedger(now, func(transactions *[]domain.Transaction, accounts *[]domain.Account, nowUTC string) error {
+		index := -1
+		for i := range *transactions {
+			if (*transactions)[i].ID == txID {
+				index = i
+				break
+			}
+		}
+		if index == -1 {
+			return fmt.Errorf("transaction '%s' not found", txID)
+		}
+
+		deleted = (*transactions)[index]
+		if err := revertTransactionEffect(*accounts, deleted, nowUTC); err != nil {
+			return err
+		}
+		*transactions = append((*transactions)[:index], (*transactions)[index+1:]...)
+		return nil
+	})
 	if err != nil {
 		return domain.Transaction{}, err
 	}
-	accounts, err := repository.FRepository.LoadAccounts()
-	if err != nil {
-		return domain.Transaction{}, err
-	}
-
-	index := -1
-	for i := range transactions {
-		if transactions[i].ID == txID {
-			index = i
-			break
-		}
-	}
-	if index == -1 {
-		return domain.Transaction{}, fmt.Errorf("transaction '%s' not found", txID)
-	}
-
-	deleted := transactions[index]
-	originalAccounts := cloneAccounts(accounts)
-	nowUTC := now.UTC().Format(time.RFC3339)
-
-	if err := revertTransactionEffect(accounts, deleted, nowUTC); err != nil {
-		return domain.Transaction{}, err
-	}
-
-	transactions = append(transactions[:index], transactions[index+1:]...)
-	if err := repository.FRepository.SaveAccounts(accounts); err != nil {
-		return domain.Transaction{}, err
-	}
-	if err := repository.FRepository.SaveTransactions(transactions); err != nil {
-		if rollbackErr := repository.FRepository.SaveAccounts(originalAccounts); rollbackErr != nil {
-			return domain.Transaction{}, fmt.Errorf("save transactions: %w; rollback accounts: %v", err, rollbackErr)
-		}
-		return domain.Transaction{}, err
-	}
-
 	return deleted, nil
 }
 

@@ -222,11 +222,11 @@ func editTransactionWithNow(id string, edits TransactionEdits, now time.Time) (d
 	originalAccounts := cloneAccounts(accounts)
 	nowUTC := now.UTC().Format(time.RFC3339)
 
-	if err := applyTransactionEffectToAccounts(accounts, original, nowUTC, true); err != nil {
+	if err := revertTransactionEffect(accounts, original, nowUTC); err != nil {
 		return domain.Transaction{}, err
 	}
-	if err := applyTransactionEffectToAccounts(accounts, updated, nowUTC, false); err != nil {
-		if rollbackErr := applyTransactionEffectToAccounts(accounts, original, nowUTC, false); rollbackErr != nil {
+	if err := applyTransactionEffect(accounts, updated, nowUTC); err != nil {
+		if rollbackErr := applyTransactionEffect(accounts, original, nowUTC); rollbackErr != nil {
 			return domain.Transaction{}, fmt.Errorf("%w; rollback failed: %v", err, rollbackErr)
 		}
 		return domain.Transaction{}, err
@@ -276,7 +276,7 @@ func deleteTransactionWithNow(id string, now time.Time) (domain.Transaction, err
 	originalAccounts := cloneAccounts(accounts)
 	nowUTC := now.UTC().Format(time.RFC3339)
 
-	if err := applyTransactionEffectToAccounts(accounts, deleted, nowUTC, true); err != nil {
+	if err := revertTransactionEffect(accounts, deleted, nowUTC); err != nil {
 		return domain.Transaction{}, err
 	}
 
@@ -380,21 +380,28 @@ func applyTransactionEdits(tx domain.Transaction, edits TransactionEdits, now ti
 	return updated, true, nil
 }
 
-func applyTransactionEffectToAccounts(accounts []domain.Account, tx domain.Transaction, now string, reverse bool) error {
+func applyTransactionEffect(accounts []domain.Account, tx domain.Transaction, now string) error {
 	switch tx.Type {
 	case TransactionTypeTransfer:
-		from := tx.Account
-		to := tx.ToAccount
-		if reverse {
-			from, to = to, from
-		}
-		return transferBetweenAccountsInFile(accounts, from, to, tx.Currency, tx.AmountMinor, now)
+		return transferBetweenAccountsInFile(accounts, tx.Account, tx.ToAccount, tx.Currency, tx.AmountMinor, now)
 	case TransactionTypeExpense, TransactionTypeIncome:
 		delta := tx.AmountMinor
 		if tx.Type == TransactionTypeExpense {
 			delta = -delta
 		}
-		if reverse {
+		return applyAccountDeltaToFile(accounts, tx.Account, tx.Currency, delta, now)
+	default:
+		return fmt.Errorf("invalid transaction type: %s", tx.Type)
+	}
+}
+
+func revertTransactionEffect(accounts []domain.Account, tx domain.Transaction, now string) error {
+	switch tx.Type {
+	case TransactionTypeTransfer:
+		return transferBetweenAccountsInFile(accounts, tx.ToAccount, tx.Account, tx.Currency, tx.AmountMinor, now)
+	case TransactionTypeExpense, TransactionTypeIncome:
+		delta := tx.AmountMinor
+		if tx.Type == TransactionTypeIncome {
 			delta = -delta
 		}
 		return applyAccountDeltaToFile(accounts, tx.Account, tx.Currency, delta, now)

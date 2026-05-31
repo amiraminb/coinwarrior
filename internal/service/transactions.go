@@ -1,6 +1,7 @@
 package service
 
 import (
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -39,13 +40,24 @@ func (s *Service) mutateLedger(now time.Time, mutate ledgerMutator) error {
 		return err
 	}
 	if err := s.repo.SaveTransactions(transactions); err != nil {
-		if rollbackErr := s.repo.SaveAccounts(originalAccounts); rollbackErr != nil {
-			return fmt.Errorf("save transactions: %w; rollback accounts: %v", err, rollbackErr)
-		}
-		return err
+		return s.rollback(err, func() error { return s.repo.SaveAccounts(originalAccounts) })
 	}
 
 	return nil
+}
+
+// rollback restores prior state after a partial multi-file save failed. It is
+// best effort: with no cross-file transaction, a restore can itself fail and
+// leave data inconsistent. Such failures are joined onto the original error
+// rather than dropped, so the inconsistency is at least surfaced to the user.
+func (s *Service) rollback(cause error, restores ...func() error) error {
+	errs := []error{cause}
+	for _, restore := range restores {
+		if err := restore(); err != nil {
+			errs = append(errs, fmt.Errorf("rollback: %w", err))
+		}
+	}
+	return errors.Join(errs...)
 }
 
 type TransactionEdits struct {
@@ -326,6 +338,18 @@ func revertTransactionEffect(accounts []model.Account, tx model.Transaction, now
 func cloneAccounts(accounts []model.Account) []model.Account {
 	cloned := make([]model.Account, len(accounts))
 	copy(cloned, accounts)
+	return cloned
+}
+
+// cloneTransactions returns an independent copy, including each transaction's
+// Tags slice, so a snapshot taken for rollback cannot be mutated through the live
+// ledger.
+func cloneTransactions(transactions []model.Transaction) []model.Transaction {
+	cloned := make([]model.Transaction, len(transactions))
+	copy(cloned, transactions)
+	for i := range cloned {
+		cloned[i].Tags = slices.Clone(cloned[i].Tags)
+	}
 	return cloned
 }
 

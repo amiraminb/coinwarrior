@@ -155,7 +155,7 @@ func (s *Service) GenerateDueTransactions(now time.Time) (GenerationResult, erro
 	}
 
 	originalAccounts := cloneAccounts(accounts)
-	originalRules := cloneRecurringRules(rules)
+	originalTransactions := cloneTransactions(transactions)
 	nowUTC := now.UTC().Format(time.RFC3339)
 	today := daterange.DateOnly(now)
 
@@ -184,23 +184,22 @@ func (s *Service) GenerateDueTransactions(now time.Time) (GenerationResult, erro
 		return result, nil
 	}
 
+	// Save order matters: accounts and transactions first, then the rules whose
+	// LastGeneratedMonth marks this work done. If the rules save fails, the already
+	// persisted transactions must be rolled back — otherwise the next run sees
+	// LastGeneratedMonth unchanged and regenerates the same transactions, double
+	// applying their balance effects.
 	if err := s.repo.SaveAccounts(accounts); err != nil {
 		return GenerationResult{}, err
 	}
 	if err := s.repo.SaveTransactions(transactions); err != nil {
-		if rbErr := s.repo.SaveAccounts(originalAccounts); rbErr != nil {
-			return GenerationResult{}, fmt.Errorf("save transactions: %w; rollback accounts: %v", err, rbErr)
-		}
-		return GenerationResult{}, err
+		return GenerationResult{}, s.rollback(err,
+			func() error { return s.repo.SaveAccounts(originalAccounts) })
 	}
 	if err := s.repo.SaveRecurringRules(rules); err != nil {
-		if rbErr := s.repo.SaveRecurringRules(originalRules); rbErr != nil {
-			_ = rbErr
-		}
-		if rbErr := s.repo.SaveAccounts(originalAccounts); rbErr != nil {
-			_ = rbErr
-		}
-		return GenerationResult{}, err
+		return GenerationResult{}, s.rollback(err,
+			func() error { return s.repo.SaveTransactions(originalTransactions) },
+			func() error { return s.repo.SaveAccounts(originalAccounts) })
 	}
 
 	return result, nil
@@ -471,10 +470,4 @@ func monthKeyFromDate(date string) string {
 		return date[:7]
 	}
 	return date
-}
-
-func cloneRecurringRules(rules []model.RecurringRule) []model.RecurringRule {
-	out := make([]model.RecurringRule, len(rules))
-	copy(out, rules)
-	return out
 }

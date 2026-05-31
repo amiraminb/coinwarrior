@@ -23,6 +23,11 @@ var rootCmd = &cobra.Command{
 	Use:     "coinw",
 	Short:   "Coinwarrior CLI",
 	Version: version,
+	// main already prints the error, so silence cobra's duplicate error line; also
+	// suppress the usage dump on failure so the message isn't buried in a help wall
+	// (users reach usage via --help).
+	SilenceErrors: true,
+	SilenceUsage:  true,
 }
 
 func Execute() error {

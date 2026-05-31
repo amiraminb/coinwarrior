@@ -24,6 +24,16 @@ Supported ranges: today, yesterday, week, lastweek, month, lastmonth, year, last
   coinw list 2026-04-01..2026-04-30`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		var start, end time.Time
+		hasRange := len(args) == 1
+		if hasRange {
+			var err error
+			start, end, err = daterange.Resolve(args[0], time.Now())
+			if err != nil {
+				return err
+			}
+		}
+
 		transactions, err := repo.LoadTransactions()
 		if err != nil {
 			return err
@@ -37,12 +47,7 @@ Supported ranges: today, yesterday, week, lastweek, month, lastmonth, year, last
 		items := make([]model.Transaction, len(transactions))
 		copy(items, transactions)
 
-		if len(args) == 1 {
-			start, end, err := daterange.Resolve(args[0], time.Now())
-			if err != nil {
-				return err
-			}
-
+		if hasRange {
 			filtered := make([]model.Transaction, 0, len(items))
 			for _, tx := range items {
 				inRange, err := daterange.Contains(tx.Date, start, end)

@@ -50,7 +50,10 @@ func (r *FileRepository) CreateFile(fileName string, content []byte) (string, bo
 	} else if !os.IsNotExist(err) {
 		return path, false, err
 	}
-	if err := os.WriteFile(path, content, 0o644); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		return path, false, err
+	}
+	if err := os.WriteFile(path, content, 0o600); err != nil {
 		return path, false, err
 	}
 

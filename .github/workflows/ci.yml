@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Lint, build and test
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+
+      - name: Check formatting
+        run: |
+            # Scope to tracked source only; gofmt (unlike go vet/build) does not
+            # skip vendor/, so a dumb `gofmt -l .` would fail on third-party code.
+            unformatted=$(gofmt -l $(git ls-files '*.go'))
+            if [[ -n "$unformatted" ]]; then
+                echo "These files are not gofmt-clean:"
+                echo "$unformatted"
+                exit 1
+            fi
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Build
+        run: go build ./...
+
+      - name: Test
+        run: go test ./...

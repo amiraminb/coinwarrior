@@ -34,4 +34,3 @@ func (s *Service) AddCategory(category string) error {
 	categories = append(categories, clean)
 	return s.repo.SaveCategories(categories)
 }
-

@@ -152,4 +152,3 @@ func setupInitialAccounts(repo repository.Repository) error {
 
 	return nil
 }
-

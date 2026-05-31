@@ -332,4 +332,3 @@ func cloneAccounts(accounts []model.Account) []model.Account {
 func (e TransactionEdits) empty() bool {
 	return e.Date == nil && e.Amount == nil && e.Category == nil && e.Account == nil && e.ToAccount == nil && e.Note == nil
 }
-

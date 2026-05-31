@@ -137,24 +137,24 @@ const (
 )
 
 type recurringFormModel struct {
-	step              recurringField
-	typeChoices       []string
-	typeCursor        int
-	amountInput       string
-	currencyInput     string
-	categories        []string
-	categoryCursor    int
-	accounts          []string
-	accountCursor     int
-	toAccountCursor   int
-	dayInput          string
-	startInput        string
-	endInput          string
-	noteInput         string
-	confirmCursor     int
-	confirmed         bool
-	errMessage        string
-	editingID         string // empty for add
+	step            recurringField
+	typeChoices     []string
+	typeCursor      int
+	amountInput     string
+	currencyInput   string
+	categories      []string
+	categoryCursor  int
+	accounts        []string
+	accountCursor   int
+	toAccountCursor int
+	dayInput        string
+	startInput      string
+	endInput        string
+	noteInput       string
+	confirmCursor   int
+	confirmed       bool
+	errMessage      string
+	editingID       string // empty for add
 }
 
 func newRecurringAddFormModel(categories, accounts []string) recurringFormModel {

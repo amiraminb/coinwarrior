@@ -3,7 +3,7 @@ package repository
 import "github.com/amiraminb/coinwarrior/internal/model"
 
 type accountsDocument struct {
-	SchemaVersion int              `json:"schema_version"`
+	SchemaVersion int             `json:"schema_version"`
 	Accounts      []model.Account `json:"accounts"`
 }
 

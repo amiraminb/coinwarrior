@@ -336,4 +336,3 @@ func runBudgetShow(monthInput string) error {
 
 	return nil
 }
-

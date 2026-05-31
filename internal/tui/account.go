@@ -82,8 +82,9 @@ func (m accountUpdateModel) Init() tea.Cmd {
 func (m accountAddModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		switch msg.String() {
-		case "ctrl+c", "q":
+		// Every accountAddModel step is free-text entry, so only ctrl+c quits;
+		// "q" must be typeable into the name/currency fields.
+		if msg.String() == "ctrl+c" {
 			return m, tea.Quit
 		}
 
@@ -147,12 +148,23 @@ func (m accountAddModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+// isSelectionStep reports whether the step is a menu (account list or Yes/No
+// confirm) rather than free-text entry. On menu steps a bare "q" quits; on the
+// amount step it must be typed into the field.
+func (s accountUpdateStep) isSelectionStep() bool {
+	return s == accountUpdateStepSelect || s == accountUpdateStepConfirm
+}
+
 func (m accountUpdateModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "ctrl+c", "q":
+		case "ctrl+c":
 			return m, tea.Quit
+		case "q":
+			if m.step.isSelectionStep() {
+				return m, tea.Quit
+			}
 		}
 
 		switch m.step {
@@ -248,7 +260,7 @@ func (m accountAddModel) View() string {
 		s += renderField("Opening balance: ", m.openingBalanceInput) + "\n\n"
 	}
 
-	s += mutedStyle.Render("(enter to continue, esc to go back, q to quit)") + "\n"
+	s += mutedStyle.Render("(enter to continue, esc to go back, ctrl+c to quit)") + "\n"
 
 	return s
 }
@@ -275,7 +287,7 @@ func (m accountUpdateModel) View() string {
 		if m.errMessage != "" {
 			s += warnStyle.Render(m.errMessage) + "\n"
 		}
-		s += "\n" + mutedStyle.Render("(enter to continue, esc to go back, q to quit)") + "\n"
+		s += "\n" + mutedStyle.Render("(enter to continue, esc to go back, ctrl+c to quit)") + "\n"
 	case accountUpdateStepConfirm:
 		newBalanceMinor, _ := money.Parse(m.amountInput)
 		s += renderField("Account: ", m.selectedAccount.Name) + "\n"

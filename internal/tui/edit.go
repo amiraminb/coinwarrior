@@ -59,12 +59,23 @@ func (m editModel) Init() tea.Cmd {
 	return nil
 }
 
+// isSelectionStep reports whether the step is a menu (Yes/No confirm) rather
+// than free-text entry. On menu steps a bare "q" quits; on text steps it must
+// be typed into the field, so the global handler lets it fall through.
+func (s editStep) isSelectionStep() bool {
+	return s == editStepConfirm
+}
+
 func (m editModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "ctrl+c", "q":
+		case "ctrl+c":
 			return m, tea.Quit
+		case "q":
+			if m.step.isSelectionStep() {
+				return m, tea.Quit
+			}
 		}
 
 		switch m.step {
@@ -254,19 +265,19 @@ func (m editModel) View() string {
 		s += renderField("Type: ", m.selected.Type) + "\n\n"
 		s += renderActiveField("Date: ", m.dateInput) + "\n"
 		s += renderError(m.errMessage)
-		s += mutedStyle.Render("(enter to continue, esc to go back, q to quit)") + "\n"
+		s += mutedStyle.Render("(enter to continue, esc to cancel, ctrl+c to quit)") + "\n"
 	case editStepAmount:
 		s += renderField("Editing: ", m.selected.ID) + "\n"
 		s += renderField("Date: ", m.dateInput) + "\n\n"
 		s += renderActiveField("Amount: ", m.amountInput) + "\n"
 		s += renderError(m.errMessage)
-		s += mutedStyle.Render("(enter to continue, esc to go back, q to quit)") + "\n"
+		s += mutedStyle.Render("(enter to continue, esc to go back, ctrl+c to quit)") + "\n"
 	case editStepCategory:
 		s += renderField("Editing: ", m.selected.ID) + "\n"
 		s += renderField("Date: ", m.dateInput) + "\n"
 		s += renderField("Amount: ", m.amountInput) + "\n\n"
 		s += renderActiveField("Category: ", m.categoryInput) + "\n"
-		s += mutedStyle.Render("(enter to continue, esc to go back, q to quit)") + "\n"
+		s += mutedStyle.Render("(enter to continue, esc to go back, ctrl+c to quit)") + "\n"
 	case editStepAccount:
 		s += renderField("Editing: ", m.selected.ID) + "\n"
 		s += renderField("Date: ", m.dateInput) + "\n"
@@ -274,7 +285,7 @@ func (m editModel) View() string {
 		s += renderField("Category: ", m.categoryInput) + "\n\n"
 		s += renderActiveField("Account: ", m.accountInput) + "\n"
 		s += renderError(m.errMessage)
-		s += mutedStyle.Render("(enter to continue, esc to go back, q to quit)") + "\n"
+		s += mutedStyle.Render("(enter to continue, esc to go back, ctrl+c to quit)") + "\n"
 	case editStepToAccount:
 		s += renderField("Editing: ", m.selected.ID) + "\n"
 		s += renderField("Date: ", m.dateInput) + "\n"
@@ -283,7 +294,7 @@ func (m editModel) View() string {
 		s += renderField("From account: ", m.accountInput) + "\n\n"
 		s += renderActiveField("To account: ", m.toAccountInput) + "\n"
 		s += renderError(m.errMessage)
-		s += mutedStyle.Render("(enter to continue, esc to go back, q to quit)") + "\n"
+		s += mutedStyle.Render("(enter to continue, esc to go back, ctrl+c to quit)") + "\n"
 	case editStepNote:
 		s += renderField("Editing: ", m.selected.ID) + "\n"
 		s += renderField("Date: ", m.dateInput) + "\n"
@@ -294,7 +305,7 @@ func (m editModel) View() string {
 			s += renderField("To account: ", m.toAccountInput) + "\n"
 		}
 		s += "\n" + renderActiveField("Note: ", m.noteInput) + "\n"
-		s += mutedStyle.Render("(enter to continue, esc to go back, q to quit)") + "\n"
+		s += mutedStyle.Render("(enter to continue, esc to go back, ctrl+c to quit)") + "\n"
 	case editStepConfirm:
 		s += renderField("Editing: ", m.selected.ID) + "\n"
 		s += renderField("Date: ", m.dateInput) + "\n"

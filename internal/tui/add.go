@@ -79,12 +79,30 @@ func (m addModel) Init() tea.Cmd {
 	return nil
 }
 
+// isSelectionStep reports whether the step is a menu (list selection or Yes/No
+// confirm) rather than free-text entry. On menu steps a bare "q" quits; on
+// text steps it must be typed into the field, so the global handler lets it
+// fall through.
+func (s addStep) isSelectionStep() bool {
+	switch s {
+	case stepType, stepCategorySelect, stepCategoryConfirm,
+		stepAccountSelect, stepAccountConfirm, stepTransferToAccountSelect:
+		return true
+	default:
+		return false
+	}
+}
+
 func (m addModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "ctrl+c", "q":
+		case "ctrl+c":
 			return m, tea.Quit
+		case "q":
+			if m.step.isSelectionStep() {
+				return m, tea.Quit
+			}
 		}
 		switch m.step {
 		case stepType:
@@ -362,17 +380,17 @@ func (m addModel) View() string {
 	case stepAmount:
 		s += renderField("Type selected: ", m.selected) + "\n\n"
 		s += renderActiveField("Enter amount: ", m.amountInput) + "\n"
-		s += mutedStyle.Render("(press enter to continue, q to quit)") + "\n"
+		s += mutedStyle.Render("(press enter to continue, ctrl+c to quit)") + "\n"
 	case stepDate:
 		s += renderField("Type selected: ", m.selected) + "\n"
 		s += renderField("Amount: ", m.amountInput) + "\n\n"
 		s += renderActiveField("Enter date (YYYY-MM-DD): ", m.dateInput) + "\n"
-		s += mutedStyle.Render("(press enter to continue, esc to go back, q to quit)") + "\n"
+		s += mutedStyle.Render("(press enter to continue, esc to go back, ctrl+c to quit)") + "\n"
 	case stepCurrency:
 		s += renderField("Type selected: ", m.selected) + "\n"
 		s += renderField("Amount: ", m.amountInput) + "\n\n"
 		s += renderActiveField("Enter currency: ", m.currencyInput) + "\n"
-		s += mutedStyle.Render("(press enter to continue, esc to go back, q to quit)") + "\n"
+		s += mutedStyle.Render("(press enter to continue, esc to go back, ctrl+c to quit)") + "\n"
 	case stepCategorySelect:
 		s += renderField("Type selected: ", m.selected) + "\n"
 		s += renderField("Amount: ", m.amountInput) + "\n"
@@ -396,7 +414,7 @@ func (m addModel) View() string {
 		s += renderField("Amount: ", m.amountInput) + "\n"
 		s += renderField("Currency: ", m.currencyInput) + "\n\n"
 		s += renderActiveField("Enter category: ", m.categoryDraft) + "\n"
-		s += mutedStyle.Render("(enter to continue, esc to go back, q to quit)") + "\n"
+		s += mutedStyle.Render("(enter to continue, esc to go back, ctrl+c to quit)") + "\n"
 	case stepCategoryConfirm:
 		s += renderField("Type selected: ", m.selected) + "\n"
 		s += renderField("Amount: ", m.amountInput) + "\n"
@@ -445,7 +463,7 @@ func (m addModel) View() string {
 		s += renderField("Currency: ", m.currencyInput) + "\n"
 		s += renderField("Category: ", m.categoryInput) + "\n\n"
 		s += renderActiveField("Enter account: ", m.accountDraft) + "\n"
-		s += mutedStyle.Render("(enter to continue, esc to go back, q to quit)") + "\n"
+		s += mutedStyle.Render("(enter to continue, esc to go back, ctrl+c to quit)") + "\n"
 	case stepTransferToAccountSelect:
 		s += renderField("Type selected: ", m.selected) + "\n"
 		s += renderField("Amount: ", m.amountInput) + "\n"
@@ -498,7 +516,7 @@ func (m addModel) View() string {
 			s += renderField("Category: ", model.TransferCategory) + "\n\n"
 		}
 		s += renderActiveField("Enter note (optional): ", m.noteInput) + "\n"
-		s += mutedStyle.Render("(enter to save, esc to go back, q to quit)") + "\n"
+		s += mutedStyle.Render("(enter to save, esc to go back, ctrl+c to quit)") + "\n"
 	case stepDone:
 		s += mutedStyle.Render("Done") + "\n"
 	}

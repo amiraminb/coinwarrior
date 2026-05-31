@@ -53,12 +53,23 @@ func (m budgetSetModel) Init() tea.Cmd {
 	return nil
 }
 
+// isSelectionStep reports whether the step is a menu (Yes/No confirm) rather
+// than free-text entry. On menu steps a bare "q" quits; on text steps it must
+// be typed into the field, so the global handler lets it fall through.
+func (s budgetSetStep) isSelectionStep() bool {
+	return s == budgetSetStepConfirm
+}
+
 func (m budgetSetModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "ctrl+c", "q":
+		case "ctrl+c":
 			return m, tea.Quit
+		case "q":
+			if m.step.isSelectionStep() {
+				return m, tea.Quit
+			}
 		}
 
 		switch m.step {
@@ -170,18 +181,18 @@ func (m budgetSetModel) View() string {
 	case budgetSetStepMonth:
 		s += renderActiveField("Month (YYYY-MM): ", m.monthInput) + "\n"
 		s += renderError(m.errMessage)
-		s += mutedStyle.Render("(enter to continue, q to quit)") + "\n"
+		s += mutedStyle.Render("(enter to continue, ctrl+c to quit)") + "\n"
 	case budgetSetStepCurrency:
 		s += renderField("Month: ", m.monthInput) + "\n\n"
 		s += renderActiveField("Currency: ", m.currencyInput) + "\n"
 		s += renderError(m.errMessage)
-		s += mutedStyle.Render("(enter to continue, esc to go back, q to quit)") + "\n"
+		s += mutedStyle.Render("(enter to continue, esc to go back, ctrl+c to quit)") + "\n"
 	case budgetSetStepAmount:
 		s += renderField("Month: ", m.monthInput) + "\n"
 		s += renderField("Currency: ", strings.ToUpper(strings.TrimSpace(m.currencyInput))) + "\n\n"
 		s += renderActiveField("Budget amount: ", m.amountInput) + "\n"
 		s += renderError(m.errMessage)
-		s += mutedStyle.Render("(enter to continue, esc to go back, q to quit)") + "\n"
+		s += mutedStyle.Render("(enter to continue, esc to go back, ctrl+c to quit)") + "\n"
 	case budgetSetStepConfirm:
 		s += renderField("Month: ", m.monthInput) + "\n"
 		s += renderField("Currency: ", strings.ToUpper(strings.TrimSpace(m.currencyInput))) + "\n"

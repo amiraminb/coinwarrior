@@ -259,12 +259,29 @@ func formatRuleAmountInput(amountMinor int64) string {
 
 func (m recurringFormModel) Init() tea.Cmd { return nil }
 
+// isSelectionStep reports whether the step is a menu (type/category/account
+// list or Yes/No confirm) rather than free-text entry. On menu steps a bare "q"
+// quits; on text steps it must be typed into the field.
+func (s recurringField) isSelectionStep() bool {
+	switch s {
+	case recurringFieldType, recurringFieldCategory, recurringFieldAccount,
+		recurringFieldToAccount, recurringFieldConfirm:
+		return true
+	default:
+		return false
+	}
+}
+
 func (m recurringFormModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "ctrl+c", "q":
+		case "ctrl+c":
 			return m, tea.Quit
+		case "q":
+			if m.step.isSelectionStep() {
+				return m, tea.Quit
+			}
 		}
 
 		switch m.step {
@@ -531,13 +548,13 @@ func (m recurringFormModel) View() string {
 		s += renderField("Type: ", m.typeChoices[m.typeCursor]) + "\n\n"
 		s += renderActiveField("Amount: ", m.amountInput) + "\n"
 		s += renderError(m.errMessage)
-		s += mutedStyle.Render("(enter to continue, esc to go back, q to quit)") + "\n"
+		s += mutedStyle.Render("(enter to continue, esc to go back, ctrl+c to quit)") + "\n"
 	case recurringFieldCurrency:
 		s += renderField("Type: ", m.typeChoices[m.typeCursor]) + "\n"
 		s += renderField("Amount: ", m.amountInput) + "\n\n"
 		s += renderActiveField("Currency: ", m.currencyInput) + "\n"
 		s += renderError(m.errMessage)
-		s += mutedStyle.Render("(enter to continue, esc to go back, q to quit)") + "\n"
+		s += mutedStyle.Render("(enter to continue, esc to go back, ctrl+c to quit)") + "\n"
 	case recurringFieldCategory:
 		s += renderField("Type: ", m.typeChoices[m.typeCursor]) + "\n"
 		s += renderField("Amount: ", m.amountInput) + "\n"
@@ -587,20 +604,20 @@ func (m recurringFormModel) View() string {
 		s += renderField("Account: ", m.selectedAccount()) + "\n\n"
 		s += renderActiveField("Day of month (1-28): ", m.dayInput) + "\n"
 		s += renderError(m.errMessage)
-		s += mutedStyle.Render("(enter to continue, esc to go back, q to quit)") + "\n"
+		s += mutedStyle.Render("(enter to continue, esc to go back, ctrl+c to quit)") + "\n"
 	case recurringFieldStartDate:
 		s += renderField("Day of month: ", m.dayInput) + "\n\n"
 		s += renderActiveField("Start date (YYYY-MM-DD): ", m.startInput) + "\n"
 		s += renderError(m.errMessage)
-		s += mutedStyle.Render("(enter to continue, esc to go back, q to quit)") + "\n"
+		s += mutedStyle.Render("(enter to continue, esc to go back, ctrl+c to quit)") + "\n"
 	case recurringFieldEndDate:
 		s += renderField("Start date: ", m.startInput) + "\n\n"
 		s += renderActiveField("End date (YYYY-MM-DD, blank for none): ", m.endInput) + "\n"
 		s += renderError(m.errMessage)
-		s += mutedStyle.Render("(enter to continue, esc to go back, q to quit)") + "\n"
+		s += mutedStyle.Render("(enter to continue, esc to go back, ctrl+c to quit)") + "\n"
 	case recurringFieldNote:
 		s += renderActiveField("Note (optional): ", m.noteInput) + "\n"
-		s += mutedStyle.Render("(enter to continue, esc to go back, q to quit)") + "\n"
+		s += mutedStyle.Render("(enter to continue, esc to go back, ctrl+c to quit)") + "\n"
 	case recurringFieldConfirm:
 		s += renderField("Type: ", m.typeChoices[m.typeCursor]) + "\n"
 		s += renderField("Amount: ", m.amountInput) + " " + m.currencyInput + "\n"

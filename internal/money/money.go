@@ -2,6 +2,7 @@ package money
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 
@@ -28,33 +29,50 @@ func Parse(input string) (int64, error) {
 		return 0, fmt.Errorf("invalid amount format: %s", input)
 	}
 
-	whole := parts[0]
+	// Accept thousands separators in the whole-number part so values copied from
+	// formatted output (e.g. "1,234.50") round-trip through Parse. Commas in the
+	// fractional part remain invalid.
+	wholePart := strings.ReplaceAll(parts[0], ",", "")
+	fracPart := ""
+	if len(parts) == 2 {
+		fracPart = parts[1]
+	}
+
+	// Each part must be digits only (an empty part is allowed, e.g. ".5" or "5."),
+	// and at least one digit must be present. This rejects forms like "." or "--5"
+	// that strconv would otherwise read as a silent zero or a flipped sign.
+	if !isDigits(wholePart) || !isDigits(fracPart) {
+		return 0, fmt.Errorf("invalid amount: %s", input)
+	}
+	if wholePart == "" && fracPart == "" {
+		return 0, fmt.Errorf("invalid amount: %s", input)
+	}
+	if len(fracPart) > 2 {
+		return 0, fmt.Errorf("amount supports max 2 decimals: %s", input)
+	}
+
+	whole := wholePart
 	if whole == "" {
 		whole = "0"
 	}
-
 	wholeValue, err := strconv.ParseInt(whole, 10, 64)
 	if err != nil {
 		return 0, fmt.Errorf("invalid amount: %s", input)
 	}
 
-	frac := "00"
-	if len(parts) == 2 {
-		if len(parts[1]) > 2 {
-			return 0, fmt.Errorf("amount supports max 2 decimals: %s", input)
-		}
-		frac = parts[1]
-		if len(frac) == 1 {
-			frac += "0"
-		}
-		if len(frac) == 0 {
-			frac = "00"
-		}
+	frac := fracPart
+	for len(frac) < 2 {
+		frac += "0"
 	}
-
 	fracValue, err := strconv.ParseInt(frac, 10, 64)
 	if err != nil {
 		return 0, fmt.Errorf("invalid amount: %s", input)
+	}
+
+	// Guard before computing wholeValue*100+fracValue, which would otherwise
+	// silently wrap past int64 into a negative balance.
+	if wholeValue > (math.MaxInt64-fracValue)/100 {
+		return 0, fmt.Errorf("amount is too large: %s", input)
 	}
 
 	result := wholeValue*100 + fracValue
@@ -63,6 +81,15 @@ func Parse(input string) (int64, error) {
 	}
 
 	return result, nil
+}
+
+func isDigits(s string) bool {
+	for _, r := range s {
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+	return true
 }
 
 func Format(amountMinor int64) string {

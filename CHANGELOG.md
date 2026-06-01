@@ -10,7 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Recurring transactions with idempotent monthly generation: `coinw recurring`
-  (list, add, edit, delete rules, and generate due transactions)
+  (list, add, edit, delete rules, and generate due transactions). The current
+  month's occurrence is generated as soon as the month begins, even when the
+  rule's day-of-month is later in the month, and is dated to that scheduled day.
 
 ## [0.1.0] - 2026-05-16
 

@@ -149,3 +149,120 @@ func TestGenerateDueTransactionsRollsBackOnTransactionsSaveFailure(t *testing.T)
 		t.Fatalf("after failed generation: LastGeneratedMonth is %q, want empty (not advanced)", repo.rules[0].LastGeneratedMonth)
 	}
 }
+
+// ruleRepo builds a single-rule repo for current-month generation tests.
+func ruleRepo(rule model.RecurringRule) *fakeRepo {
+	return &fakeRepo{
+		accounts: []model.Account{{Name: "Checking", Currency: "CAD", BalanceMinor: 100000}},
+		rules:    []model.RecurringRule{rule},
+	}
+}
+
+func expenseRule(day int, start, end string) model.RecurringRule {
+	return model.RecurringRule{
+		ID:          "rec_1",
+		Type:        model.TransactionTypeExpense,
+		AmountMinor: 5000,
+		Currency:    "CAD",
+		Category:    "Rent",
+		Account:     "Checking",
+		DayOfMonth:  day,
+		StartDate:   start,
+		EndDate:     end,
+	}
+}
+
+// The current month's occurrence is generated as soon as the month has begun,
+// even when the rule's day-of-month is later in the month.
+func TestGenerateDueTransactionsGeneratesCurrentMonthBeforeDueDay(t *testing.T) {
+	repo := ruleRepo(expenseRule(28, "2026-06-01", ""))
+	svc := New(repo)
+	now := time.Date(2026, 6, 1, 9, 0, 0, 0, time.UTC)
+
+	result, err := svc.GenerateDueTransactions(now)
+	if err != nil {
+		t.Fatalf("generation: %v", err)
+	}
+	if len(result.Generated) != 1 {
+		t.Fatalf("got %d transactions, want 1 (current month due now)", len(result.Generated))
+	}
+	if got := result.Generated[0].Date; got != "2026-06-28" {
+		t.Errorf("transaction date = %q, want 2026-06-28 (scheduled day, not generation day)", got)
+	}
+	if repo.accounts[0].BalanceMinor != 95000 {
+		t.Errorf("balance = %d, want 95000 (100000 - 5000)", repo.accounts[0].BalanceMinor)
+	}
+	if repo.rules[0].LastGeneratedMonth != "2026-06" {
+		t.Errorf("LastGeneratedMonth = %q, want 2026-06", repo.rules[0].LastGeneratedMonth)
+	}
+
+	// Running again the same month is a no-op.
+	second, err := svc.GenerateDueTransactions(now)
+	if err != nil {
+		t.Fatalf("second generation: %v", err)
+	}
+	if len(second.Generated) != 0 {
+		t.Errorf("second run generated %d, want 0 (idempotent)", len(second.Generated))
+	}
+}
+
+// Backfilling past months and generating the current month's future-day
+// occurrence happen in a single run.
+func TestGenerateDueTransactionsBackfillsAndIncludesCurrentMonth(t *testing.T) {
+	repo := ruleRepo(expenseRule(28, "2026-04-01", ""))
+	svc := New(repo)
+	now := time.Date(2026, 6, 1, 9, 0, 0, 0, time.UTC)
+
+	result, err := svc.GenerateDueTransactions(now)
+	if err != nil {
+		t.Fatalf("generation: %v", err)
+	}
+	dates := make([]string, len(result.Generated))
+	for i, tx := range result.Generated {
+		dates[i] = tx.Date
+	}
+	want := []string{"2026-04-28", "2026-05-28", "2026-06-28"}
+	if len(dates) != len(want) {
+		t.Fatalf("got dates %v, want %v", dates, want)
+	}
+	for i := range want {
+		if dates[i] != want[i] {
+			t.Fatalf("got dates %v, want %v", dates, want)
+		}
+	}
+}
+
+// A current-month occurrence past the rule's end date is still excluded.
+func TestGenerateDueTransactionsRespectsEndDateInCurrentMonth(t *testing.T) {
+	repo := ruleRepo(expenseRule(28, "2026-06-01", "2026-06-15"))
+	svc := New(repo)
+	now := time.Date(2026, 6, 1, 9, 0, 0, 0, time.UTC)
+
+	result, err := svc.GenerateDueTransactions(now)
+	if err != nil {
+		t.Fatalf("generation: %v", err)
+	}
+	if len(result.Generated) != 0 {
+		t.Errorf("got %d transactions, want 0 (28th is past the 15th end date)", len(result.Generated))
+	}
+}
+
+// Future months are never generated, even when the current month is.
+func TestGenerateDueTransactionsDoesNotGenerateFutureMonths(t *testing.T) {
+	repo := ruleRepo(expenseRule(28, "2026-06-01", ""))
+	svc := New(repo)
+	now := time.Date(2026, 6, 1, 9, 0, 0, 0, time.UTC)
+
+	result, err := svc.GenerateDueTransactions(now)
+	if err != nil {
+		t.Fatalf("generation: %v", err)
+	}
+	for _, tx := range result.Generated {
+		if tx.Date > "2026-06-30" {
+			t.Errorf("generated a future-month transaction dated %q", tx.Date)
+		}
+	}
+	if len(result.Generated) != 1 {
+		t.Errorf("got %d transactions, want exactly 1 (current month only)", len(result.Generated))
+	}
+}

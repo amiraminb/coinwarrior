@@ -398,6 +398,12 @@ func applyRecurringRuleEdits(rule model.RecurringRule, edits RecurringRuleEdits,
 	return updated, true, nil
 }
 
+// dueTransactionsForRule returns the transactions a rule is due to generate up
+// to and including the current month. A month's occurrence is generated as soon
+// as that month has begun, even if the rule's day-of-month has not yet arrived
+// (e.g. on 2026-06-01 a rule due on the 28th generates its 2026-06-28
+// transaction now). Occurrences are still bounded by the rule's start and end
+// dates, and future months are never generated.
 func dueTransactionsForRule(rule model.RecurringRule, today, now time.Time, nowUTC string, idCounter *int) ([]model.Transaction, error) {
 	startTime, err := time.Parse("2006-01-02", rule.StartDate)
 	if err != nil {
@@ -429,15 +435,14 @@ func dueTransactionsForRule(rule model.RecurringRule, today, now time.Time, nowU
 	var due []model.Transaction
 	currentMonth := time.Date(today.Year(), today.Month(), 1, 0, 0, 0, 0, today.Location())
 	for !cursor.After(currentMonth) {
+		// DayOfMonth is capped at 1..28, so this never overflows into the next
+		// month. If days 29..31 are ever allowed, clamp to the month's last day
+		// here, since the current month is now materialized eagerly on day 1.
 		txDate := time.Date(cursor.Year(), cursor.Month(), rule.DayOfMonth, 0, 0, 0, 0, today.Location())
-		if txDate.After(today) {
-			break
-		}
 		if endLimit != nil && txDate.After(*endLimit) {
 			break
 		}
-		startBoundary, _ := time.Parse("2006-01-02", rule.StartDate)
-		if txDate.Before(startBoundary) {
+		if txDate.Before(startTime) {
 			cursor = cursor.AddDate(0, 1, 0)
 			continue
 		}

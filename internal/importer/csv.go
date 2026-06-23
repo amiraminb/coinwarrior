@@ -14,9 +14,19 @@ import (
 // csvDateLayout is the date format used by the bank export (MM/DD/YYYY).
 const csvDateLayout = "01/02/2006"
 
-// expectedColumns is the minimum column count of a supported export row:
-// transaction date, transaction type, debit amount, credit amount, extended text.
-const expectedColumns = 5
+// Column header names the parser looks up (case-insensitively). Columns are matched
+// by header name rather than fixed position so the export's column order and any
+// extra columns do not matter.
+const (
+	colDate     = "transaction date"
+	colType     = "transaction type"
+	colDebit    = "debit amount"
+	colCredit   = "credit amount"
+	colExtended = "extended text"
+)
+
+// requiredColumns must be present in the header for the file to be usable.
+var requiredColumns = []string{colDate, colDebit, colCredit}
 
 // ParsedRow is one transaction read from the CSV, normalized into the fields the
 // import flow needs. AmountInput stays a string so the canonical money.Parse rules
@@ -53,10 +63,16 @@ func ParseReader(r io.Reader) ([]ParsedRow, error) {
 	reader.FieldsPerRecord = -1
 	reader.TrimLeadingSpace = true
 
-	if _, err := reader.Read(); err == io.EOF {
+	header, err := reader.Read()
+	if err == io.EOF {
 		return nil, fmt.Errorf("csv file is empty")
 	} else if err != nil {
 		return nil, fmt.Errorf("reading header: %w", err)
+	}
+
+	columns, err := indexColumns(header)
+	if err != nil {
+		return nil, err
 	}
 
 	var rows []ParsedRow
@@ -71,7 +87,7 @@ func ParseReader(r io.Reader) ([]ParsedRow, error) {
 		if isBlankRecord(record) {
 			continue
 		}
-		rows = append(rows, parseRecord(record, len(rows)+1))
+		rows = append(rows, parseRecord(record, len(rows)+1, columns))
 	}
 
 	if len(rows) == 0 {
@@ -81,19 +97,39 @@ func ParseReader(r io.Reader) ([]ParsedRow, error) {
 	return rows, nil
 }
 
-func parseRecord(record []string, rowNo int) ParsedRow {
-	row := ParsedRow{RowNo: rowNo}
-
-	if len(record) < expectedColumns {
-		row.ParseErr = fmt.Errorf("expected %d columns, got %d", expectedColumns, len(record))
-		return row
+// indexColumns maps each required and optional column name to its position in the
+// header, matching case-insensitively. It errors only when a required column is
+// missing, since the whole file is then unusable.
+func indexColumns(header []string) (map[string]int, error) {
+	columns := make(map[string]int, len(header))
+	for i, name := range header {
+		// Strip a UTF-8 BOM the export may prepend to the first header cell,
+		// otherwise its name won't match and a required column looks missing.
+		name = strings.TrimPrefix(name, "\uFEFF")
+		columns[strings.ToLower(strings.TrimSpace(name))] = i
 	}
 
-	rawDate := strings.TrimSpace(record[0])
-	bankType := strings.TrimSpace(record[1])
-	debit := strings.TrimSpace(record[2])
-	credit := strings.TrimSpace(record[3])
-	extended := strings.TrimSpace(record[4])
+	var missing []string
+	for _, name := range requiredColumns {
+		if _, ok := columns[name]; !ok {
+			missing = append(missing, name)
+		}
+	}
+	if len(missing) > 0 {
+		return nil, fmt.Errorf("csv is missing required column(s): %s", strings.Join(missing, ", "))
+	}
+
+	return columns, nil
+}
+
+func parseRecord(record []string, rowNo int, columns map[string]int) ParsedRow {
+	row := ParsedRow{RowNo: rowNo}
+
+	rawDate := field(record, columns, colDate)
+	bankType := field(record, columns, colType)
+	debit := field(record, columns, colDebit)
+	credit := field(record, columns, colCredit)
+	extended := field(record, columns, colExtended)
 
 	row.Note = composeNote(bankType, extended)
 
@@ -133,6 +169,16 @@ func composeNote(bankType, extended string) string {
 	default:
 		return extended
 	}
+}
+
+// field returns the trimmed value of the named column for a record, or "" when the
+// column is absent from the header or the record is too short to include it.
+func field(record []string, columns map[string]int, name string) string {
+	idx, ok := columns[name]
+	if !ok || idx >= len(record) {
+		return ""
+	}
+	return strings.TrimSpace(record[idx])
 }
 
 func isBlankRecord(record []string) bool {

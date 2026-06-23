@@ -9,6 +9,10 @@ import (
 	"github.com/amiraminb/coinwarrior/internal/money"
 )
 
+func (s *Service) LoadAccounts() ([]model.Account, error) {
+	return s.repo.LoadAccounts()
+}
+
 func (s *Service) LoadAccountNames() ([]string, error) {
 	accounts, err := s.repo.LoadAccounts()
 	if err != nil {

@@ -5,6 +5,7 @@ Local-first CLI tool for tracking personal finances.
 ## Current Features
 
 - Interactive transaction entry: `coinw add`
+- Interactive CSV import: `coinw import <file.csv>`
 - Interactive transaction editing: `coinw edit`
 - Interactive transaction deletion: `coinw delete`
 - Interactive account management: `coinw account`

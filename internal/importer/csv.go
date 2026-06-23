@@ -19,7 +19,6 @@ const csvDateLayout = "01/02/2006"
 // extra columns do not matter.
 const (
 	colDate     = "transaction date"
-	colType     = "transaction type"
 	colDebit    = "debit amount"
 	colCredit   = "credit amount"
 	colExtended = "extended text"
@@ -126,12 +125,10 @@ func parseRecord(record []string, rowNo int, columns map[string]int) ParsedRow {
 	row := ParsedRow{RowNo: rowNo}
 
 	rawDate := field(record, columns, colDate)
-	bankType := field(record, columns, colType)
 	debit := field(record, columns, colDebit)
 	credit := field(record, columns, colCredit)
-	extended := field(record, columns, colExtended)
 
-	row.Note = composeNote(bankType, extended)
+	row.Note = field(record, columns, colExtended)
 
 	switch {
 	case debit != "" && credit != "":
@@ -156,19 +153,6 @@ func parseRecord(record []string, rowNo int, columns map[string]int) ParsedRow {
 	}
 
 	return row
-}
-
-// composeNote folds the bank's transaction-type string and the extended text into
-// a single note, keeping whichever side is present.
-func composeNote(bankType, extended string) string {
-	switch {
-	case bankType != "" && extended != "":
-		return bankType + ": " + extended
-	case bankType != "":
-		return bankType
-	default:
-		return extended
-	}
 }
 
 // field returns the trimmed value of the named column for a record, or "" when the

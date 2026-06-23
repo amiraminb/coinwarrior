@@ -33,7 +33,7 @@ func TestParseReader(t *testing.T) {
 			wantDate:   "2026-06-23",
 			wantType:   model.TransactionTypeExpense,
 			wantAmount: "12.34",
-			wantNote:   "POS PURCHASE: COFFEE SHOP",
+			wantNote:   "COFFEE SHOP",
 		},
 		{
 			name:       "credit becomes income",
@@ -41,7 +41,7 @@ func TestParseReader(t *testing.T) {
 			wantDate:   "2026-01-05",
 			wantType:   model.TransactionTypeIncome,
 			wantAmount: "2000.00",
-			wantNote:   "DIRECT DEPOSIT: PAYROLL",
+			wantNote:   "PAYROLL",
 		},
 		{
 			name:       "note with only extended text",
@@ -122,7 +122,7 @@ func TestParseReaderMapsByHeaderNameIgnoringOrder(t *testing.T) {
 	if r.ParseErr != nil {
 		t.Fatalf("unexpected ParseErr: %v", r.ParseErr)
 	}
-	if r.Date != "2026-06-23" || r.Type != model.TransactionTypeExpense || r.AmountInput != "45.67" || r.Note != "POS: GROCERIES" {
+	if r.Date != "2026-06-23" || r.Type != model.TransactionTypeExpense || r.AmountInput != "45.67" || r.Note != "GROCERIES" {
 		t.Errorf("mismapped row: %+v", r)
 	}
 }

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/amiraminb/coinwarrior/internal/daterange"
@@ -19,28 +18,29 @@ import (
 var (
 	reportSectionStyle    = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("111"))
 	reportSubSectionStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("150"))
-	reportShowDetails     bool
 )
 
 var reportCmd = &cobra.Command{
-	Use:   "report <range|account>",
+	Use:   "report",
 	Short: "Show reports",
 	Long: `Show reports.
 
-Supported ranges: today, yesterday, week, lastweek, month, lastmonth, year, lastyear, or YYYY-MM-DD..YYYY-MM-DD.
-Use 'account' for account balance reports.
-Use --details to show transactions separated by category.`,
-	Example: `  coinw report month
-  coinw report lastmonth --details
-  coinw report 2026-04-01..2026-04-30
-  coinw report account
-  coinw report month --details`,
+Subcommands:
+  account              account balances and totals
+  budget <range>       budget and category breakdown for a range
+  transactions <range> transactions in a range`,
+}
+
+var reportBudgetCmd = &cobra.Command{
+	Use:   "budget <range>",
+	Short: "Show budget and category breakdown for a range",
+	Long: `Show budget and category breakdown for a range.
+
+Supported ranges: today, yesterday, week, lastweek, month, lastmonth, year, lastyear, or YYYY-MM-DD..YYYY-MM-DD.`,
+	Example: `  coinw report budget month
+  coinw report budget 2026-04-01..2026-04-30`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if strings.EqualFold(args[0], "account") {
-			return runAccountReport()
-		}
-
 		start, end, err := daterange.Resolve(args[0], time.Now())
 		if err != nil {
 			return err
@@ -53,11 +53,21 @@ Use --details to show transactions separated by category.`,
 
 		fmt.Println(tui.HeaderStyle.Render(fmt.Sprintf("report %s..%s", start.Format("2006-01-02"), end.Format("2006-01-02"))))
 		fmt.Println()
-		if err := printCategorySection(transactions, start, end, reportShowDetails, time.Now()); err != nil {
+		if err := printCategorySection(transactions, start, end, time.Now()); err != nil {
 			return err
 		}
 
 		return nil
+	},
+}
+
+var reportAccountCmd = &cobra.Command{
+	Use:     "account",
+	Short:   "Show account balances and totals",
+	Example: `  coinw report account`,
+	Args:    cobra.NoArgs,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return runAccountReport()
 	},
 }
 
@@ -137,7 +147,7 @@ func printTotalBalancesReport(accounts []model.Account) {
 	)
 }
 
-func printCategorySection(transactions []model.Transaction, start, end time.Time, showDetails bool, now time.Time) error {
+func printCategorySection(transactions []model.Transaction, start, end time.Time, now time.Time) error {
 	fmt.Println(reportSectionStyle.Render("Range Categories"))
 	fmt.Println()
 	if err := printMonthlyBudgetSection(start, end, now); err != nil {
@@ -269,15 +279,6 @@ func printCategorySection(transactions []model.Transaction, start, end time.Time
 	}
 
 	fmt.Println()
-	fmt.Println(reportSubSectionStyle.Render("Transactions By Category"))
-	fmt.Println()
-	if showDetails {
-		renderSeparateCategoryDetails(categoryReports)
-	} else {
-		renderCompactCategoryDetails(categoryReports)
-	}
-
-	fmt.Println()
 	return nil
 }
 
@@ -341,94 +342,12 @@ func budgetMonthForRange(start, end time.Time) (string, bool) {
 	return daterange.FormatMonth(start), true
 }
 
-func renderCompactCategoryDetails(categoryReports []categoryReport) {
-	detailRows := make([]table.Row, 0)
-	for _, report := range categoryReports {
-		items := make([]model.Transaction, len(report.items))
-		copy(items, report.items)
-
-		tui.SortTransactionsByDateDesc(items)
-
-		displayCategory := report.name
-		if displayCategory == "" {
-			displayCategory = "(no category)"
-		}
-
-		for idx, tx := range items {
-			amount := money.FormatTransaction(tx)
-
-			categoryCell := ""
-			if idx == 0 {
-				categoryCell = displayCategory
-			}
-
-			detailRows = append(detailRows, table.Row{categoryCell, tx.Date, amount, tx.Currency, tx.Account, tx.Note})
-		}
-	}
-
-	tui.RenderTable(
-		[]table.Column{
-			{Title: "CATEGORY", Width: 18},
-			{Title: "DATE", Width: 10},
-			{Title: "AMOUNT", Width: 12},
-			{Title: "CUR", Width: 5},
-			{Title: "ACCOUNT", Width: 18},
-			{Title: "NOTE", Width: 36},
-		},
-		detailRows,
-	)
-}
-
-func renderSeparateCategoryDetails(categoryReports []categoryReport) {
-	for i, report := range categoryReports {
-		if i > 0 {
-			fmt.Println()
-		}
-
-		items := make([]model.Transaction, len(report.items))
-		copy(items, report.items)
-
-		tui.SortTransactionsByDateDesc(items)
-
-		displayCategory := report.name
-		if displayCategory == "" {
-			displayCategory = "(no category)"
-		}
-
-		fmt.Println(categoryHeadingStyle(i).Render("- " + displayCategory))
-		fmt.Println()
-
-		rows := make([]table.Row, 0, len(items))
-		for _, tx := range items {
-			amount := money.FormatTransaction(tx)
-
-			rows = append(rows, table.Row{tx.Date, amount, tx.Currency, tx.Account, tx.Note})
-		}
-
-		tui.RenderTable(
-			[]table.Column{
-				{Title: "DATE", Width: 10},
-				{Title: "AMOUNT", Width: 12},
-				{Title: "CUR", Width: 5},
-				{Title: "ACCOUNT", Width: 18},
-				{Title: "NOTE", Width: 36},
-			},
-			rows,
-		)
-	}
-}
-
 type categoryReport struct {
 	name              string
 	items             []model.Transaction
 	totalsByCurrency  map[string]int64
 	expenseByCurrency map[string]int64
 	totalExpenseMinor int64
-}
-
-func categoryHeadingStyle(index int) lipgloss.Style {
-	_ = index
-	return lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("180"))
 }
 
 func formatPercent(part, total int64) string {
@@ -439,6 +358,8 @@ func formatPercent(part, total int64) string {
 }
 
 func init() {
-	reportCmd.Flags().BoolVar(&reportShowDetails, "details", false, "Show detailed transactions separated by category")
+	reportCmd.AddCommand(reportBudgetCmd)
+	reportCmd.AddCommand(reportAccountCmd)
+	reportCmd.AddCommand(reportTransactionsCmd)
 	rootCmd.AddCommand(reportCmd)
 }

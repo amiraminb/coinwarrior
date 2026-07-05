@@ -11,8 +11,9 @@ Local-first CLI tool for tracking personal finances.
 - Interactive account management: `coinw account`
 - Monthly budgets with rollover: `coinw budget`
 - Recurring transactions with monthly cadence: `coinw recurring`
-- List transactions: `coinw list [range]`
-- Range report (balances + category): `coinw report <range> [--details]`
+- Account balances report: `coinw report account`
+- Budget and category report: `coinw report budget <range>`
+- Transactions report: `coinw report transactions <range>`
 
 ## Installation
 
@@ -67,20 +68,25 @@ coinw account
 coinw add
 ```
 
-- List transactions:
+- List transactions in a range:
 
 ```bash
-coinw list
-coinw list <range>
+coinw report transactions <range>
 ```
 
-- Generate a report:
+- Generate a budget and category report:
 
 ```bash
-coinw report <range>
+coinw report budget <range>
 ```
 
-## Supported List/Report Ranges
+- Show account balances:
+
+```bash
+coinw report account
+```
+
+## Supported Report Ranges
 
 - `today`
 - `yesterday`
@@ -95,6 +101,6 @@ coinw report <range>
 Example:
 
 ```bash
-coinw list 2026-04-01..2026-04-30
-coinw report 2026-04-01..2026-04-30
+coinw report transactions 2026-04-01..2026-04-30
+coinw report budget 2026-04-01..2026-04-30
 ```

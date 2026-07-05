@@ -12,26 +12,20 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var listCmd = &cobra.Command{
-	Use:   "list [range]",
-	Short: "List transactions",
-	Long: `List transactions.
+var reportTransactionsCmd = &cobra.Command{
+	Use:   "transactions <range>",
+	Short: "List transactions in a range",
+	Long: `List transactions in a range.
 
 Supported ranges: today, yesterday, week, lastweek, month, lastmonth, year, lastyear, or YYYY-MM-DD..YYYY-MM-DD.`,
-	Example: `  coinw list
-  coinw list month
-  coinw list yesterday
-  coinw list 2026-04-01..2026-04-30`,
-	Args: cobra.MaximumNArgs(1),
+	Example: `  coinw report transactions month
+  coinw report transactions yesterday
+  coinw report transactions 2026-04-01..2026-04-30`,
+	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		var start, end time.Time
-		hasRange := len(args) == 1
-		if hasRange {
-			var err error
-			start, end, err = daterange.Resolve(args[0], time.Now())
-			if err != nil {
-				return err
-			}
+		start, end, err := daterange.Resolve(args[0], time.Now())
+		if err != nil {
+			return err
 		}
 
 		transactions, err := repo.LoadTransactions()
@@ -39,27 +33,15 @@ Supported ranges: today, yesterday, week, lastweek, month, lastmonth, year, last
 			return err
 		}
 
-		if len(transactions) == 0 {
-			fmt.Println("no transactions")
-			return nil
-		}
-
-		items := make([]model.Transaction, len(transactions))
-		copy(items, transactions)
-
-		if hasRange {
-			filtered := make([]model.Transaction, 0, len(items))
-			for _, tx := range items {
-				inRange, err := daterange.Contains(tx.Date, start, end)
-				if err != nil {
-					return fmt.Errorf("invalid transaction date '%s' for %s", tx.Date, tx.ID)
-				}
-				if inRange {
-					filtered = append(filtered, tx)
-				}
+		items := make([]model.Transaction, 0, len(transactions))
+		for _, tx := range transactions {
+			inRange, err := daterange.Contains(tx.Date, start, end)
+			if err != nil {
+				return fmt.Errorf("invalid transaction date '%s' for %s", tx.Date, tx.ID)
 			}
-
-			items = filtered
+			if inRange {
+				items = append(items, tx)
+			}
 		}
 
 		if len(items) == 0 {
@@ -102,8 +84,4 @@ Supported ranges: today, yesterday, week, lastweek, month, lastmonth, year, last
 
 		return nil
 	},
-}
-
-func init() {
-	rootCmd.AddCommand(listCmd)
 }

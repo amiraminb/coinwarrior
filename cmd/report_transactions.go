@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"sort"
 	"strings"
 	"time"
 
@@ -22,8 +21,8 @@ var reportTransactionsCmd = &cobra.Command{
 Supported ranges: today, yesterday, week, lastweek, month, lastmonth, year, lastyear, or YYYY-MM-DD..YYYY-MM-DD.
 
 When a category is given it is matched case-insensitively against the saved
-categories, and an income/expense summary for that category is printed below
-the table.`,
+categories, and an income/expense summary is printed below the table. Transfers
+are excluded from a category-filtered listing, matching 'report budget'.`,
 	Example: `  coinw report transactions month
   coinw report transactions yesterday
   coinw report transactions Groceries month
@@ -34,6 +33,9 @@ the table.`,
 		rangeArg := args[len(args)-1]
 		start, end, err := daterange.Resolve(rangeArg, time.Now())
 		if err != nil {
+			if len(args) == 1 {
+				return fmt.Errorf("%w (usage: coinw report transactions [category] <range>)", err)
+			}
 			return err
 		}
 
@@ -52,8 +54,10 @@ the table.`,
 
 		items := make([]model.Transaction, 0, len(transactions))
 		for _, tx := range transactions {
-			if category != "" && !strings.EqualFold(tx.Category, category) {
-				continue
+			if category != "" {
+				if tx.Type == model.TransactionTypeTransfer || !strings.EqualFold(tx.Category, category) {
+					continue
+				}
 			}
 			inRange, err := daterange.Contains(tx.Date, start, end)
 			if err != nil {
@@ -108,7 +112,17 @@ the table.`,
 		tui.RenderTable(columns, rows)
 
 		if category != "" {
-			printTransactionsSummary(items)
+			income := make(map[string]int64)
+			expense := make(map[string]int64)
+			for _, tx := range items {
+				switch tx.Type {
+				case model.TransactionTypeIncome:
+					income[tx.Currency] += tx.AmountMinor
+				case model.TransactionTypeExpense:
+					expense[tx.Currency] += tx.AmountMinor
+				}
+			}
+			printIncomeExpenseSummary(income, expense)
 		}
 
 		return nil
@@ -119,7 +133,7 @@ func completeTransactionsArgs(cmd *cobra.Command, args []string, toComplete stri
 	if len(args) == 0 {
 		categories, err := svc.LoadCategories()
 		if err != nil {
-			return daterange.Names(), cobra.ShellCompDirectiveNoFileComp
+			return nil, cobra.ShellCompDirectiveError
 		}
 		return append(categories, daterange.Names()...), cobra.ShellCompDirectiveNoFileComp
 	}
@@ -127,54 +141,4 @@ func completeTransactionsArgs(cmd *cobra.Command, args []string, toComplete stri
 		return daterange.Names(), cobra.ShellCompDirectiveNoFileComp
 	}
 	return nil, cobra.ShellCompDirectiveNoFileComp
-}
-
-func printTransactionsSummary(items []model.Transaction) {
-	income := make(map[string]int64)
-	expense := make(map[string]int64)
-	for _, tx := range items {
-		switch tx.Type {
-		case model.TransactionTypeIncome:
-			income[tx.Currency] += tx.AmountMinor
-		case model.TransactionTypeExpense:
-			expense[tx.Currency] += tx.AmountMinor
-		}
-	}
-
-	currencies := make([]string, 0, len(income)+len(expense))
-	for currency := range income {
-		currencies = append(currencies, currency)
-	}
-	for currency := range expense {
-		if _, ok := income[currency]; !ok {
-			currencies = append(currencies, currency)
-		}
-	}
-	if len(currencies) == 0 {
-		return
-	}
-	sort.Strings(currencies)
-
-	rows := make([]table.Row, 0, len(currencies))
-	for _, currency := range currencies {
-		rows = append(rows, table.Row{
-			currency,
-			money.Format(income[currency]),
-			money.Format(expense[currency]),
-			money.Format(income[currency] - expense[currency]),
-		})
-	}
-
-	fmt.Println()
-	fmt.Println(reportSubSectionStyle.Render("Income / Expense Summary"))
-	fmt.Println()
-	tui.RenderTable(
-		[]table.Column{
-			{Title: "CUR", Width: 5},
-			{Title: "INCOME", Width: 14},
-			{Title: "EXPENSE", Width: 14},
-			{Title: "NET", Width: 14},
-		},
-		rows,
-	)
 }

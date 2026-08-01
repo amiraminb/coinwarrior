@@ -2,6 +2,7 @@ package daterange
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 )
@@ -10,6 +11,13 @@ const (
 	dateLayout  = "2006-01-02"
 	monthLayout = "2006-01"
 )
+
+// names must stay in sync with the keywords handled by Resolve.
+var names = []string{"today", "yesterday", "week", "lastweek", "month", "lastmonth", "year", "lastyear"}
+
+func Names() []string {
+	return slices.Clone(names)
+}
 
 func Resolve(input string, now time.Time) (time.Time, time.Time, error) {
 	r := strings.TrimSpace(strings.ToLower(input))

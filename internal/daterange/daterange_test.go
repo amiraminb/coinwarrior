@@ -60,6 +60,23 @@ func TestResolveKeywords(t *testing.T) {
 	}
 }
 
+func TestNamesAreAllResolvable(t *testing.T) {
+	names := Names()
+	if len(names) == 0 {
+		t.Fatal("Names() is empty")
+	}
+	for _, name := range names {
+		if _, _, err := Resolve(name, resolveNow); err != nil {
+			t.Errorf("Names() advertises %q but Resolve rejects it: %v", name, err)
+		}
+	}
+
+	names[0] = "mutated"
+	if Names()[0] == "mutated" {
+		t.Error("Names() exposes the package-level slice; callers can mutate it")
+	}
+}
+
 func TestResolveErrors(t *testing.T) {
 	inputs := []string{
 		"",

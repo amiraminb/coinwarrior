@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `coinw report transactions [category] <range>` now takes an optional category
+  as the first argument, filtering the listing to that category and printing an
+  income/expense/net summary per currency below the table. The category is
+  matched case-insensitively against the saved categories; an unknown name is
+  rejected with the list of valid categories.
+- Shell completion for `report transactions` suggests saved categories and the
+  supported range keywords.
+
 ## [0.2.0] - 2026-07-04
 
 ### Added

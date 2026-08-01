@@ -26,9 +26,9 @@ var reportCmd = &cobra.Command{
 	Long: `Show reports.
 
 Subcommands:
-  account              account balances and totals
-  budget <range>       budget and category breakdown for a range
-  transactions <range> transactions in a range`,
+  account                           account balances and totals
+  budget <range>                    budget and category breakdown for a range
+  transactions [category] <range>   transactions in a range, optionally for one category`,
 }
 
 var reportBudgetCmd = &cobra.Command{

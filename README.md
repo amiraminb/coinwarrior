@@ -13,7 +13,7 @@ Local-first CLI tool for tracking personal finances.
 - Recurring transactions with monthly cadence: `coinw recurring`
 - Account balances report: `coinw report account`
 - Budget and category report: `coinw report budget <range>`
-- Transactions report: `coinw report transactions <range>`
+- Transactions report: `coinw report transactions [category] <range>`
 
 ## Installation
 
@@ -74,6 +74,16 @@ coinw add
 coinw report transactions <range>
 ```
 
+- List transactions for a single category, with an income/expense summary:
+
+```bash
+coinw report transactions <category> <range>
+```
+
+The category is matched case-insensitively against your saved categories, so
+`groceries` and `Groceries` both work. An unknown name fails with the list of
+valid categories rather than printing an empty table.
+
 - Generate a budget and category report:
 
 ```bash
@@ -102,5 +112,6 @@ Example:
 
 ```bash
 coinw report transactions 2026-04-01..2026-04-30
+coinw report transactions Groceries 2026-04-01..2026-04-30
 coinw report budget 2026-04-01..2026-04-30
 ```

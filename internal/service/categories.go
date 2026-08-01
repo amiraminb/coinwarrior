@@ -1,11 +1,10 @@
 package service
 
 import (
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
-
-	"github.com/amiraminb/coinwarrior/internal/model"
 )
 
 func (s *Service) LoadCategories() ([]string, error) {
@@ -19,21 +18,15 @@ func (s *Service) LoadCategories() ([]string, error) {
 	return result, nil
 }
 
-// Transfers carry model.TransferCategory without it ever being saved to
-// categories.json, so it is accepted even when absent from the stored list.
 func (s *Service) ResolveCategory(name string) (string, error) {
 	clean := strings.TrimSpace(name)
 	if clean == "" {
-		return "", fmt.Errorf("category cannot be empty")
+		return "", errors.New("category cannot be empty")
 	}
 
 	known, err := s.LoadCategories()
 	if err != nil {
 		return "", err
-	}
-
-	if !slices.ContainsFunc(known, func(c string) bool { return strings.EqualFold(c, model.TransferCategory) }) {
-		known = append(known, model.TransferCategory)
 	}
 
 	if i := slices.IndexFunc(known, func(c string) bool { return strings.EqualFold(c, clean) }); i >= 0 {

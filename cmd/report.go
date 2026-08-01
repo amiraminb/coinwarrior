@@ -2,6 +2,8 @@ package cmd
 
 import (
 	"fmt"
+	"maps"
+	"slices"
 	"sort"
 	"strconv"
 	"time"
@@ -242,44 +244,47 @@ func printCategorySection(transactions []model.Transaction, start, end time.Time
 		totalRows,
 	)
 
-	summaryRows := make([]table.Row, 0)
-	allCurrenciesMap := make(map[string]bool)
-	for c := range currencyIncome {
-		allCurrenciesMap[c] = true
-	}
-	for c := range currencyExpense {
-		allCurrenciesMap[c] = true
-	}
-	allCurrencies := make([]string, 0, len(allCurrenciesMap))
-	for c := range allCurrenciesMap {
-		allCurrencies = append(allCurrencies, c)
-	}
-	sort.Strings(allCurrencies)
-
-	for _, c := range allCurrencies {
-		income := currencyIncome[c]
-		expense := currencyExpense[c]
-		net := income - expense
-		summaryRows = append(summaryRows, table.Row{c, money.Format(income), money.Format(expense), money.Format(net)})
-	}
-
-	if len(summaryRows) > 0 {
-		fmt.Println()
-		fmt.Println(reportSubSectionStyle.Render("Income / Expense Summary"))
-		fmt.Println()
-		tui.RenderTable(
-			[]table.Column{
-				{Title: "CUR", Width: 5},
-				{Title: "INCOME", Width: 14},
-				{Title: "EXPENSE", Width: 14},
-				{Title: "NET", Width: 14},
-			},
-			summaryRows,
-		)
-	}
+	printIncomeExpenseSummary(currencyIncome, currencyExpense)
 
 	fmt.Println()
 	return nil
+}
+
+func printIncomeExpenseSummary(income, expense map[string]int64) {
+	currencies := make(map[string]bool, len(income)+len(expense))
+	for currency := range income {
+		currencies[currency] = true
+	}
+	for currency := range expense {
+		currencies[currency] = true
+	}
+	if len(currencies) == 0 {
+		return
+	}
+
+	ordered := slices.Sorted(maps.Keys(currencies))
+	rows := make([]table.Row, 0, len(ordered))
+	for _, currency := range ordered {
+		rows = append(rows, table.Row{
+			currency,
+			money.Format(income[currency]),
+			money.Format(expense[currency]),
+			money.Format(income[currency] - expense[currency]),
+		})
+	}
+
+	fmt.Println()
+	fmt.Println(reportSubSectionStyle.Render("Income / Expense Summary"))
+	fmt.Println()
+	tui.RenderTable(
+		[]table.Column{
+			{Title: "CUR", Width: 5},
+			{Title: "INCOME", Width: 14},
+			{Title: "EXPENSE", Width: 14},
+			{Title: "NET", Width: 14},
+		},
+		rows,
+	)
 }
 
 func printMonthlyBudgetSection(start, end, now time.Time) error {

@@ -36,15 +36,11 @@ func TestResolveCategoryMatchesCaseInsensitively(t *testing.T) {
 	}
 }
 
-func TestResolveCategoryAcceptsTransferWhenNotStored(t *testing.T) {
+func TestResolveCategoryRejectsTransferWhenNotStored(t *testing.T) {
 	svc := newCategoriesService("Groceries")
 
-	got, err := svc.ResolveCategory("transfer")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if got != model.TransferCategory {
-		t.Errorf("got %q, want %q", got, model.TransferCategory)
+	if _, err := svc.ResolveCategory(model.TransferCategory); err == nil {
+		t.Fatalf("expected %q to be rejected; transfers are excluded from category reports", model.TransferCategory)
 	}
 }
 
@@ -55,7 +51,7 @@ func TestResolveCategoryRejectsUnknownAndListsAvailable(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected an error for an unknown category")
 	}
-	for _, want := range []string{"Grocerys", "Groceries", "Dining", model.TransferCategory} {
+	for _, want := range []string{"Grocerys", "Groceries", "Dining"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("error %q does not mention %q", err.Error(), want)
 		}

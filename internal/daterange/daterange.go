@@ -12,7 +12,6 @@ const (
 	monthLayout = "2006-01"
 )
 
-// names must stay in sync with the keywords handled by Resolve.
 var names = []string{"today", "yesterday", "week", "lastweek", "month", "lastmonth", "year", "lastyear"}
 
 func Names() []string {

@@ -1,6 +1,9 @@
 package daterange
 
 import (
+	"os"
+	"regexp"
+	"slices"
 	"testing"
 	"time"
 )
@@ -74,6 +77,31 @@ func TestNamesAreAllResolvable(t *testing.T) {
 	names[0] = "mutated"
 	if Names()[0] == "mutated" {
 		t.Error("Names() exposes the package-level slice; callers can mutate it")
+	}
+}
+
+// Guards the reverse direction of the Names/Resolve invariant: a keyword added to
+// Resolve but not to names would otherwise leave completion silently stale.
+func TestResolveKeywordsAreAllAdvertised(t *testing.T) {
+	source, err := os.ReadFile("daterange.go")
+	if err != nil {
+		t.Fatalf("read source: %v", err)
+	}
+
+	caseLine := regexp.MustCompile(`(?m)^\tcase "([a-z]+)":$`)
+	var keywords []string
+	for _, match := range caseLine.FindAllStringSubmatch(string(source), -1) {
+		keywords = append(keywords, match[1])
+	}
+	if len(keywords) == 0 {
+		t.Fatal("found no case keywords in Resolve; the parser needs updating")
+	}
+
+	advertised := Names()
+	for _, keyword := range keywords {
+		if !slices.Contains(advertised, keyword) {
+			t.Errorf("Resolve handles %q but Names() omits it", keyword)
+		}
 	}
 }
 

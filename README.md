@@ -82,7 +82,9 @@ coinw report transactions <category> <range>
 
 The category is matched case-insensitively against your saved categories, so
 `groceries` and `Groceries` both work. An unknown name fails with the list of
-valid categories rather than printing an empty table.
+valid categories rather than printing an empty table. Transfers are excluded
+from a category-filtered listing, matching `coinw report budget`, so the table
+and the summary below it always agree.
 
 - Generate a budget and category report:
 

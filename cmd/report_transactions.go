@@ -22,7 +22,7 @@ Supported ranges: today, yesterday, week, lastweek, month, lastmonth, year, last
 
 When a category is given it is matched case-insensitively against the saved
 categories, and an income/expense summary is printed below the table. Transfers
-are excluded from a category-filtered listing, matching 'report budget'.`,
+are excluded from a category-filtered listing, matching 'report overview'.`,
 	Example: `  coinw report transactions month
   coinw report transactions yesterday
   coinw report transactions Groceries month

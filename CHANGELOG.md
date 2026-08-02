@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   income/expense/net summary per currency below the table. The category is
   matched case-insensitively against the saved categories; an unknown name is
   rejected with the list of valid categories. Transfers are excluded from a
-  category-filtered listing, matching `report budget`.
+  category-filtered listing, matching `report overview`.
 - Shell completion for `report transactions` suggests saved categories and the
   supported range keywords.
 - `coinw add` and `coinw import` now warn before saving a transaction that
@@ -27,8 +27,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- The income/expense summary table is now shared between `report budget` and
+- `coinw report budget <range>` is now `coinw report overview <range>`. The
+  command prints per-category totals and an income/expense summary for any
+  range, and the budget section only when the range is exactly one calendar
+  month, so "budget" named the one section that is often absent and collided
+  with the top-level `coinw budget` used to manage budgets.
+- `coinw report` with an unknown subcommand now exits 1 with an error naming it,
+  instead of printing help and exiting 0.
+- The income/expense summary table is now shared between `report overview` and
   `report transactions` instead of being implemented separately in each.
+
+### Fixed
+
+- A CSV row whose amount the importer left unvalidated (for example `$45.67` or
+  `1.234`, which the parser only flags for bad dates and debit/credit conflicts)
+  aborted the whole import at save time, dropping every remaining row. The
+  amount is now checked up front and reported on the row menu.
 
 ## [0.2.0] - 2026-07-04
 

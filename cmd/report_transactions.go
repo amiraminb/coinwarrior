@@ -10,6 +10,7 @@ import (
 	"github.com/amiraminb/coinwarrior/internal/money"
 	"github.com/amiraminb/coinwarrior/internal/tui"
 	"github.com/charmbracelet/bubbles/table"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/spf13/cobra"
 )
 
@@ -80,17 +81,6 @@ are excluded from a category-filtered listing, matching 'report overview'.`,
 
 		tui.SortTransactionsByDateDesc(items)
 
-		columns := []table.Column{
-			{Title: "ID", Width: 24},
-			{Title: "DATE", Width: 10},
-			{Title: "TYPE", Width: 8},
-			{Title: "AMOUNT", Width: 12},
-			{Title: "CUR", Width: 5},
-			{Title: "CATEGORY", Width: 16},
-			{Title: "ACCOUNT", Width: 16},
-			{Title: "NOTE", Width: 20},
-		}
-
 		rows := make([]table.Row, 0, len(items))
 		for _, tx := range items {
 			account := tx.Account
@@ -109,7 +99,20 @@ are excluded from a category-filtered listing, matching 'report overview'.`,
 			})
 		}
 
-		tui.RenderTable(columns, rows)
+		columns := []table.Column{
+			{Title: "ID", Width: 24},
+			{Title: "DATE", Width: 10},
+			{Title: "TYPE", Width: 8},
+			{Title: "AMOUNT", Width: 12},
+			{Title: "CUR", Width: 5},
+			{Title: "CATEGORY", Width: 16},
+			{Title: "ACCOUNT", Width: 16},
+			{Title: "NOTE", Width: 20},
+		}
+
+		tui.RenderStyledTable(columns, rows, func(i int) lipgloss.Style {
+			return categoryStyle(items[i].Category)
+		})
 
 		if category != "" {
 			income := make(map[string]int64)

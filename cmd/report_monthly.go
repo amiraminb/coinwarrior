@@ -184,19 +184,14 @@ func printPerMonthSections(transactions, shareBase []model.Transaction, start, e
 	fmt.Println(reportSectionStyle.Render("Per-Month Breakdown"))
 
 	var baseline map[categoryKey]int64
-	for _, span := range spans {
+	for i, span := range spans {
 		fmt.Println()
 		fmt.Println(reportMonthStyle.Render(span.label))
 		fmt.Println()
-		totals, ok := printCategoryTotalsWithBaseline(transactions, shareBase, span.start, span.end, "Category Totals", baseline)
-		if !ok {
-			fmt.Println("  no transactions")
-			continue
-		}
-		if baseline == nil {
+		if i > 0 && baseline == nil {
 			baseline = map[categoryKey]int64{}
 		}
-		maps.Copy(baseline, totals)
+		baseline = printCategoryTotalsWithBaseline(transactions, shareBase, span.start, span.end, "Category Totals", baseline)
 	}
 }
 

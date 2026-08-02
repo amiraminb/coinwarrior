@@ -103,6 +103,24 @@ and the summary below it always agree.
 coinw report overview <range>
 ```
 
+A range spanning more than one month also gets a per-month income/expense bar
+chart. Bars scale to the largest value in the range, and a month the range only
+partly covers is labelled with the days it covers:
+
+```
+Monthly Income / Expense (CAD)
+
+ MONTH              INCOME                        EXPENSE
+ 2026-01 (15-31)    ███████████████████ 5,000.00  ████████████ 3,240.50
+ 2026-02            ███████████████████ 5,000.00  ████████████████████████ 6,100.00
+ 2026-03 (01-20)    █████████ 2,500.00            ███████ 1,890.00
+```
+
+Below the chart, each month gets its own category totals and income/expense
+summary, so you can see where that month's money went. A partial month counts
+only the days the range covers, and the `% EXP` share is recomputed within each
+month rather than carried over from the whole range.
+
 - Show account balances:
 
 ```bash

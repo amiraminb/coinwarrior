@@ -25,6 +25,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Transfers are never flagged, since they all share the `Transfer` category and
   legitimately repeat.
 
+- `coinw report overview <range>` now prints a per-month income/expense bar
+  chart when the range spans more than one calendar month. Bars scale to the
+  largest value in the range so income and expense stay comparable, a month the
+  range only partly covers is labelled with the days it covers (for example
+  `2026-01 (15-31)`), and transfers are excluded as in every other section.
+- `coinw report overview <range>` also repeats the category totals and
+  income/expense summary for each month a multi-month range covers, so a range
+  shows where each month's money went and not only the combined totals. A
+  partial month counts only its covered days, and `% EXP` is recomputed within
+  each month rather than carried over from the range.
+
 ### Changed
 
 - `coinw report budget <range>` is now `coinw report overview <range>`. The

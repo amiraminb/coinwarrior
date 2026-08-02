@@ -20,6 +20,7 @@ import (
 var (
 	reportSectionStyle    = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("111"))
 	reportSubSectionStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("150"))
+	reportMonthStyle      = lipgloss.NewStyle().Bold(true).Underline(true).Foreground(lipgloss.Color("117"))
 )
 
 var reportCmd = &cobra.Command{
@@ -46,7 +47,9 @@ var reportOverviewCmd = &cobra.Command{
 	Long: `Show the category breakdown, budget, and totals for a range.
 
 Prints per-category totals, an income/expense summary, and, when the range is
-exactly one calendar month, that month's budget.
+exactly one calendar month, that month's budget. A range spanning more than one
+month also gets a per-month income/expense bar chart, with partly covered months
+labelled by the days they cover.
 
 Supported ranges: today, yesterday, week, lastweek, month, lastmonth, year, lastyear, or YYYY-MM-DD..YYYY-MM-DD.`,
 	Example: `  coinw report overview month
@@ -68,6 +71,8 @@ Supported ranges: today, yesterday, week, lastweek, month, lastmonth, year, last
 		if err := printCategorySection(transactions, start, end, time.Now()); err != nil {
 			return err
 		}
+		printMonthlyBarsSection(transactions, start, end)
+		printPerMonthSections(transactions, start, end)
 
 		return nil
 	},
@@ -166,6 +171,16 @@ func printCategorySection(transactions []model.Transaction, start, end time.Time
 		return err
 	}
 
+	if !printCategoryTotals(transactions, start, end, "Category Totals (Range)") {
+		fmt.Println("  no transactions in range")
+		return nil
+	}
+
+	fmt.Println()
+	return nil
+}
+
+func printCategoryTotals(transactions []model.Transaction, start, end time.Time, heading string) bool {
 	byCategory := make(map[string][]model.Transaction)
 	for _, tx := range transactions {
 		if tx.Type == model.TransactionTypeTransfer {
@@ -179,11 +194,10 @@ func printCategorySection(transactions []model.Transaction, start, end time.Time
 	}
 
 	if len(byCategory) == 0 {
-		fmt.Println("  no transactions in range")
-		return nil
+		return false
 	}
 
-	fmt.Println(reportSubSectionStyle.Render("Category Totals (Range)"))
+	fmt.Println(reportSubSectionStyle.Render(heading))
 	fmt.Println()
 	totalRows := make([]table.Row, 0)
 	currencyIncome := make(map[string]int64)
@@ -256,8 +270,7 @@ func printCategorySection(transactions []model.Transaction, start, end time.Time
 
 	printIncomeExpenseSummary(currencyIncome, currencyExpense)
 
-	fmt.Println()
-	return nil
+	return true
 }
 
 func printIncomeExpenseSummary(income, expense map[string]int64) {

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/amiraminb/coinwarrior/internal/model"
+	"github.com/charmbracelet/bubbles/table"
 )
 
 func day(t *testing.T, value string) time.Time {
@@ -252,5 +253,127 @@ func TestBarCellOmitsTheSeparatorWhenThereIsNoBar(t *testing.T) {
 	}
 	if cell != "0.00" {
 		t.Errorf("barCell(0, …) = %q, want %q", cell, "0.00")
+	}
+}
+
+func TestFilterByCategoryKeepsOnlyThatCategory(t *testing.T) {
+	transfer := monthlyTx(model.TransactionTypeTransfer, "2026-01-10", 900000)
+	transfer.Category = "Groceries"
+	transfer.ToAccount = "Sav"
+	dining := monthlyTx(model.TransactionTypeExpense, "2026-01-11", 5000)
+	dining.Category = "Dining"
+	transactions := []model.Transaction{
+		monthlyTx(model.TransactionTypeExpense, "2026-01-10", 1000),
+		dining,
+		transfer,
+	}
+
+	got := filterByCategory(transactions, "Groceries")
+
+	if len(got) != 1 {
+		t.Fatalf("got %d transactions, want 1 (Dining and the transfer must drop)", len(got))
+	}
+	if got[0].Category != "Groceries" || got[0].Type != model.TransactionTypeExpense {
+		t.Errorf("kept %+v, want the Groceries expense", got[0])
+	}
+}
+
+func TestFilterByCategoryMatchesCaseInsensitively(t *testing.T) {
+	transactions := []model.Transaction{monthlyTx(model.TransactionTypeExpense, "2026-01-10", 1000)}
+
+	if got := filterByCategory(transactions, "groceries"); len(got) != 1 {
+		t.Errorf("got %d transactions, want 1 despite differing case", len(got))
+	}
+}
+
+func TestFilterByCategoryIsANoOpWithoutACategory(t *testing.T) {
+	transactions := []model.Transaction{
+		monthlyTx(model.TransactionTypeExpense, "2026-01-10", 1000),
+		monthlyTx(model.TransactionTypeTransfer, "2026-01-11", 2000),
+	}
+
+	if got := filterByCategory(transactions, ""); len(got) != 2 {
+		t.Errorf("got %d transactions, want all 2 kept when no category is given", len(got))
+	}
+}
+
+// Spending more must read as worse even though the signed total falls, and
+// earning less must read as worse even though it also falls.
+func TestFormatMonthDeltaDirection(t *testing.T) {
+	key := categoryKey{category: "Groceries", currency: "CAD"}
+
+	tests := []struct {
+		name     string
+		previous int64
+		total    int64
+		want     string
+	}{
+		{"spent more", -10000, -15000, "▲ 50.00"},
+		{"spent less", -15000, -10000, "▼ 50.00"},
+		{"earned more", 500000, 550000, "▼ 500.00"},
+		{"earned less", 500000, 450000, "▲ 500.00"},
+		{"unchanged", -10000, -10000, "="},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := formatMonthDelta(tc.total, key, map[categoryKey]int64{key: tc.previous})
+			if !strings.Contains(got, tc.want) {
+				t.Errorf("formatMonthDelta(%d, prev %d) = %q, want it to contain %q", tc.total, tc.previous, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestFormatMonthDeltaMarksACategoryAbsentLastMonth(t *testing.T) {
+	got := formatMonthDelta(-10000, categoryKey{category: "Spa", currency: "CAD"}, map[categoryKey]int64{})
+
+	if !strings.Contains(got, "new") {
+		t.Errorf("formatMonthDelta with no baseline entry = %q, want it to say new", got)
+	}
+}
+
+// % EXP must stay a share of ALL spending: filtering to one category would
+// otherwise always report 100%.
+func TestExpenseByCurrencyIsTheUnfilteredDenominator(t *testing.T) {
+	groceries := monthlyTx(model.TransactionTypeExpense, "2026-02-05", 25000)
+	housing := monthlyTx(model.TransactionTypeExpense, "2026-02-06", 75000)
+	housing.Category = "Housing"
+	income := monthlyTx(model.TransactionTypeIncome, "2026-02-07", 500000)
+	transfer := monthlyTx(model.TransactionTypeTransfer, "2026-02-08", 900000)
+
+	got := expenseByCurrency([]model.Transaction{groceries, housing, income, transfer}, day(t, "2026-02-01"), day(t, "2026-02-28"))
+
+	if got["CAD"] != 100000 {
+		t.Errorf("CAD expense total = %d, want 100000 (income and transfers excluded)", got["CAD"])
+	}
+}
+
+func TestExpenseByCurrencyIgnoresOtherMonths(t *testing.T) {
+	transactions := []model.Transaction{
+		monthlyTx(model.TransactionTypeExpense, "2026-01-31", 99999),
+		monthlyTx(model.TransactionTypeExpense, "2026-02-05", 25000),
+	}
+
+	got := expenseByCurrency(transactions, day(t, "2026-02-01"), day(t, "2026-02-28"))
+
+	if got["CAD"] != 25000 {
+		t.Errorf("CAD expense total = %d, want 25000", got["CAD"])
+	}
+}
+
+// The delta column is sized from the rendered bytes because the table truncates
+// on byte length, and a colour escape's cost varies by terminal.
+func TestWidestCellMeasuresRenderedBytes(t *testing.T) {
+	rows := []table.Row{
+		{"a", "short"},
+		{"b", "a much longer value"},
+	}
+
+	if got := widestCell(rows, 1); got != len("a much longer value") {
+		t.Errorf("widestCell = %d, want %d", got, len("a much longer value"))
+	}
+	if got := widestCell(rows, 9); got != 0 {
+		t.Errorf("widestCell on a missing column = %d, want 0", got)
 	}
 }

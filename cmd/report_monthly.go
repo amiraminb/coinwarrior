@@ -174,7 +174,7 @@ func printMonthlyBarsSection(transactions []model.Transaction, start, end time.T
 
 // Skipped for a single month, where these totals would restate the range
 // section printed above.
-func printPerMonthSections(transactions []model.Transaction, start, end time.Time) {
+func printPerMonthSections(transactions, shareBase []model.Transaction, start, end time.Time) {
 	spans := monthSpansInRange(start, end)
 	if len(spans) < 2 || !hasReportableTransaction(transactions, start, end) {
 		return
@@ -183,13 +183,17 @@ func printPerMonthSections(transactions []model.Transaction, start, end time.Tim
 	fmt.Println()
 	fmt.Println(reportSectionStyle.Render("Per-Month Breakdown"))
 
+	var baseline map[categoryKey]int64
 	for _, span := range spans {
 		fmt.Println()
 		fmt.Println(reportMonthStyle.Render(span.label))
 		fmt.Println()
-		if !printCategoryTotals(transactions, span.start, span.end, "Category Totals") {
+		totals, ok := printCategoryTotalsWithBaseline(transactions, shareBase, span.start, span.end, "Category Totals", baseline)
+		if !ok {
 			fmt.Println("  no transactions")
+			continue
 		}
+		baseline = totals
 	}
 }
 

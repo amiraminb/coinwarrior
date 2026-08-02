@@ -38,6 +38,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `coinw edit` now picks the category from a list of saved categories instead of
+  a free-text field, with a `[New category]` entry for adding one, matching how
+  `coinw add` works. The cursor opens on the transaction's current category, so
+  pressing enter leaves it unchanged. Transfers skip the category step entirely,
+  since they always carry `Transfer` and never appear in a category breakdown.
 - `coinw report budget <range>` is now `coinw report overview <range>`. The
   command prints per-category totals and an income/expense summary for any
   range, and the budget section only when the range is exactly one calendar

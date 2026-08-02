@@ -82,25 +82,34 @@ func TestAddModelQuitOnlyOnSelectionSteps(t *testing.T) {
 
 func TestEditModelQuitOnlyOnConfirm(t *testing.T) {
 	tx := model.Transaction{ID: "txn_1", Type: model.TransactionTypeExpense, Date: "2026-03-01"}
+	categories := []string{"Groceries", "Dining"}
 
-	m := newEditModel(tx)
-	m.step = editStepConfirm
-	if _, cmd := m.Update(keyRunes("q")); !quits(cmd) {
-		t.Error("q on edit confirm step should quit")
+	for _, step := range []editStep{editStepCategorySelect, editStepCategoryConfirm, editStepConfirm} {
+		if !step.isSelectionStep() {
+			t.Errorf("edit step %d should be a selection step", step)
+		}
+		m := newEditModel(tx, categories)
+		m.step = step
+		if _, cmd := m.Update(keyRunes("q")); !quits(cmd) {
+			t.Errorf("q on edit selection step %d should quit", step)
+		}
 	}
 
 	// editStepDate and editStepAmount are numeric/date text steps: "q" is not a
 	// valid character there, so it is dropped, but it must still never quit.
 	for _, step := range []editStep{editStepDate, editStepAmount, editStepToAccount} {
-		m := newEditModel(tx)
+		m := newEditModel(tx, categories)
 		m.step = step
 		if _, cmd := m.Update(keyRunes("q")); quits(cmd) {
 			t.Errorf("q on edit text step %d should not quit", step)
 		}
 	}
 
-	for _, step := range []editStep{editStepCategory, editStepAccount, editStepNote} {
-		m := newEditModel(tx)
+	for _, step := range []editStep{editStepCategoryInput, editStepAccount, editStepNote} {
+		if step.isSelectionStep() {
+			t.Errorf("edit step %d should be a text step", step)
+		}
+		m := newEditModel(tx, categories)
 		m.step = step
 		next, cmd := m.Update(keyRunes("q"))
 		if quits(cmd) {
@@ -108,9 +117,9 @@ func TestEditModelQuitOnlyOnConfirm(t *testing.T) {
 		}
 		got := next.(editModel)
 		field := map[editStep]string{
-			editStepCategory: got.categoryInput,
-			editStepAccount:  got.accountInput,
-			editStepNote:     got.noteInput,
+			editStepCategoryInput: got.categoryDraft,
+			editStepAccount:       got.accountInput,
+			editStepNote:          got.noteInput,
 		}[step]
 		if field != "q" {
 			t.Errorf("q on edit text step %d was not typed (field=%q)", step, field)

@@ -8,7 +8,7 @@ Local-first CLI tool for tracking personal finances.
 - Interactive CSV import: `coinw import <file.csv>`
 - Duplicate warning on `add` and `import` when a transaction matches an existing
   one's date, category, amount, and type
-- Interactive transaction editing: `coinw edit`
+- Interactive transaction editing: `coinw edit` (category is chosen from a list)
 - Interactive transaction deletion: `coinw delete`
 - Interactive account management: `coinw account`
 - Monthly budgets with rollover: `coinw budget`

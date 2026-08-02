@@ -124,7 +124,14 @@ func runRow(row importer.ParsedRow, index, total int, currency, account string, 
 			case category == "":
 				warning = "choose a category before saving"
 			default:
-				return rowSave, row, category, nil
+				proceed, err := confirmNotDuplicate(row.Type, row.AmountInput, currency, row.Date, category)
+				if err != nil {
+					return rowSkip, row, "", err
+				}
+				if proceed {
+					return rowSave, row, category, nil
+				}
+				warning = "not saved; possible duplicate"
 			}
 		case "edit":
 			updated, err := runRowEdit(row)

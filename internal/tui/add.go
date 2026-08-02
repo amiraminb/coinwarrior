@@ -553,6 +553,15 @@ func RunAddTransaction() error {
 		return nil
 	}
 
+	proceed, err := confirmNotDuplicate(result.selected, result.amountInput, result.currencyInput, result.dateInput, result.categoryInput)
+	if err != nil {
+		return err
+	}
+	if !proceed {
+		fmt.Println("not saved; possible duplicate")
+		return nil
+	}
+
 	if result.createAccount && result.selected != model.TransactionTypeTransfer {
 		if _, err := Svc.AddAccount(result.accountInput, result.currencyInput, "0"); err != nil {
 			return err

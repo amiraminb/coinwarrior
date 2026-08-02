@@ -29,18 +29,28 @@ var reportCmd = &cobra.Command{
 
 Subcommands:
   account                           account balances and totals
-  budget <range>                    budget and category breakdown for a range
+  overview <range>                  category breakdown, budget, and totals for a range
   transactions [category] <range>   transactions in a range, optionally for one category`,
+	Args: cobra.ArbitraryArgs,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if len(args) > 0 {
+			return fmt.Errorf("unknown report subcommand '%s' (see 'coinw report --help')", args[0])
+		}
+		return cmd.Help()
+	},
 }
 
-var reportBudgetCmd = &cobra.Command{
-	Use:   "budget <range>",
-	Short: "Show budget and category breakdown for a range",
-	Long: `Show budget and category breakdown for a range.
+var reportOverviewCmd = &cobra.Command{
+	Use:   "overview <range>",
+	Short: "Show the category breakdown, budget, and totals for a range",
+	Long: `Show the category breakdown, budget, and totals for a range.
+
+Prints per-category totals, an income/expense summary, and, when the range is
+exactly one calendar month, that month's budget.
 
 Supported ranges: today, yesterday, week, lastweek, month, lastmonth, year, lastyear, or YYYY-MM-DD..YYYY-MM-DD.`,
-	Example: `  coinw report budget month
-  coinw report budget 2026-04-01..2026-04-30`,
+	Example: `  coinw report overview month
+  coinw report overview 2026-04-01..2026-04-30`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		start, end, err := daterange.Resolve(args[0], time.Now())
@@ -53,7 +63,7 @@ Supported ranges: today, yesterday, week, lastweek, month, lastmonth, year, last
 			return err
 		}
 
-		fmt.Println(tui.HeaderStyle.Render(fmt.Sprintf("report %s..%s", start.Format("2006-01-02"), end.Format("2006-01-02"))))
+		fmt.Println(tui.HeaderStyle.Render(fmt.Sprintf("overview %s..%s", start.Format("2006-01-02"), end.Format("2006-01-02"))))
 		fmt.Println()
 		if err := printCategorySection(transactions, start, end, time.Now()); err != nil {
 			return err
@@ -363,7 +373,7 @@ func formatPercent(part, total int64) string {
 }
 
 func init() {
-	reportCmd.AddCommand(reportBudgetCmd)
+	reportCmd.AddCommand(reportOverviewCmd)
 	reportCmd.AddCommand(reportAccountCmd)
 	reportCmd.AddCommand(reportTransactionsCmd)
 	rootCmd.AddCommand(reportCmd)

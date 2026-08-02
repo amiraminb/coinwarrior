@@ -118,19 +118,17 @@ func runRow(row importer.ParsedRow, index, total int, currency, account string, 
 				category = picked
 			}
 		case "save":
+			if blocker := rowSaveBlocker(row, category); blocker != "" {
+				warning = blocker
+				break
+			}
+			proceed, err := confirmNotDuplicate(row.Type, row.AmountInput, currency, row.Date, category)
 			switch {
-			case row.ParseErr != nil:
-				warning = "fix the row before saving: " + row.ParseErr.Error()
-			case category == "":
-				warning = "choose a category before saving"
+			case err != nil:
+				warning = "fix the row before saving: " + err.Error()
+			case proceed:
+				return rowSave, row, category, nil
 			default:
-				proceed, err := confirmNotDuplicate(row.Type, row.AmountInput, currency, row.Date, category)
-				if err != nil {
-					return rowSkip, row, "", err
-				}
-				if proceed {
-					return rowSave, row, category, nil
-				}
 				warning = "not saved; possible duplicate"
 			}
 		case "edit":
@@ -150,6 +148,21 @@ func runRow(row importer.ParsedRow, index, total int, currency, account string, 
 			return rowQuit, row, "", nil
 		}
 	}
+}
+
+// The CSV parser only flags bad dates and debit/credit conflicts, so the amount
+// is re-checked here: an unparseable one would otherwise fail mid-save.
+func rowSaveBlocker(row importer.ParsedRow, category string) string {
+	if row.ParseErr != nil {
+		return "fix the row before saving: " + row.ParseErr.Error()
+	}
+	if err := validateAmount(row.AmountInput); err != nil {
+		return "fix the row before saving: " + err.Error()
+	}
+	if category == "" {
+		return "choose a category before saving"
+	}
+	return ""
 }
 
 func rowSummary(row importer.ParsedRow, category, currency, account, warning string) string {

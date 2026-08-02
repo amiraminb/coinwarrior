@@ -35,6 +35,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   shows where each month's money went and not only the combined totals. A
   partial month counts only its covered days, and `% EXP` is recomputed within
   each month rather than carried over from the range.
+- `coinw report overview [category] <range>` now takes an optional category as
+  the first argument. Every section, including the monthly bars and the per-month
+  breakdown, then covers only that category. The name is matched
+  case-insensitively against the saved categories, an unknown one is rejected
+  with the list of valid names, and transfers are excluded.
+- Each per-month category table carries a `VS PREV` column comparing that month
+  to the one before it: red `▲` when the month moved for the worse (more spent,
+  or less earned) and green `▼` when it improved, with `new` for a category
+  absent the previous month. The first month in a range has no baseline, so it
+  has no such column.
 
 ### Changed
 

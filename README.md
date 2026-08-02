@@ -14,7 +14,7 @@ Local-first CLI tool for tracking personal finances.
 - Monthly budgets with rollover: `coinw budget`
 - Recurring transactions with monthly cadence: `coinw recurring`
 - Account balances report: `coinw report account`
-- Range overview report: `coinw report overview <range>`
+- Range overview report: `coinw report overview [category] <range>`
 - Transactions report: `coinw report transactions [category] <range>`
 
 ## Installation
@@ -120,6 +120,23 @@ Below the chart, each month gets its own category totals and income/expense
 summary, so you can see where that month's money went. A partial month counts
 only the days the range covers, and the `% EXP` share is recomputed within each
 month rather than carried over from the whole range.
+
+Each per-month table also compares itself to the month before it. Red `▲` means
+the month moved for the worse (more spent, or less earned) and green `▼` means it
+improved:
+
+```
+ CATEGORY              CUR    TOTAL      TXNS   % EXP     VS PREV
+ Groceries             CAD    -150.00    1      100.0%    ▲ 50.00
+ Income                CAD    5,500.00   1      0.0%      ▼ 1,000.00
+```
+
+Pass a category to narrow every section, including the bars, to just that
+category:
+
+```bash
+coinw report overview <category> <range>
+```
 
 - Show account balances:
 

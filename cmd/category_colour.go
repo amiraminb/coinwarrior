@@ -9,14 +9,12 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// Five hues validated all-pairs on light and dark surfaces (CVD ΔE 9.2); a
-// sixth drops to 5.6 and no seventh clears the normal-vision floor.
 var categoryColours = []lipgloss.Style{
+	lipgloss.NewStyle().Foreground(lipgloss.Color("146")),
+	lipgloss.NewStyle().Foreground(lipgloss.Color("101")),
+	lipgloss.NewStyle().Foreground(lipgloss.Color("179")),
 	lipgloss.NewStyle().Foreground(lipgloss.Color("68")),
-	lipgloss.NewStyle().Foreground(lipgloss.Color("196")),
-	lipgloss.NewStyle().Foreground(lipgloss.Color("162")),
-	lipgloss.NewStyle().Foreground(lipgloss.Color("129")),
-	lipgloss.NewStyle().Foreground(lipgloss.Color("28")),
+	lipgloss.NewStyle().Foreground(lipgloss.Color("174")),
 }
 
 var transferCategoryStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("245"))

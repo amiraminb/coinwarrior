@@ -49,12 +49,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Every saved category now appears in each category table, including the ones
   with no activity, so a month has a fixed set of rows and an unspent category is
   visible rather than absent.
-- `coinw report transactions` colours each category, so rows can be grouped by
-  eye. Colours are assigned by the category's position in the saved list, making
-  them stable across runs and commands. Five muted, low-saturation hues are used,
-  chosen to sit quietly against surrounding text rather than to be maximally
-  distinct; categories beyond the fifth reuse a hue, and the name printed
-  alongside is what actually identifies the category.
 
 ### Changed
 

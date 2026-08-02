@@ -85,8 +85,8 @@ func TestEditUncategorizedStaysUncategorizedOnEnter(t *testing.T) {
 	m := newEditModel(expenseTx(""), []string{"Housing", "Groceries"})
 	m.step = editStepCategorySelect
 
-	if m.categories[0] != noCategoryChoice {
-		t.Errorf("categories[0] = %q, want %q", m.categories[0], noCategoryChoice)
+	if m.categories[0] != noCategoryLabel {
+		t.Errorf("categories[0] = %q, want %q", m.categories[0], noCategoryLabel)
 	}
 
 	m = advance(m, "enter")
@@ -249,5 +249,68 @@ func TestEditCategoryViewLabelsAnEmptyCurrentCategory(t *testing.T) {
 
 	if !strings.Contains(m.View(), "(no category)") {
 		t.Errorf("an uncategorized transaction should show (no category):\n%s", m.View())
+	}
+}
+
+// A category literally named "(no category)" must survive: the clear-category
+// row is identified by position, not by matching that display string.
+func TestEditCategoryNamedLikeTheNoCategoryLabelSurvives(t *testing.T) {
+	m := newEditModel(expenseTx(noCategoryLabel), []string{"Housing"})
+	m.step = editStepCategorySelect
+
+	m = advance(m, "enter")
+
+	if m.categoryInput != noCategoryLabel {
+		t.Errorf("categoryInput = %q, want %q preserved", m.categoryInput, noCategoryLabel)
+	}
+}
+
+func TestEditPickingASavedCategoryNamedLikeTheLabelKeepsIt(t *testing.T) {
+	m := newEditModel(expenseTx("Housing"), []string{"Housing", noCategoryLabel})
+	m.step = editStepCategorySelect
+
+	m = advance(m, "down", "enter")
+
+	if m.categoryInput != noCategoryLabel {
+		t.Errorf("categoryInput = %q, want the saved category %q", m.categoryInput, noCategoryLabel)
+	}
+}
+
+func TestEditClearRowIndexIsOnlySetForAnUncategorizedTransaction(t *testing.T) {
+	uncategorized := newEditModel(expenseTx(""), []string{"Housing"})
+	if uncategorized.clearCategoryIndex != 0 {
+		t.Errorf("clearCategoryIndex = %d, want 0", uncategorized.clearCategoryIndex)
+	}
+
+	for _, stored := range []string{"Housing", "Retired", noCategoryLabel} {
+		m := newEditModel(expenseTx(stored), []string{"Housing"})
+		if m.clearCategoryIndex != -1 {
+			t.Errorf("stored %q: clearCategoryIndex = %d, want -1", stored, m.clearCategoryIndex)
+		}
+	}
+}
+
+func TestEditCategoriesEmptyListStillOffersTheCurrentCategory(t *testing.T) {
+	m := newEditModel(expenseTx("Groceries"), nil)
+	m.step = editStepCategorySelect
+
+	if len(m.categories) != 1 || m.categories[0] != "Groceries" {
+		t.Fatalf("categories = %q, want just the current category", m.categories)
+	}
+
+	m = advance(m, "enter")
+	if m.categoryInput != "Groceries" {
+		t.Errorf("categoryInput = %q, want %q with an empty saved list", m.categoryInput, "Groceries")
+	}
+}
+
+func TestEditWhitespacePaddedCategoryIsNotDuplicated(t *testing.T) {
+	m := newEditModel(expenseTx("  Groceries  "), []string{"Housing", "Groceries"})
+
+	if len(m.categories) != 2 {
+		t.Errorf("categories = %q, want no duplicate row for a padded stored value", m.categories)
+	}
+	if m.categoryCursor != 1 {
+		t.Errorf("categoryCursor = %d, want 1 (the existing Groceries row)", m.categoryCursor)
 	}
 }

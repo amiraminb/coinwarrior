@@ -13,7 +13,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-const noCategoryChoice = "(no category)"
+const noCategoryLabel = "(no category)"
 
 type editStep int
 
@@ -47,25 +47,30 @@ type editModel struct {
 	pendingCategory string
 	categoryConfirm int
 
+	// Index of the "clear the category" row, or -1. Identified by position so a
+	// real category cannot collide with a sentinel string.
+	clearCategoryIndex int
+
 	confirmCursor int
 	confirmed     bool
 	errMessage    string
 }
 
 func newEditModel(selected model.Transaction, categories []string) editModel {
-	categories, cursor := editCategoryChoices(categories, selected.Category)
+	categories, cursor, clearIndex := editCategoryChoices(categories, selected.Category)
 
 	return editModel{
-		step:           editStepDate,
-		selected:       selected,
-		dateInput:      selected.Date,
-		amountInput:    formatEditAmountInput(selected.AmountMinor),
-		categoryInput:  selected.Category,
-		accountInput:   selected.Account,
-		toAccountInput: selected.ToAccount,
-		noteInput:      selected.Note,
-		categories:     categories,
-		categoryCursor: cursor,
+		step:               editStepDate,
+		selected:           selected,
+		dateInput:          selected.Date,
+		amountInput:        formatEditAmountInput(selected.AmountMinor),
+		categoryInput:      selected.Category,
+		accountInput:       selected.Account,
+		toAccountInput:     selected.ToAccount,
+		noteInput:          selected.Note,
+		categories:         categories,
+		categoryCursor:     cursor,
+		clearCategoryIndex: clearIndex,
 	}
 }
 
@@ -183,7 +188,7 @@ func (m editModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.errMessage = ""
 				if m.categoryCursor < len(m.categories) {
 					picked := m.categories[m.categoryCursor]
-					if picked == noCategoryChoice {
+					if m.categoryCursor == m.clearCategoryIndex {
 						picked = ""
 					}
 					m.categoryInput = picked
@@ -534,22 +539,23 @@ func FormatEditableTransaction(tx model.Transaction) string {
 
 // An unlisted stored category is prepended rather than left out, where a single
 // enter on the wrong pre-selected entry would silently reassign it.
-func editCategoryChoices(categories []string, current string) ([]string, int) {
-	choices := slices.Clone(categories)
+func editCategoryChoices(categories []string, current string) (choices []string, cursor, clearIndex int) {
+	choices = slices.Clone(categories)
+	trimmed := strings.TrimSpace(current)
 
-	if i := slices.IndexFunc(choices, func(c string) bool { return strings.EqualFold(c, current) }); i >= 0 {
-		return choices, i
+	if i := slices.IndexFunc(choices, func(c string) bool { return strings.EqualFold(c, trimmed) }); i >= 0 {
+		return choices, i, -1
 	}
-	if strings.TrimSpace(current) == "" {
-		return append([]string{noCategoryChoice}, choices...), 0
+	if trimmed == "" {
+		return append([]string{noCategoryLabel}, choices...), 0, 0
 	}
 
-	return append([]string{current}, choices...), 0
+	return append([]string{trimmed}, choices...), 0, -1
 }
 
 func editCategoryLabel(category string) string {
 	if strings.TrimSpace(category) == "" {
-		return "(no category)"
+		return noCategoryLabel
 	}
 	return category
 }

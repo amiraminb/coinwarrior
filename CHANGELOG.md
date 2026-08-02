@@ -51,10 +51,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   visible rather than absent.
 - `coinw report transactions` colours each category, so rows can be grouped by
   eye. Colours are assigned by the category's position in the saved list, making
-  them stable across runs and commands. Five hues are used: that is the most that
-  stays distinguishable in a terminal for colour-blind and normal vision alike on
-  both light and dark backgrounds, so categories beyond the fifth reuse a hue and
-  the name alongside it disambiguates.
+  them stable across runs and commands. Five muted, low-saturation hues are used,
+  chosen to sit quietly against surrounding text rather than to be maximally
+  distinct; categories beyond the fifth reuse a hue, and the name printed
+  alongside is what actually identifies the category.
 
 ### Changed
 

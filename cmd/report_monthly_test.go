@@ -418,9 +418,7 @@ func TestVsPrevHeaderIsNotTruncatedWhenDeltasAreNarrow(t *testing.T) {
 	}
 }
 
-// A category missing for one month must still be compared against when it
-// returns, rather than looking brand new and reporting its whole total.
-func TestPerMonthBaselineSurvivesAMonthWithoutTheCategory(t *testing.T) {
+func TestPerMonthBaselineIsStrictlyThePreviousMonth(t *testing.T) {
 	rent := func(date string, amountMinor int64) model.Transaction {
 		tx := monthlyTx(model.TransactionTypeExpense, date, amountMinor)
 		tx.Category = "Rent"
@@ -435,11 +433,14 @@ func TestPerMonthBaselineSurvivesAMonthWithoutTheCategory(t *testing.T) {
 		rent("2026-03-05", 130000),
 	}, day(t, "2026-01-01"), day(t, "2026-03-31"))
 
-	if !strings.Contains(got, "▲ 100.00") {
-		t.Errorf("March should compare Rent against January (▲ 100.00):\n%s", got)
+	if !strings.Contains(got, "▲ 1,300.00") {
+		t.Errorf("March should compare Rent against February's zero (▲ 1,300.00):\n%s", got)
 	}
-	if strings.Contains(got, "▲ 1,300.00") {
-		t.Errorf("March compared Rent against zero instead of January:\n%s", got)
+	if strings.Contains(got, "▲ 100.00") {
+		t.Errorf("March reached past February to January instead of comparing to zero:\n%s", got)
+	}
+	if !strings.Contains(got, "▼ 1,200.00") {
+		t.Errorf("February should show Rent dropping to zero (▼ 1,200.00):\n%s", got)
 	}
 }
 

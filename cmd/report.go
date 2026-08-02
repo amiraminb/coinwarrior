@@ -201,10 +201,7 @@ func printCategorySection(transactions, shareBase []model.Transaction, start, en
 		}
 	}
 
-	if !printCategoryTotals(transactions, shareBase, start, end, "Category Totals (Range)") {
-		fmt.Println("  no transactions in range")
-		return nil
-	}
+	printCategoryTotals(transactions, shareBase, start, end, "Category Totals (Range)")
 
 	fmt.Println()
 	return nil
@@ -237,15 +234,17 @@ type categoryKey struct {
 	currency string
 }
 
-func printCategoryTotals(transactions, shareBase []model.Transaction, start, end time.Time, heading string) bool {
-	_, ok := printCategoryTotalsWithBaseline(transactions, shareBase, start, end, heading, nil)
-	return ok
+func printCategoryTotals(transactions, shareBase []model.Transaction, start, end time.Time, heading string) {
+	printCategoryTotalsWithBaseline(transactions, shareBase, start, end, heading, nil)
 }
 
 // shareBase is the unfiltered set, so % EXP stays each category's share of all
 // spending rather than collapsing to 100% under a category filter.
-func printCategoryTotalsWithBaseline(transactions, shareBase []model.Transaction, start, end time.Time, heading string, baseline map[categoryKey]int64) (map[categoryKey]int64, bool) {
+func printCategoryTotalsWithBaseline(transactions, shareBase []model.Transaction, start, end time.Time, heading string, baseline map[categoryKey]int64) map[categoryKey]int64 {
 	byCategory := make(map[string][]model.Transaction)
+	for _, category := range reportedCategories(transactions) {
+		byCategory[category] = nil
+	}
 	for _, tx := range transactions {
 		if tx.Type == model.TransactionTypeTransfer {
 			continue
@@ -258,7 +257,8 @@ func printCategoryTotalsWithBaseline(transactions, shareBase []model.Transaction
 	}
 
 	if len(byCategory) == 0 {
-		return nil, false
+		fmt.Println("  no categories")
+		return nil
 	}
 
 	fmt.Println(reportSubSectionStyle.Render(heading))
@@ -302,10 +302,14 @@ func printCategoryTotalsWithBaseline(transactions, shareBase []model.Transaction
 		return categoryReports[i].totalExpenseMinor > categoryReports[j].totalExpenseMinor
 	})
 
+	ledgerCurrency := dominantCurrency(shareBase)
 	for _, report := range categoryReports {
 		currencies := make([]string, 0, len(report.totalsByCurrency))
 		for currency := range report.totalsByCurrency {
 			currencies = append(currencies, currency)
+		}
+		if len(currencies) == 0 {
+			currencies = append(currencies, ledgerCurrency)
 		}
 		sort.Strings(currencies)
 
@@ -348,7 +352,45 @@ func printCategoryTotalsWithBaseline(transactions, shareBase []model.Transaction
 
 	printIncomeExpenseSummary(currencyIncome, currencyExpense)
 
-	return totals, true
+	return totals
+}
+
+// Saved categories are listed even at zero, so a month shows every category and
+// the previous-month comparison has a figure for each.
+func reportedCategories(transactions []model.Transaction) []string {
+	saved, err := svc.LoadCategories()
+	if err != nil {
+		saved = nil
+	}
+
+	names := slices.Clone(saved)
+	for _, tx := range transactions {
+		if tx.Type == model.TransactionTypeTransfer {
+			continue
+		}
+		if !slices.ContainsFunc(names, func(c string) bool { return strings.EqualFold(c, tx.Category) }) {
+			names = append(names, tx.Category)
+		}
+	}
+
+	return names
+}
+
+// A zero row still needs a currency; the ledger's most-used one is the only
+// sensible guess when the category itself has no transactions.
+func dominantCurrency(transactions []model.Transaction) string {
+	counts := make(map[string]int)
+	for _, tx := range transactions {
+		counts[tx.Currency]++
+	}
+
+	best, bestCount := "CAD", 0
+	for _, currency := range slices.Sorted(maps.Keys(counts)) {
+		if counts[currency] > bestCount {
+			best, bestCount = currency, counts[currency]
+		}
+	}
+	return best
 }
 
 func expenseByCurrency(transactions []model.Transaction, start, end time.Time) map[string]int64 {

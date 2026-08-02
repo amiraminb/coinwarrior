@@ -96,6 +96,13 @@ valid categories rather than printing an empty table. Transfers are excluded
 from a category-filtered listing, matching `coinw report overview`, so the table
 and the summary below it always agree.
 
+Each row is coloured by its category, so transactions can be grouped by eye.
+Colours follow the category's position in your saved list and so stay the same
+between runs. Only five hues are used, since that is the most a terminal can show
+while staying distinguishable for colour-blind and normal vision on both light
+and dark backgrounds; a sixth category reuses a hue, and the category name beside
+it tells them apart.
+
 - Generate an overview for a range (per-category totals, an income/expense
   summary, and the month's budget when the range is exactly one calendar month):
 
@@ -121,14 +128,19 @@ summary, so you can see where that month's money went. A partial month counts
 only the days the range covers, and the `% EXP` share is recomputed within each
 month rather than carried over from the whole range.
 
-Each per-month table also compares itself to the month before it. Red `▲` means
-the month moved for the worse (more spent, or less earned) and green `▼` means it
-improved:
+Every saved category is listed, including the ones with no activity, so each
+month has the same set of rows and a category you spent nothing on is visible
+rather than missing.
+
+Each per-month table also compares itself to the month immediately before it. Red
+`▲` means the month moved for the worse (more spent, or less earned) and green `▼`
+means it improved. A category with no figure last month is compared against zero:
 
 ```
  CATEGORY              CUR    TOTAL      TXNS   % EXP     VS PREV
  Groceries             CAD    -150.00    1      100.0%    ▲ 50.00
  Income                CAD    5,500.00   1      0.0%      ▼ 1,000.00
+ Dining                CAD    0.00       0      -         =
 ```
 
 Pass a category to narrow every section, including the bars, to just that

@@ -41,11 +41,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   case-insensitively against the saved categories, an unknown one is rejected
   with the list of valid names, and transfers are excluded.
 - Each per-month category table carries a `VS PREV` column comparing that month
-  to the one before it: red `▲` when the month moved for the worse (more spent,
-  or less earned) and green `▼` when it improved. A category absent the previous
-  month is compared against zero, so a new expense reads as worse and new income
-  as better. The first month in a range has no baseline, so it has no such
-  column.
+  to the one immediately before it: red `▲` when the month moved for the worse
+  (more spent, or less earned) and green `▼` when it improved. A category with no
+  figure in the previous month is compared against zero, so a new expense reads
+  as worse and new income as better. The first month in a range has no baseline,
+  so it has no such column.
+- Every saved category now appears in each category table, including the ones
+  with no activity, so a month has a fixed set of rows and an unspent category is
+  visible rather than absent.
+- `coinw report transactions` colours each category, so rows can be grouped by
+  eye. Colours are assigned by the category's position in the saved list, making
+  them stable across runs and commands. Five hues are used: that is the most that
+  stays distinguishable in a terminal for colour-blind and normal vision alike on
+  both light and dark backgrounds, so categories beyond the fifth reuse a hue and
+  the name alongside it disambiguates.
 
 ### Changed
 

@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"io"
+	"os"
 	"slices"
 	"strings"
 	"testing"
@@ -325,11 +327,27 @@ func TestFormatMonthDeltaDirection(t *testing.T) {
 	}
 }
 
-func TestFormatMonthDeltaMarksACategoryAbsentLastMonth(t *testing.T) {
-	got := formatMonthDelta(-10000, categoryKey{category: "Spa", currency: "CAD"}, map[categoryKey]int64{})
+func TestFormatMonthDeltaTreatsAnAbsentCategoryAsZero(t *testing.T) {
+	tests := []struct {
+		name  string
+		total int64
+		want  string
+	}{
+		{"new expense reads as worse", -10000, "▲ 100.00"},
+		{"new income reads as better", 500000, "▼ 5,000.00"},
+	}
 
-	if !strings.Contains(got, "new") {
-		t.Errorf("formatMonthDelta with no baseline entry = %q, want it to say new", got)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := formatMonthDelta(tc.total, categoryKey{category: "Spa", currency: "CAD"}, map[categoryKey]int64{})
+
+			if !strings.Contains(got, tc.want) {
+				t.Errorf("formatMonthDelta(%d, no baseline) = %q, want it to contain %q", tc.total, got, tc.want)
+			}
+			if strings.Contains(got, "new") {
+				t.Errorf("formatMonthDelta(%d, no baseline) = %q, want a delta rather than \"new\"", tc.total, got)
+			}
+		})
 	}
 }
 
@@ -376,4 +394,71 @@ func TestWidestCellMeasuresRenderedBytes(t *testing.T) {
 	if got := widestCell(rows, 9); got != 0 {
 		t.Errorf("widestCell on a missing column = %d, want 0", got)
 	}
+}
+
+// With colour stripped, an all-"=" column is narrower than its own title, and
+// the table would truncate the header to "VS…".
+func TestVsPrevHeaderIsNotTruncatedWhenDeltasAreNarrow(t *testing.T) {
+	rent := func(date string) model.Transaction {
+		tx := monthlyTx(model.TransactionTypeExpense, date, 10000)
+		tx.Category = "Rent"
+		return tx
+	}
+
+	got := capturePerMonthSections(t, []model.Transaction{
+		rent("2026-01-05"),
+		rent("2026-02-05"),
+	}, day(t, "2026-01-01"), day(t, "2026-02-28"))
+
+	if !strings.Contains(got, "VS PREV") {
+		t.Errorf("the VS PREV header was truncated:\n%s", got)
+	}
+	if strings.Contains(got, "…") {
+		t.Errorf("output contains a truncation marker:\n%s", got)
+	}
+}
+
+// A category missing for one month must still be compared against when it
+// returns, rather than looking brand new and reporting its whole total.
+func TestPerMonthBaselineSurvivesAMonthWithoutTheCategory(t *testing.T) {
+	rent := func(date string, amountMinor int64) model.Transaction {
+		tx := monthlyTx(model.TransactionTypeExpense, date, amountMinor)
+		tx.Category = "Rent"
+		return tx
+	}
+	other := monthlyTx(model.TransactionTypeExpense, "2026-02-05", 5000)
+	other.Category = "Other"
+
+	got := capturePerMonthSections(t, []model.Transaction{
+		rent("2026-01-05", 120000),
+		other,
+		rent("2026-03-05", 130000),
+	}, day(t, "2026-01-01"), day(t, "2026-03-31"))
+
+	if !strings.Contains(got, "▲ 100.00") {
+		t.Errorf("March should compare Rent against January (▲ 100.00):\n%s", got)
+	}
+	if strings.Contains(got, "▲ 1,300.00") {
+		t.Errorf("March compared Rent against zero instead of January:\n%s", got)
+	}
+}
+
+func capturePerMonthSections(t *testing.T, transactions []model.Transaction, start, end time.Time) string {
+	t.Helper()
+
+	original := os.Stdout
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("pipe: %v", err)
+	}
+	os.Stdout = w
+	printPerMonthSections(transactions, transactions, start, end)
+	w.Close()
+	os.Stdout = original
+
+	out, err := io.ReadAll(r)
+	if err != nil {
+		t.Fatalf("read captured output: %v", err)
+	}
+	return string(out)
 }

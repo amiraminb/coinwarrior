@@ -340,7 +340,9 @@ func printCategoryTotalsWithBaseline(transactions, shareBase []model.Transaction
 		{Title: "% EXP", Width: 8},
 	}
 	if baseline != nil {
-		columns = append(columns, table.Column{Title: "VS PREV", Width: widestCell(totalRows, len(columns)) + 2})
+		const title = "VS PREV"
+		width := max(widestCell(totalRows, len(columns)), len(title)) + 2
+		columns = append(columns, table.Column{Title: title, Width: width})
 	}
 	tui.RenderTable(columns, totalRows)
 
@@ -377,12 +379,7 @@ func widestCell(rows []table.Row, column int) int {
 // Colour reflects whether the month moved for the worse, not whether the signed
 // number rose: spending more is red even though the total falls.
 func formatMonthDelta(total int64, key categoryKey, baseline map[categoryKey]int64) string {
-	previous, ok := baseline[key]
-	if !ok {
-		return reportMutedStyle.Render("new")
-	}
-
-	change := total - previous
+	change := total - baseline[key]
 	if change == 0 {
 		return reportMutedStyle.Render("=")
 	}

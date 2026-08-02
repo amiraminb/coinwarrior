@@ -193,7 +193,10 @@ func printPerMonthSections(transactions, shareBase []model.Transaction, start, e
 			fmt.Println("  no transactions")
 			continue
 		}
-		baseline = totals
+		if baseline == nil {
+			baseline = map[categoryKey]int64{}
+		}
+		maps.Copy(baseline, totals)
 	}
 }
 

@@ -13,12 +13,16 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
+const noCategoryChoice = "(no category)"
+
 type editStep int
 
 const (
 	editStepDate editStep = iota
 	editStepAmount
-	editStepCategory
+	editStepCategorySelect
+	editStepCategoryInput
+	editStepCategoryConfirm
 	editStepAccount
 	editStepToAccount
 	editStepNote
@@ -37,12 +41,20 @@ type editModel struct {
 	toAccountInput string
 	noteInput      string
 
+	categories      []string
+	categoryCursor  int
+	categoryDraft   string
+	pendingCategory string
+	categoryConfirm int
+
 	confirmCursor int
 	confirmed     bool
 	errMessage    string
 }
 
-func newEditModel(selected model.Transaction) editModel {
+func newEditModel(selected model.Transaction, categories []string) editModel {
+	categories, cursor := editCategoryChoices(categories, selected.Category)
+
 	return editModel{
 		step:           editStepDate,
 		selected:       selected,
@@ -52,18 +64,34 @@ func newEditModel(selected model.Transaction) editModel {
 		accountInput:   selected.Account,
 		toAccountInput: selected.ToAccount,
 		noteInput:      selected.Note,
+		categories:     categories,
+		categoryCursor: cursor,
 	}
+}
+
+// Transfers skip the category steps: they always carry model.TransferCategory
+// and are excluded from every category report, so the choice would be inert.
+func (m editModel) stepAfterAmount() editStep {
+	if m.selected.Type == model.TransactionTypeTransfer {
+		return editStepAccount
+	}
+	return editStepCategorySelect
 }
 
 func (m editModel) Init() tea.Cmd {
 	return nil
 }
 
-// isSelectionStep reports whether the step is a menu (Yes/No confirm) rather
+// isSelectionStep reports whether the step is a menu (list or Yes/No) rather
 // than free-text entry. On menu steps a bare "q" quits; on text steps it must
 // be typed into the field, so the global handler lets it fall through.
 func (s editStep) isSelectionStep() bool {
-	return s == editStepConfirm
+	switch s {
+	case editStepCategorySelect, editStepCategoryConfirm, editStepConfirm:
+		return true
+	default:
+		return false
+	}
 }
 
 func (m editModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -123,7 +151,7 @@ func (m editModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					break
 				}
 				m.errMessage = ""
-				m.step = editStepCategory
+				m.step = m.stepAfterAmount()
 			case "esc":
 				m.errMessage = ""
 				m.step = editStepDate
@@ -141,22 +169,79 @@ func (m editModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					}
 				}
 			}
-		case editStepCategory:
+		case editStepCategorySelect:
 			switch msg.String() {
+			case "up", "k":
+				if m.categoryCursor > 0 {
+					m.categoryCursor--
+				}
+			case "down", "j":
+				if m.categoryCursor < len(m.categories) {
+					m.categoryCursor++
+				}
 			case "enter":
 				m.errMessage = ""
-				m.step = editStepAccount
+				if m.categoryCursor < len(m.categories) {
+					picked := m.categories[m.categoryCursor]
+					if picked == noCategoryChoice {
+						picked = ""
+					}
+					m.categoryInput = picked
+					m.step = editStepAccount
+					break
+				}
+				m.categoryDraft = ""
+				m.step = editStepCategoryInput
 			case "esc":
 				m.errMessage = ""
 				m.step = editStepAmount
+			}
+		case editStepCategoryInput:
+			switch msg.String() {
+			case "enter":
+				draft := strings.TrimSpace(m.categoryDraft)
+				if draft == "" {
+					m.errMessage = "category is required"
+					break
+				}
+				m.errMessage = ""
+				if i := slices.IndexFunc(m.categories, func(c string) bool { return strings.EqualFold(c, draft) }); i >= 0 {
+					m.categoryInput = m.categories[i]
+					m.step = editStepAccount
+					break
+				}
+				m.pendingCategory = draft
+				m.categoryConfirm = 0
+				m.step = editStepCategoryConfirm
+			case "esc":
+				m.errMessage = ""
+				m.step = editStepCategorySelect
 			case "backspace":
-				if len(m.categoryInput) > 0 {
-					m.categoryInput = m.categoryInput[:len(m.categoryInput)-1]
+				m.errMessage = ""
+				if len(m.categoryDraft) > 0 {
+					m.categoryDraft = m.categoryDraft[:len(m.categoryDraft)-1]
 				}
 			default:
 				if len(msg.String()) == 1 {
-					m.categoryInput += msg.String()
+					m.categoryDraft += msg.String()
+					m.errMessage = ""
 				}
+			}
+		case editStepCategoryConfirm:
+			switch msg.String() {
+			case "left", "h", "up", "k":
+				m.categoryConfirm = 0
+			case "right", "l", "down", "j":
+				m.categoryConfirm = 1
+			case "enter":
+				if m.categoryConfirm == 0 {
+					m.categoryInput = m.pendingCategory
+					m.step = editStepAccount
+					break
+				}
+				m.step = editStepCategoryInput
+			case "esc":
+				m.step = editStepCategoryInput
 			}
 		case editStepAccount:
 			switch msg.String() {
@@ -173,7 +258,11 @@ func (m editModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			case "esc":
 				m.errMessage = ""
-				m.step = editStepCategory
+				if m.selected.Type == model.TransactionTypeTransfer {
+					m.step = editStepAmount
+				} else {
+					m.step = editStepCategorySelect
+				}
 			case "backspace":
 				m.errMessage = ""
 				if len(m.accountInput) > 0 {
@@ -272,12 +361,39 @@ func (m editModel) View() string {
 		s += renderActiveField("Amount: ", m.amountInput) + "\n"
 		s += renderError(m.errMessage)
 		s += mutedStyle.Render("(enter to continue, esc to go back, ctrl+c to quit)") + "\n"
-	case editStepCategory:
+	case editStepCategorySelect:
+		s += renderField("Editing: ", m.selected.ID) + "\n"
+		s += renderField("Date: ", m.dateInput) + "\n"
+		s += renderField("Amount: ", m.amountInput) + "\n"
+		s += renderField("Current category: ", editCategoryLabel(m.selected.Category)) + "\n\n"
+		s += "Select category:\n\n"
+		for i, c := range m.categories {
+			line := "  " + c
+			if i == m.categoryCursor {
+				line = focusStyle.Render("> " + c)
+			}
+			s += line + "\n"
+		}
+		newOptionLine := "  [New category]"
+		if m.categoryCursor == len(m.categories) {
+			newOptionLine = focusStyle.Render("> [New category]")
+		}
+		s += newOptionLine + "\n"
+		s += "\n" + mutedStyle.Render("(use ↑/↓ and enter, esc to go back, q to quit)") + "\n"
+	case editStepCategoryInput:
 		s += renderField("Editing: ", m.selected.ID) + "\n"
 		s += renderField("Date: ", m.dateInput) + "\n"
 		s += renderField("Amount: ", m.amountInput) + "\n\n"
-		s += renderActiveField("Category: ", m.categoryInput) + "\n"
+		s += renderActiveField("Enter category: ", m.categoryDraft) + "\n"
+		s += renderError(m.errMessage)
 		s += mutedStyle.Render("(enter to continue, esc to go back, ctrl+c to quit)") + "\n"
+	case editStepCategoryConfirm:
+		s += renderField("Editing: ", m.selected.ID) + "\n"
+		s += renderField("Date: ", m.dateInput) + "\n"
+		s += renderField("Amount: ", m.amountInput) + "\n\n"
+		s += warnStyle.Render("Category '"+m.pendingCategory+"' is new. Create it?") + "\n\n"
+		s += renderYesNo(m.categoryConfirm == 0) + "\n"
+		s += mutedStyle.Render("(use ←/→ or ↑/↓ and enter)") + "\n"
 	case editStepAccount:
 		s += renderField("Editing: ", m.selected.ID) + "\n"
 		s += renderField("Date: ", m.dateInput) + "\n"
@@ -336,7 +452,12 @@ func RunEditTransaction() error {
 		return nil
 	}
 
-	p := tea.NewProgram(newEditModel(selected))
+	categories, err := Svc.LoadCategories()
+	if err != nil {
+		return err
+	}
+
+	p := tea.NewProgram(newEditModel(selected, categories))
 	finalModel, err := p.Run()
 	if err != nil {
 		return err
@@ -346,6 +467,12 @@ func RunEditTransaction() error {
 	if !result.confirmed || result.selected.ID == "" {
 		fmt.Println("edit cancelled")
 		return nil
+	}
+
+	if result.selected.Type != model.TransactionTypeTransfer {
+		if err := Svc.AddCategory(result.categoryInput); err != nil {
+			return err
+		}
 	}
 
 	date := result.dateInput
@@ -403,6 +530,28 @@ func FormatEditableTransaction(tx model.Transaction) string {
 	}
 
 	return label
+}
+
+// An unlisted stored category is prepended rather than left out, where a single
+// enter on the wrong pre-selected entry would silently reassign it.
+func editCategoryChoices(categories []string, current string) ([]string, int) {
+	choices := slices.Clone(categories)
+
+	if i := slices.IndexFunc(choices, func(c string) bool { return strings.EqualFold(c, current) }); i >= 0 {
+		return choices, i
+	}
+	if strings.TrimSpace(current) == "" {
+		return append([]string{noCategoryChoice}, choices...), 0
+	}
+
+	return append([]string{current}, choices...), 0
+}
+
+func editCategoryLabel(category string) string {
+	if strings.TrimSpace(category) == "" {
+		return "(no category)"
+	}
+	return category
 }
 
 func formatEditAmountInput(amountMinor int64) string {

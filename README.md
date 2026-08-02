@@ -96,12 +96,6 @@ valid categories rather than printing an empty table. Transfers are excluded
 from a category-filtered listing, matching `coinw report overview`, so the table
 and the summary below it always agree.
 
-Each row is coloured by its category, so transactions can be grouped by eye.
-Colours follow the category's position in your saved list and so stay the same
-between runs. Five muted hues are used, kept low-saturation so a long listing
-stays comfortable to read rather than shouting; a sixth category reuses a hue,
-and the category name beside it is what identifies it.
-
 - Generate an overview for a range (per-category totals, an income/expense
   summary, and the month's budget when the range is exactly one calendar month):
 

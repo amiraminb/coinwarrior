@@ -6,6 +6,8 @@ Local-first CLI tool for tracking personal finances.
 
 - Interactive transaction entry: `coinw add`
 - Interactive CSV import: `coinw import <file.csv>`
+- Duplicate warning on `add` and `import` when a transaction matches an existing
+  one's date, category, amount, and type
 - Interactive transaction editing: `coinw edit`
 - Interactive transaction deletion: `coinw delete`
 - Interactive account management: `coinw account`
@@ -67,6 +69,14 @@ coinw account
 ```bash
 coinw add
 ```
+
+If the transaction you are entering matches an existing one on date, category,
+amount, and type, `add` asks for confirmation before saving so an accidental
+double entry is caught. `import` does the same on each row, including against
+rows saved earlier in the same run. Transfers are never flagged, since they all
+share the `Transfer` category and legitimately repeat. Currency is not part of
+the match, so `20.00 CAD` and `20.00 USD` on the same date and category both
+trigger the warning.
 
 - List transactions in a range:
 

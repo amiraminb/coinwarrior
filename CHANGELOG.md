@@ -17,6 +17,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   category-filtered listing, matching `report budget`.
 - Shell completion for `report transactions` suggests saved categories and the
   supported range keywords.
+- `coinw add` and `coinw import` now warn before saving a transaction that
+  matches an existing one's date, category, amount, and type, asking for
+  confirmation so an accidental double entry is caught. The import check also
+  sees rows saved earlier in the same run. Currency is not part of the match, so
+  the same amount in two currencies on one date and category is still flagged.
+  Transfers are never flagged, since they all share the `Transfer` category and
+  legitimately repeat.
 
 ### Changed
 

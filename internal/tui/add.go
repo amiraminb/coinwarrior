@@ -22,7 +22,6 @@ const (
 	stepType addStep = iota
 	stepAmount
 	stepDate
-	stepCurrency
 	stepCategorySelect
 	stepCategoryInput
 	stepCategoryConfirm
@@ -43,7 +42,6 @@ type addModel struct {
 
 	amountInput    string
 	dateInput      string
-	currencyInput  string
 	categoryInput  string
 	accountInput   string
 	toAccountInput string
@@ -65,13 +63,12 @@ type addModel struct {
 
 func newAddModel(categories []string, accounts []string) addModel {
 	return addModel{
-		step:          stepType,
-		cursor:        0,
-		choices:       []string{model.TransactionTypeExpense, model.TransactionTypeIncome, model.TransactionTypeTransfer},
-		dateInput:     time.Now().Format("2006-01-02"),
-		currencyInput: "CAD",
-		categories:    categories,
-		accounts:      accounts,
+		step:       stepType,
+		cursor:     0,
+		choices:    []string{model.TransactionTypeExpense, model.TransactionTypeIncome},
+		dateInput:  time.Now().Format("2006-01-02"),
+		categories: categories,
+		accounts:   accounts,
 	}
 }
 
@@ -141,7 +138,7 @@ func (m addModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			switch msg.String() {
 			case "enter":
 				if _, err := time.Parse("2006-01-02", strings.TrimSpace(m.dateInput)); err == nil {
-					m.step = stepCurrency
+					m.step = stepCategorySelect
 				}
 			case "esc":
 				m.step = stepAmount
@@ -154,30 +151,6 @@ func (m addModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					ch := msg.String()
 					if (ch >= "0" && ch <= "9") || ch == "-" {
 						m.dateInput += ch
-					}
-				}
-			}
-		case stepCurrency:
-			switch msg.String() {
-			case "enter":
-				if m.currencyInput != "" {
-					if m.selected == model.TransactionTypeTransfer {
-						m.step = stepAccountSelect
-					} else {
-						m.step = stepCategorySelect
-					}
-				}
-			case "esc":
-				m.step = stepDate
-			case "backspace":
-				if len(m.currencyInput) > 0 {
-					m.currencyInput = m.currencyInput[:len(m.currencyInput)-1]
-				}
-			default:
-				if len(msg.String()) == 1 {
-					ch := strings.ToUpper(msg.String())
-					if len(m.currencyInput) < 3 && ((ch >= "A" && ch <= "Z") || (ch >= "a" && ch <= "z")) {
-						m.currencyInput += ch
 					}
 				}
 			}
@@ -386,15 +359,9 @@ func (m addModel) View() string {
 		s += renderField("Amount: ", m.amountInput) + "\n\n"
 		s += renderActiveField("Enter date (YYYY-MM-DD): ", m.dateInput) + "\n"
 		s += mutedStyle.Render("(press enter to continue, esc to go back, ctrl+c to quit)") + "\n"
-	case stepCurrency:
-		s += renderField("Type selected: ", m.selected) + "\n"
-		s += renderField("Amount: ", m.amountInput) + "\n\n"
-		s += renderActiveField("Enter currency: ", m.currencyInput) + "\n"
-		s += mutedStyle.Render("(press enter to continue, esc to go back, ctrl+c to quit)") + "\n"
 	case stepCategorySelect:
 		s += renderField("Type selected: ", m.selected) + "\n"
 		s += renderField("Amount: ", m.amountInput) + "\n"
-		s += renderField("Currency: ", m.currencyInput) + "\n\n"
 		s += "Select category:\n\n"
 		for i, c := range m.categories {
 			line := "  " + c
@@ -412,13 +379,11 @@ func (m addModel) View() string {
 	case stepCategoryInput:
 		s += renderField("Type selected: ", m.selected) + "\n"
 		s += renderField("Amount: ", m.amountInput) + "\n"
-		s += renderField("Currency: ", m.currencyInput) + "\n\n"
 		s += renderActiveField("Enter category: ", m.categoryDraft) + "\n"
 		s += mutedStyle.Render("(enter to continue, esc to go back, ctrl+c to quit)") + "\n"
 	case stepCategoryConfirm:
 		s += renderField("Type selected: ", m.selected) + "\n"
 		s += renderField("Amount: ", m.amountInput) + "\n"
-		s += renderField("Currency: ", m.currencyInput) + "\n\n"
 		s += warnStyle.Render("Category '"+m.pendingCategory+"' is new. Create it?") + "\n\n"
 		yesPrefix := "  "
 		noPrefix := "  "
@@ -434,7 +399,6 @@ func (m addModel) View() string {
 		s += renderField("Type selected: ", m.selected) + "\n"
 		s += renderField("Amount: ", m.amountInput) + "\n"
 		s += renderField("Date: ", m.dateInput) + "\n"
-		s += renderField("Currency: ", m.currencyInput) + "\n"
 		if m.selected != model.TransactionTypeTransfer {
 			s += renderField("Category: ", m.categoryInput) + "\n\n"
 			s += "Select account:\n\n"
@@ -460,7 +424,6 @@ func (m addModel) View() string {
 		s += renderField("Type selected: ", m.selected) + "\n"
 		s += renderField("Amount: ", m.amountInput) + "\n"
 		s += renderField("Date: ", m.dateInput) + "\n"
-		s += renderField("Currency: ", m.currencyInput) + "\n"
 		s += renderField("Category: ", m.categoryInput) + "\n\n"
 		s += renderActiveField("Enter account: ", m.accountDraft) + "\n"
 		s += mutedStyle.Render("(enter to continue, esc to go back, ctrl+c to quit)") + "\n"
@@ -468,7 +431,6 @@ func (m addModel) View() string {
 		s += renderField("Type selected: ", m.selected) + "\n"
 		s += renderField("Amount: ", m.amountInput) + "\n"
 		s += renderField("Date: ", m.dateInput) + "\n"
-		s += renderField("Currency: ", m.currencyInput) + "\n"
 		s += renderField("From account: ", m.accountInput) + "\n\n"
 		s += "Select to account:\n\n"
 		for i, a := range m.accounts {
@@ -489,7 +451,6 @@ func (m addModel) View() string {
 		s += renderField("Type selected: ", m.selected) + "\n"
 		s += renderField("Amount: ", m.amountInput) + "\n"
 		s += renderField("Date: ", m.dateInput) + "\n"
-		s += renderField("Currency: ", m.currencyInput) + "\n"
 		s += renderField("Category: ", m.categoryInput) + "\n\n"
 		s += warnStyle.Render("Account '"+m.pendingAccount+"' is new. Create it?") + "\n\n"
 		yesPrefix := "  "
@@ -506,7 +467,6 @@ func (m addModel) View() string {
 		s += renderField("Type selected: ", m.selected) + "\n"
 		s += renderField("Amount: ", m.amountInput) + "\n"
 		s += renderField("Date: ", m.dateInput) + "\n"
-		s += renderField("Currency: ", m.currencyInput) + "\n"
 		if m.selected != model.TransactionTypeTransfer {
 			s += renderField("Category: ", m.categoryInput) + "\n"
 			s += renderField("Account: ", m.accountInput) + "\n\n"
@@ -540,7 +500,7 @@ func RunAddTransaction() error {
 		return err
 	}
 	result := finalModel.(addModel)
-	if result.selected == "" || result.amountInput == "" || result.currencyInput == "" || result.accountInput == "" || result.dateInput == "" {
+	if result.selected == "" || result.amountInput == "" || result.accountInput == "" || result.dateInput == "" {
 		fmt.Println("add cancelled")
 		return nil
 	}
@@ -553,7 +513,8 @@ func RunAddTransaction() error {
 		return nil
 	}
 
-	proceed, err := confirmNotDuplicate(result.selected, result.amountInput, result.currencyInput, result.dateInput, result.categoryInput)
+	// TODO: this is buggy
+	proceed, err := confirmNotDuplicate(result.selected, result.amountInput, "CAD", result.dateInput, result.categoryInput)
 	if err != nil {
 		return err
 	}
@@ -563,7 +524,7 @@ func RunAddTransaction() error {
 	}
 
 	if result.createAccount && result.selected != model.TransactionTypeTransfer {
-		if _, err := Svc.AddAccount(result.accountInput, result.currencyInput, "0"); err != nil {
+		if _, err := Svc.AddAccount(result.accountInput, "CAD", "0"); err != nil {
 			return err
 		}
 	}
@@ -574,7 +535,7 @@ func RunAddTransaction() error {
 		}
 	}
 
-	tx, err := Svc.AddTransaction(result.selected, result.amountInput, result.currencyInput, result.dateInput, result.categoryInput, result.accountInput, result.toAccountInput, result.noteInput)
+	tx, err := Svc.AddTransaction(result.selected, result.amountInput, "CAD", result.dateInput, result.categoryInput, result.accountInput, result.toAccountInput, result.noteInput)
 	if err != nil {
 		return err
 	}

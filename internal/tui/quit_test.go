@@ -40,7 +40,7 @@ func TestAddModelQuitOnlyOnSelectionSteps(t *testing.T) {
 	}
 
 	// All text steps must not quit on "q" (the core of issue #13).
-	for _, step := range []addStep{stepAmount, stepDate, stepCurrency, stepCategoryInput, stepAccountInput, stepNote} {
+	for _, step := range []addStep{stepAmount, stepDate, stepCategoryInput, stepAccountInput, stepNote} {
 		if step.isSelectionStep() {
 			t.Errorf("step %d should be a text step", step)
 		}
@@ -56,7 +56,6 @@ func TestAddModelQuitOnlyOnSelectionSteps(t *testing.T) {
 		step  addStep
 		field func(addModel) string
 	}{
-		{stepCurrency, func(m addModel) string { return m.currencyInput }},
 		{stepCategoryInput, func(m addModel) string { return m.categoryDraft }},
 		{stepAccountInput, func(m addModel) string { return m.accountDraft }},
 		{stepNote, func(m addModel) string { return m.noteInput }},
@@ -64,7 +63,6 @@ func TestAddModelQuitOnlyOnSelectionSteps(t *testing.T) {
 	for _, c := range capture {
 		m := newAddModel(nil, nil)
 		m.step = c.step
-		m.currencyInput = "" // cleared so the 3-char currency cap doesn't reject "q"
 		next, _ := m.Update(keyRunes("q"))
 		// Currency uppercases input; the others keep it as-is.
 		got := c.field(next.(addModel))

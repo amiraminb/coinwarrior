@@ -8,8 +8,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var futureValueHorizons = []int{5, 10, 15, 20}
-
 var futureCmd = &cobra.Command{
 	Use:   "future <value>",
 	Short: "Show a value's projected growth",
@@ -33,7 +31,7 @@ func runFutureValue(input string) error {
 	rate := money.FutureValueInterestPercent
 	fmt.Println(tui.HeaderStyle.Render(fmt.Sprintf("Future Value (%d%% Annual Interest)", rate)))
 	fmt.Printf("Starting value: %s\n", money.Format(amountMinor))
-	for _, years := range futureValueHorizons {
+	for _, years := range money.FutureValueHorizons() {
 		futureMinor := money.FutureValueMinor(amountMinor, years)
 		fmt.Printf("  %2d years: %s\n", years, money.Format(futureMinor))
 	}

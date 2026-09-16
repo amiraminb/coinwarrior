@@ -79,8 +79,8 @@ share the `Transfer` category and legitimately repeat. Currency is not part of
 the match, so `20.00 CAD` and `20.00 USD` on the same date and category both
 trigger the warning.
 
-After saving, `coinw add` shows the amount's projected value after 10, 15, and
-20 years at 5% annual compound interest.
+After saving, `coinw add` shows the amount's projected value after 5, 10, 15,
+and 20 years at 5% annual compound interest.
 
 - Calculate the future value of an amount:
 
@@ -110,7 +110,7 @@ from a category-filtered listing, matching `coinw report overview`, so the table
 and the summary below it always agree.
 
 The report also shows total spending projected at 5% annual compound interest
-after 10, 15, and 20 years, grouped by currency. Income and transfers are not
+after 5, 10, 15, and 20 years, grouped by currency. Income and transfers are not
 included in spending projections.
 
 - Generate an overview for a range (per-category totals, an income/expense
@@ -125,7 +125,7 @@ chart. Bars scale to the largest value in the range, and a month the range only
 partly covers is labelled with the days it covers.
 
 The overview includes a range-level spending projection at 5% annual compound
-interest for 10, 15, and 20 years, grouped by currency.
+interest for 5, 10, 15, and 20 years, grouped by currency.
 
 ```
 Monthly Income / Expense (CAD)

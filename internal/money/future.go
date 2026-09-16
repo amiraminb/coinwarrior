@@ -13,7 +13,7 @@ const (
 
 // FutureValueHorizons are the projections shown to users.
 func FutureValueHorizons() []int {
-	return []int{10, 15, 20}
+	return []int{5, 10, 15, 20}
 }
 
 // FutureValueMinor compounds an amount annually at 5%, rounding to the nearest

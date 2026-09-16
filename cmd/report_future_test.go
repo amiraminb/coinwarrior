@@ -15,8 +15,8 @@ func TestFutureValueRowsAreSortedAndProjected(t *testing.T) {
 	})
 
 	want := []table.Row{
-		{"CAD", "100.00", "162.89", "207.89", "265.33"},
-		{"USD", "25.00", "40.72", "51.97", "66.33"},
+		{"CAD", "100.00", "127.63", "162.89", "207.89", "265.33"},
+		{"USD", "25.00", "31.91", "40.72", "51.97", "66.33"},
 	}
 	if !reflect.DeepEqual(rows, want) {
 		t.Errorf("futureValueRows() = %v, want %v", rows, want)

@@ -106,3 +106,30 @@ func TestParseFormatRoundTrip(t *testing.T) {
 		}
 	}
 }
+
+func TestFutureValueMinor(t *testing.T) {
+	tests := []struct {
+		years int
+		want  int64
+	}{
+		{5, 12763},
+		{10, 16289},
+		{15, 20789},
+		{20, 26533},
+	}
+
+	for _, tc := range tests {
+		if got := FutureValueMinor(10000, tc.years); got != tc.want {
+			t.Errorf("FutureValueMinor(100.00, %d) = %d, want %d", tc.years, got, tc.want)
+		}
+	}
+}
+
+func TestFutureValueMinorPreservesZeroAndSupportsNegativeAmounts(t *testing.T) {
+	if got := FutureValueMinor(0, 20); got != 0 {
+		t.Errorf("FutureValueMinor(0, 20) = %d, want 0", got)
+	}
+	if got := FutureValueMinor(-10000, 10); got != -16289 {
+		t.Errorf("FutureValueMinor(-100.00, 10) = %d, want -16289", got)
+	}
+}

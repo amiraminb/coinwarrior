@@ -124,9 +124,24 @@ are excluded from a category-filtered listing, matching 'report overview'.`,
 			}
 			printIncomeExpenseSummary(income, expense)
 		}
+		printTransactionSpendingFutureValue(items)
 
 		return nil
 	},
+}
+
+func printTransactionSpendingFutureValue(transactions []model.Transaction) {
+	printFutureValueTable(transactionSpendingByCurrency(transactions))
+}
+
+func transactionSpendingByCurrency(transactions []model.Transaction) map[string]int64 {
+	spending := make(map[string]int64)
+	for _, tx := range transactions {
+		if tx.Type == model.TransactionTypeExpense {
+			spending[tx.Currency] += tx.AmountMinor
+		}
+	}
+	return spending
 }
 
 func completeTransactionsArgs(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {

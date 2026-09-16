@@ -97,6 +97,7 @@ Supported ranges: today, yesterday, week, lastweek, month, lastmonth, year, last
 		if err := printCategorySection(transactions, allTransactions, start, end, time.Now(), category != ""); err != nil {
 			return err
 		}
+		printSpendingFutureValue(transactions, start, end)
 		printMonthlyBarsSection(transactions, start, end)
 		printPerMonthSections(transactions, allTransactions, start, end)
 
@@ -406,6 +407,44 @@ func expenseByCurrency(transactions []model.Transaction, start, end time.Time) m
 		totals[tx.Currency] += tx.AmountMinor
 	}
 	return totals
+}
+
+func printSpendingFutureValue(transactions []model.Transaction, start, end time.Time) {
+	printFutureValueTable(expenseByCurrency(transactions, start, end))
+}
+
+func printFutureValueTable(spending map[string]int64) {
+	if len(spending) == 0 {
+		return
+	}
+
+	rows := futureValueRows(spending)
+
+	fmt.Println()
+	fmt.Println(reportSubSectionStyle.Render(fmt.Sprintf("Spending Future Value (%d%% Annual Interest)", money.FutureValueInterestPercent)))
+	fmt.Println()
+	columns := []table.Column{
+		{Title: "CUR", Width: 5},
+		{Title: "SPENT", Width: 14},
+	}
+	for _, years := range money.FutureValueHorizons() {
+		columns = append(columns, table.Column{Title: fmt.Sprintf("%d YEARS", years), Width: 14})
+	}
+	tui.RenderTable(columns, rows)
+}
+
+func futureValueRows(spending map[string]int64) []table.Row {
+	currencies := slices.Sorted(maps.Keys(spending))
+	rows := make([]table.Row, 0, len(currencies))
+	for _, currency := range currencies {
+		spent := spending[currency]
+		row := table.Row{currency, money.Format(spent)}
+		for _, years := range money.FutureValueHorizons() {
+			row = append(row, money.Format(money.FutureValueMinor(spent, years)))
+		}
+		rows = append(rows, row)
+	}
+	return rows
 }
 
 func widestCell(rows []table.Row, column int) int {

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/amiraminb/coinwarrior/internal/model"
+	"github.com/amiraminb/coinwarrior/internal/money"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -541,5 +542,15 @@ func RunAddTransaction() error {
 	}
 
 	fmt.Printf("saved transaction: %s\n", tx.ID)
+	printFutureValue(tx.AmountMinor, tx.Currency)
 	return nil
+}
+
+func printFutureValue(amountMinor int64, currency string) {
+	fmt.Println()
+	fmt.Println(HeaderStyle.Render(fmt.Sprintf("Future Value (%d%% Annual Interest)", money.FutureValueInterestPercent)))
+	for _, years := range money.FutureValueHorizons() {
+		futureMinor := money.FutureValueMinor(amountMinor, years)
+		fmt.Printf("  %2d years: %s %s\n", years, currency, money.Format(futureMinor))
+	}
 }

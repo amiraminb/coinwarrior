@@ -493,7 +493,7 @@ func (m addModel) View() string {
 }
 
 func RunAddTransaction(options AddTransactionOptions) error {
-	categories, err := Svc.LoadCategories()
+	categories, err := loadCategoryChoices()
 	if err != nil {
 		return err
 	}

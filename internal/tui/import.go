@@ -33,7 +33,7 @@ func RunImport(rows []importer.ParsedRow) error {
 		return nil
 	}
 
-	categories, err := Svc.LoadCategories()
+	categories, err := loadCategoryChoices()
 	if err != nil {
 		return err
 	}
@@ -55,7 +55,7 @@ func RunImport(rows []importer.ParsedRow) error {
 			}
 			fmt.Printf("saved transaction: %s\n", tx.ID)
 			saved++
-			if categories, err = Svc.LoadCategories(); err != nil {
+			if categories, err = loadCategoryChoices(); err != nil {
 				return err
 			}
 		case rowSkip:

@@ -274,7 +274,7 @@ func RunBudgetAction() error {
 }
 
 func runBudgetSetInteractive() (bool, error) {
-	categories, err := Svc.LoadCategories()
+	categories, err := loadCategoryChoices()
 	if err != nil {
 		return false, err
 	}

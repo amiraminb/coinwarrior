@@ -457,7 +457,7 @@ func RunEditTransaction() error {
 		return nil
 	}
 
-	categories, err := Svc.LoadCategories()
+	categories, err := loadCategoryChoices()
 	if err != nil {
 		return err
 	}

@@ -647,7 +647,7 @@ func (m recurringFormModel) View() string {
 }
 
 func loadRecurringFormDeps() (categories, accounts []string, err error) {
-	categories, err = Svc.LoadCategories()
+	categories, err = loadCategoryChoices()
 	if err != nil {
 		return nil, nil, err
 	}

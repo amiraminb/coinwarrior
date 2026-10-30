@@ -209,12 +209,49 @@ func TestMonthlyBreakdownSeparatesCurrencies(t *testing.T) {
 }
 
 func TestMonthlyBreakdownLabelsRowsWithTheirMonth(t *testing.T) {
-	transactions := []model.Transaction{monthlyTx(model.TransactionTypeExpense, "2026-01-20", 1000)}
+	transactions := []model.Transaction{
+		monthlyTx(model.TransactionTypeExpense, "2026-01-20", 1000),
+		monthlyTx(model.TransactionTypeExpense, "2026-02-05", 2000),
+	}
 
 	rows := monthlyBreakdown(transactions, day(t, "2026-01-15"), day(t, "2026-02-10"))["CAD"]
 
 	if rows[0].label != "2026-01 (15-31)" || rows[1].label != "2026-02 (01-10)" {
 		t.Errorf("labels = %q / %q, want the partial-month spans", rows[0].label, rows[1].label)
+	}
+}
+
+func TestMonthlyBreakdownOmitsEmptyMonths(t *testing.T) {
+	usd := monthlyTx(model.TransactionTypeExpense, "2026-02-10", 5000)
+	usd.Currency = "USD"
+	transactions := []model.Transaction{
+		monthlyTx(model.TransactionTypeExpense, "2026-03-10", 2000),
+		monthlyTx(model.TransactionTypeIncome, "2026-03-10", 2000),
+		monthlyTx(model.TransactionTypeExpense, "2026-01-15", 1000),
+		monthlyTx(model.TransactionTypeExpense, "2026-06-10", 0),
+		monthlyTx(model.TransactionTypeTransfer, "2026-04-10", 900000),
+		monthlyTx(model.TransactionTypeExpense, "2026-05-32", 1000),
+		monthlyTx(model.TransactionTypeExpense, "2026-01-14", 1000),
+		monthlyTx(model.TransactionTypeExpense, "2100-01-01", 1000),
+		usd,
+	}
+
+	got := monthlyBreakdown(transactions, day(t, "2026-01-15"), day(t, "2099-12-31"))
+	for currency, want := range map[string][]string{
+		"CAD": {"2026-01 (15-31)", "2026-03", "2026-06"},
+		"USD": {"2026-02"},
+	} {
+		if len(got[currency]) != len(want) {
+			t.Errorf("%s has %d monthly rows, want %d", currency, len(got[currency]), len(want))
+			continue
+		}
+		var labels []string
+		for _, row := range got[currency] {
+			labels = append(labels, row.label)
+		}
+		if !slices.Equal(labels, want) {
+			t.Errorf("%s months = %v, want %v (including zero-value and zero-net activity)", currency, labels, want)
+		}
 	}
 }
 
@@ -444,20 +481,60 @@ func TestPerMonthBaselineIsStrictlyThePreviousMonth(t *testing.T) {
 	}
 }
 
+func TestPerMonthSectionsOmitEmptyMonthsAfterFiltering(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	dining := monthlyTx(model.TransactionTypeExpense, "2026-02-05", 5000)
+	dining.Category = "Dining"
+	transactions := []model.Transaction{
+		monthlyTx(model.TransactionTypeExpense, "2026-01-05", 120000),
+		dining,
+		monthlyTx(model.TransactionTypeExpense, "2026-03-05", 130000),
+		monthlyTx(model.TransactionTypeTransfer, "2026-04-05", 900000),
+	}
+
+	got := capturePerMonthSections(t, filterByCategory(transactions, "Groceries"), day(t, "2025-12-01"), day(t, "2099-12-31"))
+	if count := strings.Count(got, "Category Totals"); count != 2 {
+		t.Errorf("got %d monthly tables, want only January and March", count)
+	}
+	for _, month := range []string{"2026-01", "2026-03"} {
+		if !strings.Contains(got, month) {
+			t.Errorf("missing month with data: %s", month)
+		}
+	}
+	for _, month := range []string{"2025-12", "2026-02", "2026-04", "2099-12"} {
+		if strings.Contains(got, month) {
+			t.Errorf("empty month should be omitted: %s", month)
+		}
+	}
+	if !strings.Contains(got, "▲ 1,300.00") || strings.Contains(got, "▲ 100.00") {
+		t.Errorf("March should compare against February's zero, even though February is hidden:\n%s", got)
+	}
+
+	got = capturePerMonthSections(t, transactions, day(t, "2026-04-01"), day(t, "2099-12-31"))
+	if got != "" {
+		t.Errorf("a range with no income or expenses should have no per-month sections:\n%s", got)
+	}
+}
+
 func capturePerMonthSections(t *testing.T, transactions []model.Transaction, start, end time.Time) string {
 	t.Helper()
 
-	original := os.Stdout
-	r, w, err := os.Pipe()
+	// A long range can exceed a pipe's buffer if empty months regress.
+	output, err := os.CreateTemp(t.TempDir(), "report-*.txt")
 	if err != nil {
-		t.Fatalf("pipe: %v", err)
+		t.Fatalf("create output file: %v", err)
 	}
-	os.Stdout = w
-	printPerMonthSections(transactions, transactions, start, end)
-	w.Close()
-	os.Stdout = original
+	defer output.Close()
 
-	out, err := io.ReadAll(r)
+	original := os.Stdout
+	os.Stdout = output
+	defer func() { os.Stdout = original }()
+	printPerMonthSections(transactions, transactions, start, end)
+
+	if _, err := output.Seek(0, io.SeekStart); err != nil {
+		t.Fatalf("rewind captured output: %v", err)
+	}
+	out, err := io.ReadAll(output)
 	if err != nil {
 		t.Fatalf("read captured output: %v", err)
 	}

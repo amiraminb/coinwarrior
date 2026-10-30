@@ -124,6 +124,10 @@ A range spanning more than one month also gets a per-month income/expense bar
 chart. Bars scale to the largest value in the range, and a month the range only
 partly covers is labelled with the days it covers.
 
+The chart and per-month breakdown omit months with no income or expense
+transactions matching the report. Each currency's chart shows only its active
+months, even when the range extends far into the future.
+
 The overview includes a range-level spending projection at 5% annual compound
 interest for 5, 10, 15, and 20 years, grouped by currency.
 

@@ -54,6 +54,7 @@ Prints per-category totals, an income/expense summary, and, when the range is
 exactly one calendar month, that month's budget. A range spanning more than one
 month also gets a per-month income/expense bar chart, with partly covered months
 labelled by the days they cover, and the same breakdown repeated per month.
+Months without income or expense transactions are omitted.
 
 When a category is given, every section covers only that category. It is matched
 case-insensitively against the saved categories, and transfers are excluded.

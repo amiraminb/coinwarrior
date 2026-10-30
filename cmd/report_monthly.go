@@ -17,9 +17,10 @@ import (
 const monthlyBarWidth = 24
 
 type monthlyTotals struct {
-	label        string
-	incomeMinor  int64
-	expenseMinor int64
+	label           string
+	incomeMinor     int64
+	expenseMinor    int64
+	hasTransactions bool
 }
 
 type monthSpan struct {
@@ -105,6 +106,7 @@ func monthlyBreakdown(transactions []model.Transaction, start, end time.Time) ma
 				rows[j].label = label
 			}
 		}
+		rows[i].hasTransactions = true
 		switch tx.Type {
 		case model.TransactionTypeIncome:
 			rows[i].incomeMinor += tx.AmountMinor
@@ -112,6 +114,14 @@ func monthlyBreakdown(transactions []model.Transaction, start, end time.Time) ma
 			rows[i].expenseMinor += tx.AmountMinor
 		}
 		byCurrency[tx.Currency] = rows
+	}
+
+	for currency, rows := range byCurrency {
+		// Activity, rather than the totals, distinguishes an empty month from
+		// one with zero-value transactions.
+		byCurrency[currency] = slices.DeleteFunc(rows, func(row monthlyTotals) bool {
+			return !row.hasTransactions
+		})
 	}
 
 	return byCurrency
@@ -185,6 +195,12 @@ func printPerMonthSections(transactions, shareBase []model.Transaction, start, e
 
 	var baseline map[categoryKey]int64
 	for i, span := range spans {
+		if !hasReportableTransaction(transactions, span.start, span.end) {
+			// The next month still compares against this calendar month's zero,
+			// not the last month that happened to be displayed.
+			baseline = nil
+			continue
+		}
 		fmt.Println()
 		fmt.Println(reportMonthStyle.Render(span.label))
 		fmt.Println()
@@ -197,7 +213,7 @@ func printPerMonthSections(transactions, shareBase []model.Transaction, start, e
 
 func hasReportableTransaction(transactions []model.Transaction, start, end time.Time) bool {
 	return slices.ContainsFunc(transactions, func(tx model.Transaction) bool {
-		if tx.Type == model.TransactionTypeTransfer {
+		if tx.Type != model.TransactionTypeIncome && tx.Type != model.TransactionTypeExpense {
 			return false
 		}
 		inRange, err := daterange.Contains(tx.Date, start, end)

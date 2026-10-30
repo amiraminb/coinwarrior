@@ -4,7 +4,7 @@ Local-first CLI tool for tracking personal finances.
 
 ## Current Features
 
-- Interactive transaction entry: `coinw add`
+- Transaction entry with flags and interactive prompts for missing fields: `coinw add`
 - Future-value calculator: `coinw future <value>`
 - Interactive CSV import: `coinw import <file.csv>`
 - Duplicate warning on `add` and `import` when a transaction matches an existing
@@ -70,6 +70,29 @@ coinw account
 ```bash
 coinw add
 ```
+
+Supply any fields as flags to skip their prompts:
+
+```bash
+coinw add -t expense -a 20 -d 2026-05-21 -c Housing
+coinw add -t expense -a 20 -d 2026-05-21
+```
+
+The second command opens the category picker first, then asks for an account and
+an optional note. Any omitted field is collected in the TUI, including type,
+amount, and date. Running `coinw add` with no flags opens the full form.
+
+To save without the entry form, supply every field (`--note ""` means no note):
+
+```bash
+coinw add -t expense -a 20 -d 2026-05-21 -c Housing --account Checking --note ""
+```
+
+Flags: `-t`/`--type` (`expense` or `income`), `-a`/`--amount`, `-d`/`--date`
+(`YYYY-MM-DD`), `-c`/`--category`, `--account`, and `-n`/`--note`. Category and
+account flags match saved names case-insensitively; omit the flag to create a new
+one through the TUI. Amounts use CAD, as in the interactive add form. Invalid flag
+values fail before prompting or saving.
 
 If the transaction you are entering matches an existing one on date, category,
 amount, and type, `add` asks for confirmation before saving so an accidental

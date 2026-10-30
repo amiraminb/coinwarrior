@@ -35,7 +35,8 @@ const (
 )
 
 type addModel struct {
-	step addStep
+	step   addStep
+	preset map[addStep]bool
 
 	cursor   int
 	choices  []string
@@ -92,6 +93,7 @@ func (s addStep) isSelectionStep() bool {
 }
 
 func (m addModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	previousStep := m.step
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
@@ -255,8 +257,8 @@ func (m addModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if draft != "" {
 					if containsFold(m.accounts, draft) {
 						m.accountInput = draft
-						m.step = stepDone
-						return m, tea.Quit
+						m.step = stepNote
+						break
 					}
 					m.pendingAccount = draft
 					m.accountConfirm = 0
@@ -334,6 +336,12 @@ func (m addModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 		}
+	}
+	if m.step != previousStep {
+		m.skipPresetSteps(previousStep)
+	}
+	if m.step == stepDone {
+		return m, tea.Quit
 	}
 	return m, nil
 }
@@ -484,7 +492,7 @@ func (m addModel) View() string {
 	return s
 }
 
-func RunAddTransaction() error {
+func RunAddTransaction(options AddTransactionOptions) error {
 	categories, err := Svc.LoadCategories()
 	if err != nil {
 		return err
@@ -494,13 +502,26 @@ func RunAddTransaction() error {
 		return err
 	}
 
-	m := newAddModel(categories, accounts)
-	p := tea.NewProgram(m)
-	finalModel, err := p.Run()
+	result, err := newAddModelWithOptions(categories, accounts, options)
 	if err != nil {
 		return err
 	}
-	result := finalModel.(addModel)
+	if result.step != stepDone {
+		p := tea.NewProgram(result)
+		finalModel, err := p.Run()
+		if err != nil {
+			return err
+		}
+		result = finalModel.(addModel)
+	}
+	return finishAddTransaction(result)
+}
+
+func finishAddTransaction(result addModel) error {
+	if result.step != stepDone {
+		fmt.Println("add cancelled")
+		return nil
+	}
 	if result.selected == "" || result.amountInput == "" || result.accountInput == "" || result.dateInput == "" {
 		fmt.Println("add cancelled")
 		return nil

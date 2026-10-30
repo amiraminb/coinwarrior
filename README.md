@@ -12,6 +12,7 @@ Local-first CLI tool for tracking personal finances.
 - Interactive transaction editing: `coinw edit` (category is chosen from a list)
 - Interactive transaction deletion: `coinw delete`
 - Interactive account management: `coinw account`
+- Category management: `coinw category list|add|rename|delete`
 - Monthly overall and category budgets with independent rollover: `coinw budget`
 - Recurring transactions with monthly cadence: `coinw recurring`
 - Account balances report: `coinw report account`
@@ -195,6 +196,22 @@ coinw report overview <category> <range>
 ```bash
 coinw report account
 ```
+
+## Managing Categories
+
+```bash
+coinw category list
+coinw category add "Food Delivery"
+coinw category rename "Food Delivery" "Meal Delivery"
+coinw category delete "Unused Category"
+```
+
+`coinw category` also lists categories, and `coinw categories` is an alias.
+Names match case-insensitively; quote names containing spaces. `edit` is an
+alias for `rename`. Renaming updates matching transactions, recurring rules,
+and category budgets. Deletion requires that the category has no references;
+reassign its transactions, recurring rules, and budgets first. An existing
+category name cannot be reused by `add` or by renaming another category.
 
 ## Category Budgets
 

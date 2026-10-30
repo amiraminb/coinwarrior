@@ -12,9 +12,9 @@ import (
 	"github.com/amiraminb/coinwarrior/internal/money"
 )
 
-func findBudgetIndex(budgets []model.Budget, monthKey, currency string) int {
+func findBudgetIndex(budgets []model.Budget, monthKey, currency, category string) int {
 	return slices.IndexFunc(budgets, func(b model.Budget) bool {
-		return b.Month == monthKey && strings.EqualFold(b.Currency, currency)
+		return b.Month == monthKey && strings.EqualFold(b.Currency, currency) && strings.EqualFold(b.Category, category)
 	})
 }
 
@@ -34,17 +34,33 @@ type BudgetCarryoverCandidate struct {
 }
 
 func (s *Service) SetMonthlyBudget(monthInput, currency, amountInput string) (model.Budget, error) {
-	return s.setMonthlyBudgetWithNow(monthInput, currency, amountInput, nil, time.Now())
+	return s.setMonthlyBudgetWithNow(monthInput, currency, "", amountInput, nil, time.Now())
 }
 
 func (s *Service) SetMonthlyBudgetWithCarryover(monthInput, currency, amountInput string, carryover bool) (model.Budget, error) {
-	return s.setMonthlyBudgetWithNow(monthInput, currency, amountInput, &carryover, time.Now())
+	return s.setMonthlyBudgetWithNow(monthInput, currency, "", amountInput, &carryover, time.Now())
 }
 
-func (s *Service) setMonthlyBudgetWithNow(monthInput, currency, amountInput string, carryoverDecision *bool, now time.Time) (model.Budget, error) {
+// An empty category identifies the overall budget, independently of category limits.
+func (s *Service) SetMonthlyCategoryBudget(monthInput, currency, category, amountInput string) (model.Budget, error) {
+	return s.setMonthlyBudgetWithNow(monthInput, currency, category, amountInput, nil, time.Now())
+}
+
+func (s *Service) SetMonthlyCategoryBudgetWithCarryover(monthInput, currency, category, amountInput string, carryover bool) (model.Budget, error) {
+	return s.setMonthlyBudgetWithNow(monthInput, currency, category, amountInput, &carryover, time.Now())
+}
+
+func (s *Service) setMonthlyBudgetWithNow(monthInput, currency, category, amountInput string, carryoverDecision *bool, now time.Time) (model.Budget, error) {
 	month, err := daterange.ParseMonth(monthInput, now)
 	if err != nil {
 		return model.Budget{}, err
+	}
+	category = strings.TrimSpace(category)
+	if category != "" {
+		category, err = s.ResolveCategory(category)
+		if err != nil {
+			return model.Budget{}, err
+		}
 	}
 
 	cur := money.NormalizeCurrency(currency)
@@ -70,17 +86,18 @@ func (s *Service) setMonthlyBudgetWithNow(monthInput, currency, amountInput stri
 	}
 
 	monthKey := daterange.FormatMonth(month)
-	carryover, sourceIndex, err := budgetCarryoverCandidate(budgets, transactions, month, cur, now)
+	carryover, sourceIndex, err := budgetCarryoverCandidate(budgets, transactions, month, cur, category, now)
 	if err != nil {
 		return model.Budget{}, err
 	}
 	nowUTC := now.UTC().Format(time.RFC3339)
-	targetIndex := findBudgetIndex(budgets, monthKey, cur)
+	targetIndex := findBudgetIndex(budgets, monthKey, cur, category)
 
 	if targetIndex == -1 {
 		budgets = append(budgets, model.Budget{
 			Month:       monthKey,
 			Currency:    cur,
+			Category:    category,
 			AmountMinor: amountMinor,
 			UpdatedAt:   nowUTC,
 		})
@@ -122,6 +139,10 @@ func (s *Service) setMonthlyBudgetWithNow(monthInput, currency, amountInput stri
 }
 
 func (s *Service) GetBudgetCarryoverCandidate(monthInput, currency string, now time.Time) (*BudgetCarryoverCandidate, error) {
+	return s.GetCategoryBudgetCarryoverCandidate(monthInput, currency, "", now)
+}
+
+func (s *Service) GetCategoryBudgetCarryoverCandidate(monthInput, currency, category string, now time.Time) (*BudgetCarryoverCandidate, error) {
 	month, err := daterange.ParseMonth(monthInput, now)
 	if err != nil {
 		return nil, err
@@ -141,7 +162,7 @@ func (s *Service) GetBudgetCarryoverCandidate(monthInput, currency string, now t
 		return nil, err
 	}
 
-	candidate, _, err := budgetCarryoverCandidate(budgets, transactions, month, cur, now)
+	candidate, _, err := budgetCarryoverCandidate(budgets, transactions, month, cur, strings.TrimSpace(category), now)
 	if err != nil {
 		return nil, err
 	}
@@ -223,6 +244,10 @@ func (s *Service) GetPendingBudgetRollovers(targetMonthInput string, now time.Ti
 }
 
 func (s *Service) ApplyMonthlyBudgetRollover(monthInput, currency string, carry bool, now time.Time) (model.Budget, *model.Budget, error) {
+	return s.ApplyMonthlyCategoryBudgetRollover(monthInput, currency, "", carry, now)
+}
+
+func (s *Service) ApplyMonthlyCategoryBudgetRollover(monthInput, currency, category string, carry bool, now time.Time) (model.Budget, *model.Budget, error) {
 	month, err := daterange.ParseMonth(monthInput, now)
 	if err != nil {
 		return model.Budget{}, nil, err
@@ -242,7 +267,8 @@ func (s *Service) ApplyMonthlyBudgetRollover(monthInput, currency string, carry 
 		return model.Budget{}, nil, err
 	}
 
-	index := findBudgetIndex(budgets, monthKey, cur)
+	category = strings.TrimSpace(category)
+	index := findBudgetIndex(budgets, monthKey, cur, category)
 	if index == -1 {
 		return model.Budget{}, nil, fmt.Errorf("budget for %s %s not found", monthKey, cur)
 	}
@@ -275,12 +301,13 @@ func (s *Service) ApplyMonthlyBudgetRollover(monthInput, currency string, carry 
 
 	nextMonth := month.AddDate(0, 1, 0)
 	nextMonthKey := daterange.FormatMonth(nextMonth)
-	destIndex := findBudgetIndex(budgets, nextMonthKey, cur)
+	destIndex := findBudgetIndex(budgets, nextMonthKey, cur, category)
 
 	if destIndex == -1 {
 		budgets = append(budgets, model.Budget{
 			Month:             nextMonthKey,
 			Currency:          cur,
+			Category:          budgets[index].Category,
 			AmountMinor:       0,
 			RolloverMinor:     left,
 			RolloverFromMonth: monthKey,
@@ -357,6 +384,9 @@ func expensesForBudgetMonth(transactions []model.Transaction, budget model.Budge
 		if !strings.EqualFold(tx.Currency, budget.Currency) {
 			continue
 		}
+		if budget.Category != "" && !strings.EqualFold(strings.TrimSpace(tx.Category), budget.Category) {
+			continue
+		}
 		inRange, err := daterange.Contains(tx.Date, start, end)
 		if err != nil {
 			return 0, err
@@ -382,17 +412,20 @@ func budgetSummaryStatus(budget model.Budget, periodEnd, now time.Time) string {
 func sortBudgetSummaries(summaries []BudgetSummary) {
 	sort.Slice(summaries, func(i, j int) bool {
 		if summaries[i].Budget.Month == summaries[j].Budget.Month {
+			if summaries[i].Budget.Currency == summaries[j].Budget.Currency {
+				return summaries[i].Budget.Category < summaries[j].Budget.Category
+			}
 			return summaries[i].Budget.Currency < summaries[j].Budget.Currency
 		}
 		return summaries[i].Budget.Month < summaries[j].Budget.Month
 	})
 }
 
-func budgetCarryoverCandidate(budgets []model.Budget, transactions []model.Transaction, targetMonth time.Time, currency string, now time.Time) (*BudgetCarryoverCandidate, int, error) {
+func budgetCarryoverCandidate(budgets []model.Budget, transactions []model.Transaction, targetMonth time.Time, currency, category string, now time.Time) (*BudgetCarryoverCandidate, int, error) {
 	previousMonth := targetMonth.AddDate(0, -1, 0)
 	previousMonthKey := daterange.FormatMonth(previousMonth)
 
-	sourceIndex := findBudgetIndex(budgets, previousMonthKey, currency)
+	sourceIndex := findBudgetIndex(budgets, previousMonthKey, currency, category)
 	if sourceIndex == -1 {
 		return nil, -1, nil
 	}

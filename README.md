@@ -12,7 +12,7 @@ Local-first CLI tool for tracking personal finances.
 - Interactive transaction editing: `coinw edit` (category is chosen from a list)
 - Interactive transaction deletion: `coinw delete`
 - Interactive account management: `coinw account`
-- Monthly budgets with rollover: `coinw budget`
+- Monthly overall and category budgets with independent rollover: `coinw budget`
 - Recurring transactions with monthly cadence: `coinw recurring`
 - Account balances report: `coinw report account`
 - Range overview report: `coinw report overview [category] <range>`
@@ -195,6 +195,39 @@ coinw report overview <category> <range>
 ```bash
 coinw report account
 ```
+
+## Category Budgets
+
+Run `coinw budget` to set a monthly budget interactively. Choose **All spending**
+for an overall limit, or a saved category for an individual limit. You can also
+set and view budgets directly:
+
+```bash
+coinw budget set Groceries 2026-11 500
+coinw budget set Dining 2026-11 450
+coinw budget set "Personal Care" 2026-11 150
+coinw budget show 2026-11
+```
+
+Amounts are in CAD by default; use `--currency USD` for another currency.
+Each month, currency, and category has its own budget. Setting it again updates
+that limit. Existing budgets without a category remain overall limits, and
+`coinw budget set 2026-11 4500` sets one directly. Overall and category limits are
+independent views of the same spending, so they should not be added together.
+A category without a budget has no assigned limit.
+
+Use `--carryover` to carry the previous month's remaining amount for the same
+category and currency, or `--carryover=false` to decline it. The interactive
+form asks when a previous month is awaiting a decision. Both unused funds and
+overspending can roll forward. For example:
+
+```bash
+coinw budget set Travel 2026-12 400 --carryover
+```
+
+Budget spending counts expense transactions; income and transfers are excluded.
+Overview reports for a full calendar month show category budgets alongside any
+overall limit. A category-filtered overview shows only that category's budget.
 
 ## Supported Report Ranges
 

@@ -23,6 +23,7 @@ type budgetSetStep int
 
 const (
 	budgetSetStepMonth budgetSetStep = iota
+	budgetSetStepCategory
 	budgetSetStepCurrency
 	budgetSetStepAmount
 	budgetSetStepConfirm
@@ -32,20 +33,24 @@ const (
 type budgetSetModel struct {
 	step budgetSetStep
 
-	monthInput    string
-	currencyInput string
-	amountInput   string
+	monthInput     string
+	categoryInput  string
+	currencyInput  string
+	amountInput    string
+	categories     []string
+	categoryCursor int
 
 	confirmCursor int
 	confirmed     bool
 	errMessage    string
 }
 
-func newBudgetSetModel() budgetSetModel {
+func newBudgetSetModel(categories []string) budgetSetModel {
 	return budgetSetModel{
 		step:          budgetSetStepMonth,
 		monthInput:    daterange.FormatMonth(time.Now()),
 		currencyInput: "CAD",
+		categories:    categories,
 	}
 }
 
@@ -57,7 +62,7 @@ func (m budgetSetModel) Init() tea.Cmd {
 // than free-text entry. On menu steps a bare "q" quits; on text steps it must
 // be typed into the field, so the global handler lets it fall through.
 func (s budgetSetStep) isSelectionStep() bool {
-	return s == budgetSetStepConfirm
+	return s == budgetSetStepCategory || s == budgetSetStepConfirm
 }
 
 func (m budgetSetModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -81,7 +86,7 @@ func (m budgetSetModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					break
 				}
 				m.errMessage = ""
-				m.step = budgetSetStepCurrency
+				m.step = budgetSetStepCategory
 			case "backspace":
 				m.errMessage = ""
 				if len(m.monthInput) > 0 {
@@ -96,6 +101,25 @@ func (m budgetSetModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					}
 				}
 			}
+		case budgetSetStepCategory:
+			switch msg.String() {
+			case "up", "k":
+				if m.categoryCursor > 0 {
+					m.categoryCursor--
+				}
+			case "down", "j":
+				if m.categoryCursor < len(m.categories) {
+					m.categoryCursor++
+				}
+			case "enter":
+				m.categoryInput = ""
+				if m.categoryCursor > 0 {
+					m.categoryInput = m.categories[m.categoryCursor-1]
+				}
+				m.step = budgetSetStepCurrency
+			case "esc":
+				m.step = budgetSetStepMonth
+			}
 		case budgetSetStepCurrency:
 			switch msg.String() {
 			case "enter":
@@ -108,7 +132,7 @@ func (m budgetSetModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.step = budgetSetStepAmount
 			case "esc":
 				m.errMessage = ""
-				m.step = budgetSetStepMonth
+				m.step = budgetSetStepCategory
 			case "backspace":
 				m.errMessage = ""
 				if len(m.currencyInput) > 0 {
@@ -176,12 +200,26 @@ func (m budgetSetModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m budgetSetModel) View() string {
 	s := "Set Monthly Budget\n\n"
+	if m.step > budgetSetStepCategory {
+		s += renderField("Category: ", BudgetCategoryLabel(m.categoryInput)) + "\n\n"
+	}
 
 	switch m.step {
 	case budgetSetStepMonth:
 		s += renderActiveField("Month (YYYY-MM): ", m.monthInput) + "\n"
 		s += renderError(m.errMessage)
 		s += mutedStyle.Render("(enter to continue, ctrl+c to quit)") + "\n"
+	case budgetSetStepCategory:
+		s += renderField("Month: ", m.monthInput) + "\n\nSelect category:\n\n"
+		choices := append([]string{BudgetCategoryLabel("")}, m.categories...)
+		for i, category := range choices {
+			line := "  " + category
+			if i == m.categoryCursor {
+				line = focusStyle.Render("> " + category)
+			}
+			s += line + "\n"
+		}
+		s += "\n" + mutedStyle.Render("(use ↑/↓ and enter, esc to go back, q to quit)") + "\n"
 	case budgetSetStepCurrency:
 		s += renderField("Month: ", m.monthInput) + "\n\n"
 		s += renderActiveField("Currency: ", m.currencyInput) + "\n"
@@ -223,7 +261,7 @@ func RunBudgetAction() error {
 			fmt.Println("budget cancelled")
 			return nil
 		}
-		return runBudgetShow(monthInput)
+		return RunBudgetShow(monthInput)
 	case budgetActionSet:
 		_, err := runBudgetSetInteractive()
 		return err
@@ -236,7 +274,11 @@ func RunBudgetAction() error {
 }
 
 func runBudgetSetInteractive() (bool, error) {
-	p := tea.NewProgram(newBudgetSetModel())
+	categories, err := Svc.LoadCategories()
+	if err != nil {
+		return false, err
+	}
+	p := tea.NewProgram(newBudgetSetModel(categories))
 
 	finalModel, err := p.Run()
 	if err != nil {
@@ -250,15 +292,16 @@ func runBudgetSetInteractive() (bool, error) {
 	}
 
 	carryoverDecision := false
-	candidate, err := Svc.GetBudgetCarryoverCandidate(result.monthInput, result.currencyInput, time.Now())
+	candidate, err := Svc.GetCategoryBudgetCarryoverCandidate(result.monthInput, result.currencyInput, result.categoryInput, time.Now())
 	if err != nil {
 		return false, err
 	}
 	if candidate != nil {
 		question := fmt.Sprintf(
-			"Carry over %s %s from %s into %s?",
+			"Carry over %s %s for %s from %s into %s?",
 			money.Format(candidate.LeftMinor),
 			candidate.SourceBudget.Currency,
+			BudgetCategoryLabel(candidate.SourceBudget.Category),
 			candidate.SourceBudget.Month,
 			candidate.TargetMonth,
 		)
@@ -268,12 +311,12 @@ func runBudgetSetInteractive() (bool, error) {
 		}
 	}
 
-	budget, err := Svc.SetMonthlyBudgetWithCarryover(result.monthInput, result.currencyInput, result.amountInput, carryoverDecision)
+	budget, err := Svc.SetMonthlyCategoryBudgetWithCarryover(result.monthInput, result.currencyInput, result.categoryInput, result.amountInput, carryoverDecision)
 	if err != nil {
 		return false, err
 	}
 
-	fmt.Printf("budget set: %s (%s %s)\n", budget.Month, budget.Currency, money.Format(budget.AmountMinor))
+	fmt.Printf("budget set: %s / %s (%s %s)\n", budget.Month, BudgetCategoryLabel(budget.Category), budget.Currency, money.Format(budget.AmountMinor))
 	if candidate != nil {
 		if carryoverDecision {
 			fmt.Printf("carried over %s %s from %s\n", money.Format(candidate.LeftMinor), candidate.SourceBudget.Currency, candidate.SourceBudget.Month)
@@ -301,7 +344,7 @@ func runBudgetMonthPromptInteractive() (string, bool, error) {
 	return runMonthPrompt("Show Budgets")
 }
 
-func runBudgetShow(monthInput string) error {
+func RunBudgetShow(monthInput string) error {
 	month, err := daterange.ParseMonth(monthInput, time.Now())
 	if err != nil {
 		return err
@@ -324,6 +367,7 @@ func runBudgetShow(monthInput string) error {
 	rows := make([]table.Row, 0, len(summaries))
 	for _, summary := range summaries {
 		rows = append(rows, table.Row{
+			BudgetCategoryLabel(summary.Budget.Category),
 			summary.Budget.Currency,
 			money.Format(summary.Budget.AmountMinor),
 			money.Format(summary.Budget.RolloverMinor),
@@ -335,6 +379,7 @@ func runBudgetShow(monthInput string) error {
 
 	RenderTable(
 		[]table.Column{
+			{Title: "CATEGORY", Width: 20},
 			{Title: "CUR", Width: 5},
 			{Title: "BUDGET", Width: 14},
 			{Title: "ROLL", Width: 14},
@@ -346,4 +391,11 @@ func runBudgetShow(monthInput string) error {
 	)
 
 	return nil
+}
+
+func BudgetCategoryLabel(category string) string {
+	if category == "" {
+		return "All spending"
+	}
+	return category
 }

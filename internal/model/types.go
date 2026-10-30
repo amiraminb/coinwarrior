@@ -43,6 +43,7 @@ type RecurringRule struct {
 type Budget struct {
 	Month               string `json:"month"`
 	Currency            string `json:"currency"`
+	Category            string `json:"category,omitempty"`
 	AmountMinor         int64  `json:"amount_minor"`
 	RolloverMinor       int64  `json:"rollover_minor,omitempty"`
 	RolloverFromMonth   string `json:"rollover_from_month,omitempty"`

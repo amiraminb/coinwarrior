@@ -12,6 +12,7 @@ import (
 	"github.com/amiraminb/coinwarrior/internal/daterange"
 	"github.com/amiraminb/coinwarrior/internal/model"
 	"github.com/amiraminb/coinwarrior/internal/money"
+	"github.com/amiraminb/coinwarrior/internal/service"
 	"github.com/amiraminb/coinwarrior/internal/tui"
 	"github.com/charmbracelet/bubbles/table"
 	"github.com/charmbracelet/lipgloss"
@@ -95,7 +96,7 @@ Supported ranges: today, yesterday, week, lastweek, month, lastmonth, year, last
 		}
 		fmt.Println(tui.HeaderStyle.Render(heading))
 		fmt.Println()
-		if err := printCategorySection(transactions, allTransactions, start, end, time.Now(), category != ""); err != nil {
+		if err := printCategorySection(transactions, allTransactions, start, end, time.Now(), category); err != nil {
 			return err
 		}
 		printSpendingFutureValue(transactions, start, end)
@@ -192,15 +193,11 @@ func printTotalBalancesReport(accounts []model.Account) {
 	)
 }
 
-func printCategorySection(transactions, shareBase []model.Transaction, start, end time.Time, now time.Time, filtered bool) error {
+func printCategorySection(transactions, shareBase []model.Transaction, start, end time.Time, now time.Time, category string) error {
 	fmt.Println(reportSectionStyle.Render("Range Categories"))
 	fmt.Println()
-	// A budget covers the whole month with no category dimension, so under a
-	// category filter it can only be omitted, not narrowed.
-	if !filtered {
-		if err := printMonthlyBudgetSection(start, end, now); err != nil {
-			return err
-		}
+	if err := printMonthlyBudgetSection(start, end, now, category); err != nil {
+		return err
 	}
 
 	printCategoryTotals(transactions, shareBase, start, end, "Category Totals (Range)")
@@ -509,7 +506,7 @@ func printIncomeExpenseSummary(income, expense map[string]int64) {
 	)
 }
 
-func printMonthlyBudgetSection(start, end, now time.Time) error {
+func printMonthlyBudgetSection(start, end, now time.Time, category string) error {
 	monthLabel, ok := budgetMonthForRange(start, end)
 	if !ok {
 		return nil
@@ -522,8 +519,13 @@ func printMonthlyBudgetSection(start, end, now time.Time) error {
 	if err != nil {
 		return err
 	}
+	if category != "" {
+		summaries = slices.DeleteFunc(summaries, func(summary service.BudgetSummary) bool {
+			return !strings.EqualFold(summary.Budget.Category, category)
+		})
+	}
 	if len(summaries) == 0 {
-		fmt.Printf("no budget set for %s\n", monthLabel)
+		fmt.Printf("no budget set for %s / %s\n", monthLabel, tui.BudgetCategoryLabel(category))
 		fmt.Println()
 		return nil
 	}
@@ -531,6 +533,7 @@ func printMonthlyBudgetSection(start, end, now time.Time) error {
 	rows := make([]table.Row, 0, len(summaries))
 	for _, summary := range summaries {
 		rows = append(rows, table.Row{
+			tui.BudgetCategoryLabel(summary.Budget.Category),
 			summary.Budget.Currency,
 			money.Format(summary.Budget.AmountMinor),
 			money.Format(summary.Budget.RolloverMinor),
@@ -541,6 +544,7 @@ func printMonthlyBudgetSection(start, end, now time.Time) error {
 
 	tui.RenderTable(
 		[]table.Column{
+			{Title: "CATEGORY", Width: 20},
 			{Title: "CUR", Width: 5},
 			{Title: "BUDGET", Width: 14},
 			{Title: "ROLL", Width: 14},

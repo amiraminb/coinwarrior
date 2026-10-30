@@ -210,13 +210,13 @@ func TestRecurringFormModelQuitMatrix(t *testing.T) {
 }
 
 func TestBudgetSetModelQuitMatrix(t *testing.T) {
-	m := newBudgetSetModel()
+	m := newBudgetSetModel(nil)
 	m.step = budgetSetStepConfirm
 	if _, cmd := m.Update(keyRunes("q")); !quits(cmd) {
 		t.Error("q on budget confirm step should quit")
 	}
 
-	m = newBudgetSetModel()
+	m = newBudgetSetModel(nil)
 	m.step = budgetSetStepCurrency
 	next, cmd := m.Update(keyRunes("q"))
 	if quits(cmd) {

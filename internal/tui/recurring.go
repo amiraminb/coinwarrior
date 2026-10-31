@@ -115,6 +115,7 @@ func RunRecurringList() error {
 		},
 		rows,
 	)
+	printRecurringSummary(rules)
 	return nil
 }
 

@@ -216,6 +216,11 @@ coinw recurring delete              # choose a rule and confirm deletion
 coinw recurring generate            # generate through the current month
 ```
 
+The list ends with monthly income, expense, and net totals for all listed rules,
+grouped by currency and excluding transfers. A future-value table projects each
+of those one-month totals as a one-time amount at 5% annual compound interest
+over 5, 10, 15, and 20 years.
+
 Supply flags to add a rule directly, or prompt only for missing required fields:
 
 ```bash

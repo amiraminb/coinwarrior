@@ -90,6 +90,58 @@ func TestRecurringCommandsCreateListEditAndDeleteWithoutTUI(t *testing.T) {
 	}
 }
 
+func TestRecurringListSummarizesIncomeExpenseAndFutureValues(t *testing.T) {
+	r := setupRecurringRepository(t)
+	if err := r.SaveRecurringRules([]model.RecurringRule{
+		{ID: "usd_expense", Type: "expense", Currency: "USD", AmountMinor: 2000, Note: "USD subscription"},
+		{ID: "cad_expense_1", Type: "expense", Currency: "CAD", AmountMinor: 10000},
+		{ID: "cad_expense_2", Type: "expense", Currency: "CAD", AmountMinor: 5000},
+		{ID: "cad_income", Type: "income", Currency: "CAD", AmountMinor: 50000},
+		{ID: "cad_transfer", Type: "transfer", Currency: "CAD", AmountMinor: 999999},
+		{ID: "eur_transfer", Type: "transfer", Currency: "EUR", AmountMinor: 999999},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	for _, args := range [][]string{{"list"}, {"-l"}, {"--list"}} {
+		output := runRecurringCommand(t, args...)
+		summaryIndex := strings.Index(output, "Monthly Income / Expense Summary")
+		futureIndex := strings.Index(output, "Future Value of One Month's Totals (5% Annual Interest)")
+		if summaryIndex < 0 || futureIndex < summaryIndex || strings.Index(output, "USD subscription") > summaryIndex {
+			t.Fatalf("list should end with totals, then future values:\n%s", output)
+		}
+		summary := strings.Join(strings.Fields(output[summaryIndex:]), " ")
+		for _, want := range []string{
+			"CAD 500.00 150.00 350.00", "USD 0.00 20.00 -20.00",
+			"5 YEARS", "10 YEARS", "15 YEARS", "20 YEARS",
+			"CAD Income 500.00 638.14", "CAD Expense 150.00 191.44", "CAD Net 350.00 446.70",
+			"USD Expense 20.00 25.53", "USD Net -20.00 -25.53",
+		} {
+			if !strings.Contains(summary, want) {
+				t.Errorf("summary omitted %q:\n%s", want, output)
+			}
+		}
+		if strings.Contains(summary, "EUR") || strings.Contains(summary, "9,999.99") {
+			t.Errorf("transfers leaked into summary:\n%s", output)
+		}
+	}
+}
+
+func TestRecurringListWithoutIncomeOrExpensesOmitsFinancialTables(t *testing.T) {
+	r := setupRecurringRepository(t)
+	for _, rules := range [][]model.RecurringRule{
+		nil,
+		{{ID: "transfer", Type: "transfer", Currency: "CAD", AmountMinor: 10000}},
+	} {
+		if err := r.SaveRecurringRules(rules); err != nil {
+			t.Fatal(err)
+		}
+		output := runRecurringCommand(t, "list")
+		if strings.Contains(output, "Income / Expense Summary") || strings.Contains(output, "Future Value") {
+			t.Fatalf("no financial totals expected for empty or transfer-only rules:\n%s", output)
+		}
+	}
+}
+
 func TestRecurringGenerateAllTypesIsIdempotent(t *testing.T) {
 	r := setupRecurringRepository(t)
 	start := time.Now().Format("2006-01") + "-01"

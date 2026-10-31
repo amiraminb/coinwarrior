@@ -14,7 +14,7 @@ func newRecurringCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use: "recurring", Short: "Manage recurring transactions", Args: cobra.NoArgs,
 		Long: `Manage monthly recurring rules. With no subcommand, open the TUI menu.
-Use list (or -l/--list) to print rules, including their notes.`,
+Use list (or -l/--list) to print rules with notes, monthly totals, and future values.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			list, err := cmd.Flags().GetBool("list")
 			if err != nil {
@@ -29,6 +29,10 @@ Use list (or -l/--list) to print rules, including their notes.`,
 	cmd.Flags().BoolP("list", "l", false, "List recurring rules with notes")
 	cmd.AddCommand(&cobra.Command{
 		Use: "list", Short: "List recurring rules with notes", Args: cobra.NoArgs,
+		Long: `List all saved recurring rules with notes, followed by monthly income,
+expense, and net totals per currency. Transfers are excluded from totals.
+Future values project one month's listed totals as one-time amounts at 5%
+annual compound interest over 5, 10, 15, and 20 years.`,
 		RunE: func(cmd *cobra.Command, args []string) error { return tui.RunRecurringList() },
 	})
 	add := &cobra.Command{

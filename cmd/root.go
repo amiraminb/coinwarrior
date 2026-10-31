@@ -1,6 +1,9 @@
 package cmd
 
 import (
+	"fmt"
+	"time"
+
 	"github.com/amiraminb/coinwarrior/internal/repository"
 	"github.com/amiraminb/coinwarrior/internal/service"
 	"github.com/amiraminb/coinwarrior/internal/tui"
@@ -31,5 +34,13 @@ var rootCmd = &cobra.Command{
 }
 
 func Execute() error {
+	// Check before Cobra dispatch so help and other commands also get the reminder.
+	now := time.Now()
+	pending, err := svc.PendingRecurringTransactionCount(now)
+	if err != nil {
+		fmt.Fprintf(rootCmd.ErrOrStderr(), "Warning: could not check recurring transactions: %v\n", err)
+	} else if pending > 0 {
+		fmt.Fprintf(rootCmd.ErrOrStderr(), "Warning: %d recurring transaction(s) have not been generated through %s. Run 'coinw recurring generate'.\n", pending, now.Format("2006-01"))
+	}
 	return rootCmd.Execute()
 }

@@ -11,7 +11,10 @@ import (
 var futureCmd = &cobra.Command{
 	Use:   "future <value>",
 	Short: "Show a value's projected growth",
-	Args:  cobra.ExactArgs(1),
+	Long: `Project a one-time amount over 5, 10, 15, and 20 years at 5% annual
+compound interest: future value = amount × 1.05^years. Interest is reinvested
+each year, with no additional contributions; results are rounded to cents.`,
+	Args: cobra.ExactArgs(1),
 	Example: `  coinw future 100
   coinw future 1,250.00`,
 	RunE: func(cmd *cobra.Command, args []string) error {

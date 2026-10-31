@@ -43,18 +43,15 @@ func RunRecurringAction() error {
 
 	switch action {
 	case recurringActionList:
-		return runRecurringList()
+		return RunRecurringList()
 	case recurringActionAdd:
-		_, err := runRecurringAdd()
-		return err
+		return RunRecurringAdd(service.RecurringRuleEdits{})
 	case recurringActionEdit:
-		_, err := runRecurringEdit()
-		return err
+		return RunRecurringEdit("", service.RecurringRuleEdits{})
 	case recurringActionDelete:
-		_, err := runRecurringDelete()
-		return err
+		return RunRecurringDelete("")
 	case recurringActionGenerate:
-		return runRecurringGenerate()
+		return RunRecurringGenerate()
 	case recurringActionQuit:
 		return nil
 	default:
@@ -63,7 +60,7 @@ func RunRecurringAction() error {
 	}
 }
 
-func runRecurringList() error {
+func RunRecurringList() error {
 	rules, err := Svc.LoadRecurringRules()
 	if err != nil {
 		return err
@@ -98,6 +95,7 @@ func runRecurringList() error {
 			rule.StartDate,
 			end,
 			last,
+			rule.Note,
 		})
 	}
 
@@ -113,6 +111,7 @@ func runRecurringList() error {
 			{Title: "START", Width: 10},
 			{Title: "END", Width: 10},
 			{Title: "LAST GEN", Width: 10},
+			{Title: "NOTE", Width: 20},
 		},
 		rows,
 	)
@@ -155,6 +154,7 @@ type recurringFormModel struct {
 	confirmed       bool
 	errMessage      string
 	editingID       string // empty for add
+	preset          map[recurringField]bool
 }
 
 func newRecurringAddFormModel(categories, accounts []string) recurringFormModel {
@@ -273,6 +273,7 @@ func (s recurringField) isSelectionStep() bool {
 }
 
 func (m recurringFormModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	previous := m.step
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
@@ -374,9 +375,13 @@ func (m recurringFormModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.accountCursor++
 				}
 			case "enter":
+				if m.typeChoices[m.typeCursor] == model.TransactionTypeTransfer && m.preset[recurringFieldToAccount] && m.toAccountCursor == m.accountCursor {
+					m.errMessage = "source and destination accounts must be different"
+					break
+				}
 				m.errMessage = ""
 				if m.typeChoices[m.typeCursor] == model.TransactionTypeTransfer {
-					if m.toAccountCursor == m.accountCursor {
+					if m.toAccountCursor == m.accountCursor && !m.preset[recurringFieldToAccount] {
 						if m.toAccountCursor < len(m.accounts)-1 {
 							m.toAccountCursor++
 						} else if m.toAccountCursor > 0 {
@@ -523,6 +528,9 @@ func (m recurringFormModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 	}
+	if m.step != previous {
+		m.skipPresetSteps(previous)
+	}
 	return m, nil
 }
 
@@ -664,21 +672,29 @@ func loadRecurringFormDeps() (categories, accounts []string, err error) {
 	return categories, accounts, nil
 }
 
-func runRecurringAdd() (bool, error) {
+func RunRecurringAdd(options service.RecurringRuleEdits) error {
 	categories, accounts, err := loadRecurringFormDeps()
 	if err != nil {
-		return false, err
+		return err
 	}
 
-	p := tea.NewProgram(newRecurringAddFormModel(categories, accounts))
-	finalModel, err := p.Run()
+	result, err := newRecurringAddModelWithOptions(categories, accounts, options)
 	if err != nil {
-		return false, err
+		return err
 	}
-	result := finalModel.(recurringFormModel)
+	if result.step == recurringFieldConfirm {
+		// Every required field was supplied, so no entry form is needed.
+		result.confirmed = true
+	} else {
+		finalModel, err := tea.NewProgram(result).Run()
+		if err != nil {
+			return err
+		}
+		result = finalModel.(recurringFormModel)
+	}
 	if !result.confirmed {
 		fmt.Println("recurring add cancelled")
-		return false, nil
+		return nil
 	}
 
 	day, _ := strconv.Atoi(strings.TrimSpace(result.dayInput))
@@ -694,41 +710,78 @@ func runRecurringAdd() (bool, error) {
 		StartDate:   result.startInput,
 		EndDate:     result.endInput,
 	}
-	if input.Type != model.TransactionTypeTransfer {
+	if input.Type == model.TransactionTypeTransfer {
+		if options.Category != nil && !strings.EqualFold(strings.TrimSpace(*options.Category), model.TransferCategory) {
+			return fmt.Errorf("transfer rules use the Transfer category")
+		}
+		input.Category = model.TransferCategory
+	} else {
+		if options.ToAccount != nil {
+			return fmt.Errorf("--to-account requires a transfer rule")
+		}
 		input.ToAccount = ""
 	}
 	rule, err := Svc.AddRecurringRule(input)
 	if err != nil {
-		return false, err
+		return err
 	}
 	fmt.Printf("recurring rule created: %s\n", rule.ID)
-	return true, nil
+	return nil
 }
 
-func runRecurringEdit() (bool, error) {
-	rule, ok, err := pickRecurringRule("Edit Recurring Rule")
+func RunRecurringEdit(id string, options service.RecurringRuleEdits) error {
+	categories, accounts, err := loadRecurringFormDeps()
 	if err != nil {
-		return false, err
+		return err
+	}
+	options, err = normalizeRecurringOptions(options, categories, accounts)
+	if err != nil {
+		return err
+	}
+	rule, ok, err := selectRecurringRule(id, "Edit Recurring Rule")
+	if err != nil {
+		return err
 	}
 	if !ok {
 		fmt.Println("edit cancelled")
-		return false, nil
+		return nil
 	}
-
-	categories, accounts, err := loadRecurringFormDeps()
-	if err != nil {
-		return false, err
+	if options != (service.RecurringRuleEdits{}) {
+		txType := rule.Type
+		if options.Type != nil {
+			txType = *options.Type
+		}
+		if txType == model.TransactionTypeTransfer {
+			if options.Category != nil && *options.Category != model.TransferCategory {
+				return fmt.Errorf("transfer rules use the Transfer category")
+			}
+			category := model.TransferCategory
+			options.Category = &category
+		} else {
+			if options.ToAccount != nil {
+				return fmt.Errorf("--to-account requires a transfer rule")
+			}
+			if rule.Type == model.TransactionTypeTransfer && options.Category == nil {
+				return fmt.Errorf("--category is required when changing a transfer to %s", txType)
+			}
+		}
+		updated, err := Svc.EditRecurringRule(rule.ID, options)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("recurring rule updated: %s\n", updated.ID)
+		return nil
 	}
 
 	p := tea.NewProgram(newRecurringEditFormModel(rule, categories, accounts))
 	finalModel, err := p.Run()
 	if err != nil {
-		return false, err
+		return err
 	}
 	result := finalModel.(recurringFormModel)
 	if !result.confirmed {
 		fmt.Println("edit cancelled")
-		return false, nil
+		return nil
 	}
 
 	day, _ := strconv.Atoi(strings.TrimSpace(result.dayInput))
@@ -738,6 +791,7 @@ func runRecurringEdit() (bool, error) {
 	account := result.selectedAccount()
 	toAccount := ""
 	if txType == model.TransactionTypeTransfer {
+		category = model.TransferCategory
 		toAccount = result.selectedToAccount()
 	}
 	note := result.noteInput
@@ -759,40 +813,42 @@ func runRecurringEdit() (bool, error) {
 
 	updated, err := Svc.EditRecurringRule(rule.ID, edits)
 	if err != nil {
-		return false, err
+		return err
 	}
 	fmt.Printf("recurring rule updated: %s\n", updated.ID)
-	return true, nil
+	return nil
 }
 
-func runRecurringDelete() (bool, error) {
-	rule, ok, err := pickRecurringRule("Delete Recurring Rule")
+func RunRecurringDelete(id string) error {
+	rule, ok, err := selectRecurringRule(id, "Delete Recurring Rule")
 	if err != nil {
-		return false, err
+		return err
 	}
 	if !ok {
 		fmt.Println("delete cancelled")
-		return false, nil
+		return nil
 	}
 
-	confirmed, err := RunConfirmPrompt("Delete this recurring rule?\n" + formatRecurringRuleSummary(rule))
-	if err != nil {
-		return false, err
-	}
-	if !confirmed {
-		fmt.Println("delete cancelled")
-		return false, nil
+	if id == "" {
+		confirmed, err := RunConfirmPrompt("Delete this recurring rule?\n" + formatRecurringRuleSummary(rule))
+		if err != nil {
+			return err
+		}
+		if !confirmed {
+			fmt.Println("delete cancelled")
+			return nil
+		}
 	}
 
 	deleted, err := Svc.DeleteRecurringRule(rule.ID)
 	if err != nil {
-		return false, err
+		return err
 	}
 	fmt.Printf("recurring rule deleted: %s\n", deleted.ID)
-	return true, nil
+	return nil
 }
 
-func runRecurringGenerate() error {
+func RunRecurringGenerate() error {
 	result, err := Svc.GenerateDueTransactions(time.Now())
 	if err != nil {
 		return err
@@ -808,10 +864,18 @@ func runRecurringGenerate() error {
 	return nil
 }
 
-func pickRecurringRule(title string) (model.RecurringRule, bool, error) {
+func selectRecurringRule(id, title string) (model.RecurringRule, bool, error) {
 	rules, err := Svc.LoadRecurringRules()
 	if err != nil {
 		return model.RecurringRule{}, false, err
+	}
+	if id != "" {
+		for _, rule := range rules {
+			if rule.ID == strings.TrimSpace(id) {
+				return rule, true, nil
+			}
+		}
+		return model.RecurringRule{}, false, fmt.Errorf("recurring rule '%s' not found", id)
 	}
 	if len(rules) == 0 {
 		return model.RecurringRule{}, false, fmt.Errorf("no recurring rules available")

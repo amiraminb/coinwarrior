@@ -14,7 +14,7 @@ Local-first CLI tool for tracking personal finances.
 - Interactive account management: `coinw account`
 - Category management: `coinw category list|add|rename|delete`
 - Monthly overall and category budgets with independent rollover: `coinw budget`
-- Recurring transactions with monthly cadence: `coinw recurring`
+- Recurring transactions with flags and TUI fallback: `coinw recurring list|add|edit|delete|generate`
 - Account balances report: `coinw report account`
 - Range overview report: `coinw report overview [category] <range>`
 - Transactions report: `coinw report transactions [category] <range>`
@@ -202,6 +202,46 @@ coinw report overview <category> <range>
 ```bash
 coinw report account
 ```
+
+## Recurring Transactions
+
+`coinw recurring` opens the action menu. Each action can also be run directly:
+
+```bash
+coinw recurring list                # includes notes
+coinw recurring -l                  # also --list
+coinw recurring add                 # full TUI form
+coinw recurring edit                # choose a rule, then edit it
+coinw recurring delete              # choose a rule and confirm deletion
+coinw recurring generate            # generate through the current month
+```
+
+Supply flags to add a rule directly, or prompt only for missing required fields:
+
+```bash
+coinw recurring add -t expense -a 14.16 -c Fitness --account Checking --day 5 --note "Carbon Diet"
+coinw recurring add -t transfer -a 100 --account Checking --to-account Savings --day 15
+coinw recurring edit rec_123 --amount 19.99 --note "New price"
+coinw recurring edit rec_123 --end-date "" --note ""
+coinw recurring delete rec_123
+```
+
+Add/edit flags: `-t`/`--type`, `-a`/`--amount`, `--currency`, `-c`/`--category`,
+`--account`, `--to-account`, `-d`/`--day` (1–28), `--start-date`, `--end-date`,
+and `-n`/`--note`. Dates use `YYYY-MM-DD`; category and account names match saved
+names case-insensitively. Flag-based adds require type, amount, category, account,
+and day; transfers use a destination account instead of a category. Optional
+fields default to CAD, today's start date, no end date, and no note.
+
+Edits with flags update only supplied fields. Omit the ID to pick a rule, or
+omit the flags to open its edit form. Deleting by ID is immediate and keeps
+previously generated transactions.
+
+Every command warns on stderr when recurring transactions have not been generated
+through the current month. This check only reads the schedule. Run
+`coinw recurring generate` to catch up; repeating generation does not duplicate
+transactions. A month's occurrences are due for generation as soon as that month
+begins, even when their scheduled day is later in the month.
 
 ## Managing Categories
 

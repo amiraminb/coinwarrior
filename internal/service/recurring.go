@@ -67,6 +67,24 @@ func (s *Service) LoadRecurringRules() ([]model.RecurringRule, error) {
 	return out, nil
 }
 
+// PendingRecurringTransactionCount uses the generation schedule without saving
+// transactions, changing balances, or advancing any rule's generated month.
+func (s *Service) PendingRecurringTransactionCount(now time.Time) (int, error) {
+	rules, err := s.repo.LoadRecurringRules()
+	if err != nil {
+		return 0, err
+	}
+	count, idCounter := 0, 0
+	for _, rule := range rules {
+		due, err := dueTransactionsForRule(rule, daterange.DateOnly(now), now, now.UTC().Format(time.RFC3339), &idCounter)
+		if err != nil {
+			return 0, err
+		}
+		count += len(due)
+	}
+	return count, nil
+}
+
 func (s *Service) AddRecurringRule(input RecurringRuleInput) (model.RecurringRule, error) {
 	now := time.Now()
 	rule, err := buildRecurringRule(input, now)

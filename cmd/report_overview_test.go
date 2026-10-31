@@ -17,6 +17,14 @@ func TestOverviewCategoryFilterAppliesToEveryTable(t *testing.T) {
 	previousRepo, previousService := repo, svc
 	repo, svc = r, service.New(r)
 	t.Cleanup(func() { repo, svc = previousRepo, previousService })
+	verboseFlag := reportOverviewCmd.Flags().Lookup("verbose")
+	previousVerbose, previousChanged := verboseFlag.Value.String(), verboseFlag.Changed
+	t.Cleanup(func() {
+		if err := reportOverviewCmd.Flags().Set("verbose", previousVerbose); err != nil {
+			t.Error(err)
+		}
+		verboseFlag.Changed = previousChanged
+	})
 	if err := r.SaveCategories([]string{"Groceries", "Housing", "Unused"}); err != nil {
 		t.Fatal(err)
 	}
@@ -53,15 +61,15 @@ func TestOverviewCategoryFilterAppliesToEveryTable(t *testing.T) {
 			tableCount: 1,
 		},
 		{
-			name:       "filtered month with budgets",
-			args:       []string{"groceries", date("01-01") + ".." + date("01-31")},
+			name:       "verbose filtered month with budgets",
+			args:       []string{"groceries", date("01-01") + ".." + date("01-31"), "-v"},
 			want:       []string{"Groceries", "Monthly Budget", "500.00", "-250.00", "25.0%"},
 			absent:     []string{"Housing", "Unused", "All spending", "Per-Month Breakdown"},
 			tableCount: 1,
 		},
 		{
 			name:       "category without transactions",
-			args:       []string{"unused", "year"},
+			args:       []string{"unused", "year", "--verbose"},
 			want:       []string{"Unused", "0.00"},
 			absent:     []string{"Groceries", "Housing", "Per-Month Breakdown"},
 			tableCount: 1,
@@ -69,13 +77,33 @@ func TestOverviewCategoryFilterAppliesToEveryTable(t *testing.T) {
 		{
 			name:       "unfiltered year includes saved categories",
 			args:       []string{"year"},
+			want:       []string{"Groceries", "Housing", "Unused", date("02"), "Monthly Income / Expense"},
+			absent:     []string{"Per-Month Breakdown"},
+			tableCount: 1,
+		},
+		{
+			name:       "verbose unfiltered year",
+			args:       []string{"year", "--verbose"},
 			want:       []string{"Groceries", "Housing", "Unused", date("02"), "Per-Month Breakdown"},
 			tableCount: 4,
 		},
+		{
+			name:       "verbose filtered year with shorthand",
+			args:       []string{"groceries", "year", "-v"},
+			want:       []string{"Groceries", "-350.00", "25.0%", "▲ 100.00", "Per-Month Breakdown"},
+			absent:     []string{"Housing", "Unused", " groceries ", date("02"), date("04")},
+			tableCount: 3,
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
+			if err := reportOverviewCmd.Flags().Set("verbose", "false"); err != nil {
+				t.Fatal(err)
+			}
 			output := captureBudgetOutput(t, func() error {
-				return reportOverviewCmd.RunE(reportOverviewCmd, tc.args)
+				if err := reportOverviewCmd.ParseFlags(tc.args); err != nil {
+					return err
+				}
+				return reportOverviewCmd.RunE(reportOverviewCmd, reportOverviewCmd.Flags().Args())
 			})
 			for _, want := range tc.want {
 				if !strings.Contains(output, want) {

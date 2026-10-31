@@ -54,20 +54,25 @@ var reportOverviewCmd = &cobra.Command{
 Prints per-category totals, an income/expense summary, and, when the range is
 exactly one calendar month, that month's budget. A range spanning more than one
 month also gets a per-month income/expense bar chart, with partly covered months
-labelled by the days they cover, and the same breakdown repeated per month.
-Months without income or expense transactions are omitted.
+labelled by the days they cover. Add --verbose (-v) to include the per-month
+breakdown tables. Months without income or expense transactions are omitted.
 
 When a category is given, every section covers only that category. It is matched
 case-insensitively against the saved categories, and transfers are excluded.
-The per-month breakdown tables are omitted for category-filtered reports.
 
 Supported ranges: today, yesterday, week, lastweek, month, lastmonth, year, lastyear, or YYYY-MM-DD..YYYY-MM-DD.`,
 	Example: `  coinw report overview month
   coinw report overview Groceries year
+  coinw report overview year --verbose
+  coinw report overview Groceries year -v
   coinw report overview 2026-04-01..2026-04-30`,
 	Args:              cobra.RangeArgs(1, 2),
 	ValidArgsFunction: completeTransactionsArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		verbose, err := cmd.Flags().GetBool("verbose")
+		if err != nil {
+			return err
+		}
 		start, end, err := daterange.Resolve(args[len(args)-1], time.Now())
 		if err != nil {
 			if len(args) == 1 {
@@ -102,7 +107,7 @@ Supported ranges: today, yesterday, week, lastweek, month, lastmonth, year, last
 		}
 		printSpendingFutureValue(transactions, start, end)
 		printMonthlyBarsSection(transactions, start, end)
-		if category == "" {
+		if verbose {
 			printPerMonthSections(transactions, allTransactions, start, end, category)
 		}
 
@@ -602,6 +607,7 @@ func formatPercent(part, total int64) string {
 }
 
 func init() {
+	reportOverviewCmd.Flags().BoolP("verbose", "v", false, "Include the per-month breakdown")
 	reportCmd.AddCommand(reportOverviewCmd)
 	reportCmd.AddCommand(reportAccountCmd)
 	reportCmd.AddCommand(reportTransactionsCmd)

@@ -164,11 +164,16 @@ Monthly Income / Expense (CAD)
  2026-03 (01-20)    █████████ 2,500.00            ███████ 1,890.00
 ```
 
-For an unfiltered overview, each month gets its own category totals and
-income/expense summary below the chart, so you can see where that month's money
-went. A partial month counts only the days the range covers, and the `% EXP`
-share is recomputed within each month rather than carried over from the whole
-range.
+The Per-Month Breakdown section is hidden by default. Add `--verbose` (or `-v`)
+to show each month's category totals and income/expense summary below the chart:
+
+```bash
+coinw report overview year --verbose
+coinw report overview Groceries year -v
+```
+
+A partial month counts only the days the range covers, and the `% EXP` share is
+recomputed within each month rather than carried over from the whole range.
 
 Without a category filter, every saved category is listed, including the ones
 with no activity, so each month has the same set of rows and a category you spent
@@ -185,9 +190,8 @@ means it improved. A category with no figure last month is compared against zero
  Dining                CAD    0.00       0      -         =
 ```
 
-Pass a category to narrow the range totals and monthly bars to just that
-category. Other categories' zero-value rows and the Per-Month Breakdown section
-are omitted:
+Pass a category to narrow the range totals, monthly bars, and verbose breakdown
+to just that category. Other categories' zero-value rows are omitted:
 
 ```bash
 coinw report overview <category> <range>

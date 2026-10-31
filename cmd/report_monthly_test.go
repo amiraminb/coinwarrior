@@ -529,7 +529,7 @@ func capturePerMonthSections(t *testing.T, transactions []model.Transaction, sta
 	original := os.Stdout
 	os.Stdout = output
 	defer func() { os.Stdout = original }()
-	printPerMonthSections(transactions, transactions, start, end)
+	printPerMonthSections(transactions, transactions, start, end, "")
 
 	if _, err := output.Seek(0, io.SeekStart); err != nil {
 		t.Fatalf("rewind captured output: %v", err)

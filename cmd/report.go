@@ -59,6 +59,7 @@ Months without income or expense transactions are omitted.
 
 When a category is given, every section covers only that category. It is matched
 case-insensitively against the saved categories, and transfers are excluded.
+The per-month breakdown tables are omitted for category-filtered reports.
 
 Supported ranges: today, yesterday, week, lastweek, month, lastmonth, year, lastyear, or YYYY-MM-DD..YYYY-MM-DD.`,
 	Example: `  coinw report overview month
@@ -101,7 +102,9 @@ Supported ranges: today, yesterday, week, lastweek, month, lastmonth, year, last
 		}
 		printSpendingFutureValue(transactions, start, end)
 		printMonthlyBarsSection(transactions, start, end)
-		printPerMonthSections(transactions, allTransactions, start, end)
+		if category == "" {
+			printPerMonthSections(transactions, allTransactions, start, end, category)
+		}
 
 		return nil
 	},
@@ -200,7 +203,7 @@ func printCategorySection(transactions, shareBase []model.Transaction, start, en
 		return err
 	}
 
-	printCategoryTotals(transactions, shareBase, start, end, "Category Totals (Range)")
+	printCategoryTotals(transactions, shareBase, start, end, "Category Totals (Range)", category)
 
 	fmt.Println()
 	return nil
@@ -233,16 +236,16 @@ type categoryKey struct {
 	currency string
 }
 
-func printCategoryTotals(transactions, shareBase []model.Transaction, start, end time.Time, heading string) {
-	printCategoryTotalsWithBaseline(transactions, shareBase, start, end, heading, nil)
+func printCategoryTotals(transactions, shareBase []model.Transaction, start, end time.Time, heading, category string) {
+	printCategoryTotalsWithBaseline(transactions, shareBase, start, end, heading, category, nil)
 }
 
 // shareBase is the unfiltered set, so % EXP stays each category's share of all
 // spending rather than collapsing to 100% under a category filter.
-func printCategoryTotalsWithBaseline(transactions, shareBase []model.Transaction, start, end time.Time, heading string, baseline map[categoryKey]int64) map[categoryKey]int64 {
+func printCategoryTotalsWithBaseline(transactions, shareBase []model.Transaction, start, end time.Time, heading, category string, baseline map[categoryKey]int64) map[categoryKey]int64 {
 	byCategory := make(map[string][]model.Transaction)
-	for _, category := range reportedCategories(transactions) {
-		byCategory[category] = nil
+	for _, name := range reportedCategories(transactions, category) {
+		byCategory[name] = nil
 	}
 	for _, tx := range transactions {
 		if tx.Type == model.TransactionTypeTransfer {
@@ -252,7 +255,13 @@ func printCategoryTotalsWithBaseline(transactions, shareBase []model.Transaction
 		if err != nil || !inRange {
 			continue
 		}
-		byCategory[tx.Category] = append(byCategory[tx.Category], tx)
+		name := tx.Category
+		if category != "" {
+			// Filtered transactions may differ in casing or surrounding space;
+			// group them under the resolved category's saved name.
+			name = category
+		}
+		byCategory[name] = append(byCategory[name], tx)
 	}
 
 	if len(byCategory) == 0 {
@@ -354,9 +363,13 @@ func printCategoryTotalsWithBaseline(transactions, shareBase []model.Transaction
 	return totals
 }
 
-// Saved categories are listed even at zero, so a month shows every category and
-// the previous-month comparison has a figure for each.
-func reportedCategories(transactions []model.Transaction) []string {
+// Unfiltered reports list saved categories even at zero for month comparisons.
+// A filtered report lists only the selected category, including when it is empty.
+func reportedCategories(transactions []model.Transaction, category string) []string {
+	if category != "" {
+		return []string{category}
+	}
+
 	saved, err := svc.LoadCategories()
 	if err != nil {
 		saved = nil

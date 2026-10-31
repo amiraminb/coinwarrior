@@ -184,7 +184,7 @@ func printMonthlyBarsSection(transactions []model.Transaction, start, end time.T
 
 // Skipped for a single month, where these totals would restate the range
 // section printed above.
-func printPerMonthSections(transactions, shareBase []model.Transaction, start, end time.Time) {
+func printPerMonthSections(transactions, shareBase []model.Transaction, start, end time.Time, category string) {
 	spans := monthSpansInRange(start, end)
 	if len(spans) < 2 || !hasReportableTransaction(transactions, start, end) {
 		return
@@ -207,7 +207,7 @@ func printPerMonthSections(transactions, shareBase []model.Transaction, start, e
 		if i > 0 && baseline == nil {
 			baseline = map[categoryKey]int64{}
 		}
-		baseline = printCategoryTotalsWithBaseline(transactions, shareBase, span.start, span.end, "Category Totals", baseline)
+		baseline = printCategoryTotalsWithBaseline(transactions, shareBase, span.start, span.end, "Category Totals", category, baseline)
 	}
 }
 

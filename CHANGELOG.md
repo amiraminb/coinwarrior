@@ -7,8 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-05
+
 ### Added
 
+- Type-to-filter support in all list menus, including categories, accounts,
+  transactions, recurring rules, and actions. Matching is case-insensitive;
+  arrows navigate matches, Enter selects, Backspace edits the filter, and Esc
+  clears it before going back or cancelling.
+- `coinw add` accepts type, amount, date, category, account, and note flags,
+  prompting only for omitted fields. Supplying every field skips the entry form.
+- Category management with `coinw category list|add|rename|delete`. Renaming
+  updates matching transactions, recurring rules, and budgets; deletion requires
+  the category to be unused. Categories are sorted alphabetically.
+- Monthly category budgets alongside overall budgets, with independent rollover
+  by category and currency. Set them with
+  `coinw budget set <category> <month> <amount>` or the interactive form, and view
+  them in budget and overview reports.
+- `coinw future <value>` projects a one-time amount at 5% annual compound interest
+  over 5, 10, 15, and 20 years. Transaction entry and spending reports also display
+  future-value projections.
+- Recurring rules can be added and edited with flags, with interactive prompts
+  for missing required fields. Edit or delete rules directly by ID, and use
+  `coinw recurring -l` or `--list` to list them.
+- Recurring rule listings include notes, monthly income/expense/net totals per
+  currency, and future-value projections. Commands warn when recurring
+  transactions have not been generated through the current month.
 - `coinw report transactions [category] <range>` now takes an optional category
   as the first argument, filtering the listing to that category and printing an
   income/expense/net summary per currency below the table. The category is
@@ -30,11 +54,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   largest value in the range so income and expense stay comparable, a month the
   range only partly covers is labelled with the days it covers (for example
   `2026-01 (15-31)`), and transfers are excluded as in every other section.
-- `coinw report overview <range>` also repeats the category totals and
-  income/expense summary for each month a multi-month range covers, so a range
-  shows where each month's money went and not only the combined totals. A
-  partial month counts only its covered days, and `% EXP` is recomputed within
-  each month rather than carried over from the range.
+- `coinw report overview <range> --verbose` (or `-v`) includes per-month category
+  breakdown tables for multi-month ranges. A partial month counts only its
+  covered days, and `% EXP` is recomputed within each month rather than carried
+  over from the range. Monthly charts and breakdowns omit months with no matching
+  income or expense transactions.
 - `coinw report overview [category] <range>` now takes an optional category as
   the first argument. Every section, including the monthly bars and the per-month
   breakdown, then covers only that category. The name is matched
@@ -52,6 +76,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- List menus now treat `q`, `j`, and `k` as filter text. Use Ctrl+C to quit and
+  arrow keys to navigate; Yes/No confirmations retain their existing shortcuts.
+- `coinw add` uses CAD without a separate currency prompt.
 - `coinw edit` now picks the category from a list of saved categories instead of
   a free-text field, with a `[New category]` entry for adding one, matching how
   `coinw add` works. The cursor opens on the transaction's current category, so
@@ -110,5 +137,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Range report with category breakdown and balances: `coinw report <range> [--details]`
 - Initial data setup: `coinw init`
 
+[Unreleased]: https://github.com/amiraminb/coinwarrior/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/amiraminb/coinwarrior/releases/tag/v0.3.0
 [0.2.0]: https://github.com/amiraminb/coinwarrior/releases/tag/v0.2.0
 [0.1.0]: https://github.com/amiraminb/coinwarrior/releases/tag/v0.1.0

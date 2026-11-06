@@ -28,7 +28,7 @@ Download the latest release for your platform from the [Releases page](https://g
 One-liner for macOS/Linux (replace `VERSION` with the latest tag):
 
 ```bash
-VERSION=0.1.0
+VERSION=0.3.0
 OS=$(uname -s | tr '[:upper:]' '[:lower:]')
 ARCH=$(uname -m | sed 's/aarch64/arm64/;s/x86_64/x86_64/')
 curl -sSL "https://github.com/amiraminb/coinwarrior/releases/download/v${VERSION}/coinwarrior_${VERSION}_${OS}_${ARCH}.tar.gz" \

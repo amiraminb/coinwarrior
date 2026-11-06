@@ -54,6 +54,11 @@ If `~/.local/bin` is not on your `PATH`, either add it or run with the full path
 
 ## Quick Start
 
+In any list menu, start typing to filter the choices by name (case-insensitive).
+Use ↑/↓ to move through matches and Enter to select. Backspace edits the filter;
+Esc clears it, then goes back or cancels when it is empty. Ctrl+C quits. Letters
+such as `q`, `j`, and `k` are filter text in list menus.
+
 - Initialize data files:
 
 ```bash

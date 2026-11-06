@@ -22,6 +22,7 @@ type transactionListModel struct {
 	title        string
 	transactions []model.Transaction
 	cursor       int
+	filter       menuFilter
 	selected     model.Transaction
 }
 
@@ -33,24 +34,24 @@ func newTransactionListModel(title string, transactions []model.Transaction) tra
 
 func (m transactionListModel) Init() tea.Cmd { return nil }
 
+func (m transactionListModel) labels() []string {
+	labels := make([]string, len(m.transactions))
+	for i, tx := range m.transactions {
+		labels[i] = FormatEditableTransaction(tx)
+	}
+	return labels
+}
+
 func (m transactionListModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
+		if m.filter.update(msg, m.labels(), &m.cursor) {
+			return m, nil
+		}
 		switch msg.String() {
-		case "ctrl+c", "q", "esc":
+		case "ctrl+c", "esc":
 			return m, tea.Quit
-		case "up", "k":
-			if m.cursor > 0 {
-				m.cursor--
-			}
-		case "down", "j":
-			if m.cursor < len(m.transactions)-1 {
-				m.cursor++
-			}
 		case "enter":
-			if len(m.transactions) == 0 {
-				break
-			}
 			m.selected = m.transactions[m.cursor]
 			return m, tea.Quit
 		}
@@ -63,15 +64,8 @@ func (m transactionListModel) View() string {
 	s := m.title + "\n\n"
 	s += "Select transaction:\n\n"
 
-	for i, tx := range m.transactions {
-		line := "  " + FormatEditableTransaction(tx)
-		if i == m.cursor {
-			line = focusStyle.Render("> " + FormatEditableTransaction(tx))
-		}
-		s += line + "\n"
-	}
-
-	s += "\n" + mutedStyle.Render("(use ↑/↓ and enter, esc to cancel, q to quit)") + "\n"
+	s += m.filter.view(m.labels(), m.cursor)
+	s += menuHelp("cancel")
 	return s
 }
 

@@ -103,7 +103,7 @@ func runRow(row importer.ParsedRow, index, total int, currency, account string, 
 			return rowSkip, row, "", err
 		}
 		if !chose {
-			// esc/q on the menu skips this row rather than quitting the run;
+			// Esc on an unfiltered menu skips this row rather than quitting the run;
 			// "Quit import" is an explicit menu item.
 			return rowSkip, row, "", nil
 		}

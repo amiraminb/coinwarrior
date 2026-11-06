@@ -65,6 +65,7 @@ type selectionModel[T comparable] struct {
 	prompt   string
 	items    []selectionItem[T]
 	cursor   int
+	filter   menuFilter
 	chose    bool
 	selected T
 }
@@ -75,24 +76,24 @@ func newSelectionModel[T comparable](title, prompt string, items []selectionItem
 
 func (m selectionModel[T]) Init() tea.Cmd { return nil }
 
+func (m selectionModel[T]) labels() []string {
+	labels := make([]string, len(m.items))
+	for i, item := range m.items {
+		labels[i] = item.label
+	}
+	return labels
+}
+
 func (m selectionModel[T]) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
+		if m.filter.update(msg, m.labels(), &m.cursor) {
+			return m, nil
+		}
 		switch msg.String() {
-		case "ctrl+c", "q", "esc":
+		case "ctrl+c", "esc":
 			return m, tea.Quit
-		case "up", "k":
-			if m.cursor > 0 {
-				m.cursor--
-			}
-		case "down", "j":
-			if m.cursor < len(m.items)-1 {
-				m.cursor++
-			}
 		case "enter":
-			if len(m.items) == 0 {
-				return m, tea.Quit
-			}
 			m.selected = m.items[m.cursor].value
 			m.chose = true
 			return m, tea.Quit
@@ -111,15 +112,8 @@ func (m selectionModel[T]) View() string {
 		s += m.prompt + "\n\n"
 	}
 
-	for i, item := range m.items {
-		line := "  " + item.label
-		if i == m.cursor {
-			line = focusStyle.Render("> " + item.label)
-		}
-		s += line + "\n"
-	}
-
-	s += "\n" + mutedStyle.Render("(use ↑/↓ and enter, esc to cancel, q to quit)") + "\n"
+	s += m.filter.view(m.labels(), m.cursor)
+	s += menuHelp("cancel")
 	return s
 }
 

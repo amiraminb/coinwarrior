@@ -21,33 +21,29 @@ func quits(cmd tea.Cmd) bool {
 }
 
 // On text-entry steps, "q" must be typed into the field rather than quitting.
-// On menu steps (list selection, Yes/No confirm) it stays a quit shortcut.
-// ctrl+c always quits. This is the regression guard for issue #13.
+// List menus also accept "q" as filter text. Only Yes/No confirmations retain
+// the quit shortcut. Ctrl+C always quits (regression guard for issue #13).
 
-func TestAddModelQuitOnlyOnSelectionSteps(t *testing.T) {
+func TestAddModelQuitOnlyOnConfirmationSteps(t *testing.T) {
 	for _, step := range []addStep{
-		stepType, stepCategorySelect, stepCategoryConfirm,
-		stepAccountSelect, stepAccountConfirm, stepTransferToAccountSelect,
+		stepCategoryConfirm, stepAccountConfirm,
 	} {
-		if !step.isSelectionStep() {
-			t.Errorf("step %d should be a selection step", step)
-		}
 		m := newAddModel(nil, nil)
 		m.step = step
 		if _, cmd := m.Update(keyRunes("q")); !quits(cmd) {
-			t.Errorf("q on selection step %d should quit", step)
+			t.Errorf("q on confirmation step %d should quit", step)
 		}
 	}
 
 	// All text steps must not quit on "q" (the core of issue #13).
-	for _, step := range []addStep{stepAmount, stepDate, stepCategoryInput, stepAccountInput, stepNote} {
-		if step.isSelectionStep() {
-			t.Errorf("step %d should be a text step", step)
-		}
+	for _, step := range []addStep{
+		stepAmount, stepDate, stepCategoryInput, stepAccountInput, stepNote,
+		stepType, stepCategorySelect, stepAccountSelect, stepTransferToAccountSelect,
+	} {
 		m := newAddModel(nil, nil)
 		m.step = step
 		if _, cmd := m.Update(keyRunes("q")); quits(cmd) {
-			t.Errorf("q on text step %d should not quit", step)
+			t.Errorf("q on text/filter step %d should not quit", step)
 		}
 	}
 
@@ -82,20 +78,17 @@ func TestEditModelQuitOnlyOnConfirm(t *testing.T) {
 	tx := model.Transaction{ID: "txn_1", Type: model.TransactionTypeExpense, Date: "2026-03-01"}
 	categories := []string{"Groceries", "Dining"}
 
-	for _, step := range []editStep{editStepCategorySelect, editStepCategoryConfirm, editStepConfirm} {
-		if !step.isSelectionStep() {
-			t.Errorf("edit step %d should be a selection step", step)
-		}
+	for _, step := range []editStep{editStepCategoryConfirm, editStepConfirm} {
 		m := newEditModel(tx, categories)
 		m.step = step
 		if _, cmd := m.Update(keyRunes("q")); !quits(cmd) {
-			t.Errorf("q on edit selection step %d should quit", step)
+			t.Errorf("q on edit confirmation step %d should quit", step)
 		}
 	}
 
 	// editStepDate and editStepAmount are numeric/date text steps: "q" is not a
 	// valid character there, so it is dropped, but it must still never quit.
-	for _, step := range []editStep{editStepDate, editStepAmount, editStepToAccount} {
+	for _, step := range []editStep{editStepDate, editStepAmount, editStepToAccount, editStepCategorySelect} {
 		m := newEditModel(tx, categories)
 		m.step = step
 		if _, cmd := m.Update(keyRunes("q")); quits(cmd) {
@@ -104,9 +97,6 @@ func TestEditModelQuitOnlyOnConfirm(t *testing.T) {
 	}
 
 	for _, step := range []editStep{editStepCategoryInput, editStepAccount, editStepNote} {
-		if step.isSelectionStep() {
-			t.Errorf("edit step %d should be a text step", step)
-		}
 		m := newEditModel(tx, categories)
 		m.step = step
 		next, cmd := m.Update(keyRunes("q"))
@@ -147,8 +137,12 @@ func TestAccountUpdateModelQuitMatrix(t *testing.T) {
 
 	m := newAccountUpdateModel(accounts)
 	m.step = accountUpdateStepSelect
+	if _, cmd := m.Update(keyRunes("q")); quits(cmd) {
+		t.Error("q on account select step should filter, not quit")
+	}
+	m.step = accountUpdateStepConfirm
 	if _, cmd := m.Update(keyRunes("q")); !quits(cmd) {
-		t.Error("q on account select step should quit")
+		t.Error("q on account confirmation should quit")
 	}
 
 	m = newAccountUpdateModel(accounts)
@@ -166,27 +160,17 @@ func TestRecurringFormModelQuitMatrix(t *testing.T) {
 	accounts := []string{"Checking", "Savings"}
 	categories := []string{"Rent", "Groceries"}
 
-	for _, step := range []recurringField{
-		recurringFieldType, recurringFieldCategory, recurringFieldAccount,
-		recurringFieldToAccount, recurringFieldConfirm,
-	} {
-		if !step.isSelectionStep() {
-			t.Errorf("recurring step %d should be a selection step", step)
-		}
-		m := newRecurringAddFormModel(categories, accounts)
-		m.step = step
-		if _, cmd := m.Update(keyRunes("q")); !quits(cmd) {
-			t.Errorf("q on recurring selection step %d should quit", step)
-		}
+	m := newRecurringAddFormModel(categories, accounts)
+	m.step = recurringFieldConfirm
+	if _, cmd := m.Update(keyRunes("q")); !quits(cmd) {
+		t.Error("q on recurring confirmation should quit")
 	}
 
 	for _, step := range []recurringField{
 		recurringFieldAmount, recurringFieldCurrency, recurringFieldDayOfMonth,
 		recurringFieldStartDate, recurringFieldEndDate, recurringFieldNote,
+		recurringFieldType, recurringFieldCategory, recurringFieldAccount, recurringFieldToAccount,
 	} {
-		if step.isSelectionStep() {
-			t.Errorf("recurring step %d should be a text step", step)
-		}
 		m := newRecurringAddFormModel(categories, accounts)
 		m.step = step
 		if _, cmd := m.Update(keyRunes("q")); quits(cmd) {
@@ -195,7 +179,7 @@ func TestRecurringFormModelQuitMatrix(t *testing.T) {
 	}
 
 	// "q" is typed into a free-text field (note), and ctrl+c quits from a menu.
-	m := newRecurringAddFormModel(categories, accounts)
+	m = newRecurringAddFormModel(categories, accounts)
 	m.step = recurringFieldNote
 	next, _ := m.Update(keyRunes("q"))
 	if next.(recurringFormModel).noteInput != "q" {

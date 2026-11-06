@@ -138,6 +138,7 @@ const (
 
 type recurringFormModel struct {
 	step            recurringField
+	filter          menuFilter
 	typeChoices     []string
 	typeCursor      int
 	amountInput     string
@@ -240,18 +241,6 @@ func (m recurringFormModel) selectedToAccount() string {
 	return m.accounts[m.toAccountCursor]
 }
 
-func renderSelectionList(items []string, cursor int) string {
-	out := ""
-	for i, item := range items {
-		line := "  " + item
-		if i == cursor {
-			line = focusStyle.Render("> " + item)
-		}
-		out += line + "\n"
-	}
-	return out
-}
-
 func formatRuleAmountInput(amountMinor int64) string {
 	whole := amountMinor / 100
 	fraction := amountMinor % 100
@@ -259,19 +248,6 @@ func formatRuleAmountInput(amountMinor int64) string {
 }
 
 func (m recurringFormModel) Init() tea.Cmd { return nil }
-
-// isSelectionStep reports whether the step is a menu (type/category/account
-// list or Yes/No confirm) rather than free-text entry. On menu steps a bare "q"
-// quits; on text steps it must be typed into the field.
-func (s recurringField) isSelectionStep() bool {
-	switch s {
-	case recurringFieldType, recurringFieldCategory, recurringFieldAccount,
-		recurringFieldToAccount, recurringFieldConfirm:
-		return true
-	default:
-		return false
-	}
-}
 
 func (m recurringFormModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	previous := m.step
@@ -281,22 +257,17 @@ func (m recurringFormModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "ctrl+c":
 			return m, tea.Quit
 		case "q":
-			if m.step.isSelectionStep() {
+			if m.step == recurringFieldConfirm {
 				return m, tea.Quit
 			}
 		}
 
 		switch m.step {
 		case recurringFieldType:
+			if m.filter.update(msg, m.typeChoices, &m.typeCursor) {
+				return m, nil
+			}
 			switch msg.String() {
-			case "up", "k":
-				if m.typeCursor > 0 {
-					m.typeCursor--
-				}
-			case "down", "j":
-				if m.typeCursor < len(m.typeChoices)-1 {
-					m.typeCursor++
-				}
 			case "enter":
 				m.step = recurringFieldAmount
 			case "esc":
@@ -350,15 +321,10 @@ func (m recurringFormModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 		case recurringFieldCategory:
+			if m.filter.update(msg, m.categories, &m.categoryCursor) {
+				return m, nil
+			}
 			switch msg.String() {
-			case "up", "k":
-				if m.categoryCursor > 0 {
-					m.categoryCursor--
-				}
-			case "down", "j":
-				if m.categoryCursor < len(m.categories)-1 {
-					m.categoryCursor++
-				}
 			case "enter":
 				m.errMessage = ""
 				m.step = recurringFieldAccount
@@ -366,15 +332,10 @@ func (m recurringFormModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.step = recurringFieldCurrency
 			}
 		case recurringFieldAccount:
+			if m.filter.update(msg, m.accounts, &m.accountCursor) {
+				return m, nil
+			}
 			switch msg.String() {
-			case "up", "k":
-				if m.accountCursor > 0 {
-					m.accountCursor--
-				}
-			case "down", "j":
-				if m.accountCursor < len(m.accounts)-1 {
-					m.accountCursor++
-				}
 			case "enter":
 				if m.typeChoices[m.typeCursor] == model.TransactionTypeTransfer && m.preset[recurringFieldToAccount] && m.toAccountCursor == m.accountCursor {
 					m.errMessage = "source and destination accounts must be different"
@@ -397,15 +358,10 @@ func (m recurringFormModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.step = recurringFieldCategory
 			}
 		case recurringFieldToAccount:
+			if m.filter.update(msg, m.accounts, &m.toAccountCursor) {
+				return m, nil
+			}
 			switch msg.String() {
-			case "up", "k":
-				if m.toAccountCursor > 0 {
-					m.toAccountCursor--
-				}
-			case "down", "j":
-				if m.toAccountCursor < len(m.accounts)-1 {
-					m.toAccountCursor++
-				}
 			case "enter":
 				if m.toAccountCursor == m.accountCursor {
 					m.errMessage = "source and destination accounts must be different"
@@ -531,6 +487,7 @@ func (m recurringFormModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	if m.step != previous {
 		m.skipPresetSteps(previous)
+		m.filter = menuFilter{}
 	}
 	return m, nil
 }
@@ -545,14 +502,8 @@ func (m recurringFormModel) View() string {
 	switch m.step {
 	case recurringFieldType:
 		s += "Select type:\n\n"
-		for i, c := range m.typeChoices {
-			line := "  " + c
-			if i == m.typeCursor {
-				line = focusStyle.Render("> " + c)
-			}
-			s += line + "\n"
-		}
-		s += "\n" + mutedStyle.Render("(↑/↓ enter, esc to cancel, q to quit)") + "\n"
+		s += m.filter.view(m.typeChoices, m.typeCursor)
+		s += menuHelp("cancel")
 	case recurringFieldAmount:
 		s += renderField("Type: ", m.typeChoices[m.typeCursor]) + "\n\n"
 		s += renderActiveField("Amount: ", m.amountInput) + "\n"
@@ -569,8 +520,8 @@ func (m recurringFormModel) View() string {
 		s += renderField("Amount: ", m.amountInput) + "\n"
 		s += renderField("Currency: ", m.currencyInput) + "\n\n"
 		s += "Select category:\n\n"
-		s += renderSelectionList(m.categories, m.categoryCursor)
-		s += "\n" + mutedStyle.Render("(↑/↓ enter, esc to go back, q to quit)") + "\n"
+		s += m.filter.view(m.categories, m.categoryCursor)
+		s += menuHelp("back")
 	case recurringFieldAccount:
 		s += renderField("Type: ", m.typeChoices[m.typeCursor]) + "\n"
 		s += renderField("Amount: ", m.amountInput) + "\n"
@@ -581,16 +532,17 @@ func (m recurringFormModel) View() string {
 			header = "Select from account:"
 		}
 		s += header + "\n\n"
-		s += renderSelectionList(m.accounts, m.accountCursor)
+		s += m.filter.view(m.accounts, m.accountCursor)
 		s += renderError(m.errMessage)
-		s += "\n" + mutedStyle.Render("(↑/↓ enter, esc to go back, q to quit)") + "\n"
+		s += menuHelp("back")
 	case recurringFieldToAccount:
 		s += renderField("Type: ", m.typeChoices[m.typeCursor]) + "\n"
 		s += renderField("Amount: ", m.amountInput) + "\n"
 		s += renderField("From account: ", m.selectedAccount()) + "\n\n"
 		s += "Select to account:\n\n"
-		out := ""
-		for i, a := range m.accounts {
+		s += m.filter.header(m.accounts)
+		for _, i := range m.filter.indices(m.accounts) {
+			a := m.accounts[i]
 			line := "  " + a
 			if i == m.accountCursor {
 				line = mutedStyle.Render("  " + a + " (same as from)")
@@ -602,11 +554,10 @@ func (m recurringFormModel) View() string {
 					line = focusStyle.Render("> " + a)
 				}
 			}
-			out += line + "\n"
+			s += line + "\n"
 		}
-		s += out
 		s += renderError(m.errMessage)
-		s += "\n" + mutedStyle.Render("(↑/↓ enter, esc to go back, q to quit)") + "\n"
+		s += menuHelp("back")
 	case recurringFieldDayOfMonth:
 		s += renderField("Type: ", m.typeChoices[m.typeCursor]) + "\n"
 		s += renderField("Amount: ", m.amountInput) + "\n"

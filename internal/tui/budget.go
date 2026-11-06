@@ -31,7 +31,8 @@ const (
 )
 
 type budgetSetModel struct {
-	step budgetSetStep
+	step   budgetSetStep
+	filter menuFilter
 
 	monthInput     string
 	categoryInput  string
@@ -58,21 +59,19 @@ func (m budgetSetModel) Init() tea.Cmd {
 	return nil
 }
 
-// isSelectionStep reports whether the step is a menu (Yes/No confirm) rather
-// than free-text entry. On menu steps a bare "q" quits; on text steps it must
-// be typed into the field, so the global handler lets it fall through.
-func (s budgetSetStep) isSelectionStep() bool {
-	return s == budgetSetStepCategory || s == budgetSetStepConfirm
+func (m budgetSetModel) categoryChoices() []string {
+	return append([]string{BudgetCategoryLabel("")}, m.categories...)
 }
 
 func (m budgetSetModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	previousStep := m.step
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "ctrl+c":
 			return m, tea.Quit
 		case "q":
-			if m.step.isSelectionStep() {
+			if m.step == budgetSetStepConfirm {
 				return m, tea.Quit
 			}
 		}
@@ -102,15 +101,10 @@ func (m budgetSetModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 		case budgetSetStepCategory:
+			if m.filter.update(msg, m.categoryChoices(), &m.categoryCursor) {
+				return m, nil
+			}
 			switch msg.String() {
-			case "up", "k":
-				if m.categoryCursor > 0 {
-					m.categoryCursor--
-				}
-			case "down", "j":
-				if m.categoryCursor < len(m.categories) {
-					m.categoryCursor++
-				}
 			case "enter":
 				m.categoryInput = ""
 				if m.categoryCursor > 0 {
@@ -195,6 +189,9 @@ func (m budgetSetModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 
+	if m.step != previousStep {
+		m.filter = menuFilter{}
+	}
 	return m, nil
 }
 
@@ -211,15 +208,8 @@ func (m budgetSetModel) View() string {
 		s += mutedStyle.Render("(enter to continue, ctrl+c to quit)") + "\n"
 	case budgetSetStepCategory:
 		s += renderField("Month: ", m.monthInput) + "\n\nSelect category:\n\n"
-		choices := append([]string{BudgetCategoryLabel("")}, m.categories...)
-		for i, category := range choices {
-			line := "  " + category
-			if i == m.categoryCursor {
-				line = focusStyle.Render("> " + category)
-			}
-			s += line + "\n"
-		}
-		s += "\n" + mutedStyle.Render("(use ↑/↓ and enter, esc to go back, q to quit)") + "\n"
+		s += m.filter.view(m.categoryChoices(), m.categoryCursor)
+		s += menuHelp("back")
 	case budgetSetStepCurrency:
 		s += renderField("Month: ", m.monthInput) + "\n\n"
 		s += renderActiveField("Currency: ", m.currencyInput) + "\n"

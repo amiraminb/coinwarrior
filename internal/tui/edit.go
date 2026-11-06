@@ -31,7 +31,8 @@ const (
 )
 
 type editModel struct {
-	step editStep
+	step   editStep
+	filter menuFilter
 
 	selected       model.Transaction
 	dateInput      string
@@ -87,12 +88,9 @@ func (m editModel) Init() tea.Cmd {
 	return nil
 }
 
-// isSelectionStep reports whether the step is a menu (list or Yes/No) rather
-// than free-text entry. On menu steps a bare "q" quits; on text steps it must
-// be typed into the field, so the global handler lets it fall through.
-func (s editStep) isSelectionStep() bool {
+func (s editStep) isConfirmationStep() bool {
 	switch s {
-	case editStepCategorySelect, editStepCategoryConfirm, editStepConfirm:
+	case editStepCategoryConfirm, editStepConfirm:
 		return true
 	default:
 		return false
@@ -100,13 +98,14 @@ func (s editStep) isSelectionStep() bool {
 }
 
 func (m editModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	previousStep := m.step
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "ctrl+c":
 			return m, tea.Quit
 		case "q":
-			if m.step.isSelectionStep() {
+			if m.step.isConfirmationStep() {
 				return m, tea.Quit
 			}
 		}
@@ -175,15 +174,10 @@ func (m editModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 		case editStepCategorySelect:
+			if m.filter.update(msg, withNewOption(m.categories, "[New category]"), &m.categoryCursor) {
+				return m, nil
+			}
 			switch msg.String() {
-			case "up", "k":
-				if m.categoryCursor > 0 {
-					m.categoryCursor--
-				}
-			case "down", "j":
-				if m.categoryCursor < len(m.categories) {
-					m.categoryCursor++
-				}
 			case "enter":
 				m.errMessage = ""
 				if m.categoryCursor < len(m.categories) {
@@ -347,6 +341,9 @@ func (m editModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 
+	if m.step != previousStep {
+		m.filter = menuFilter{}
+	}
 	return m, nil
 }
 
@@ -372,19 +369,8 @@ func (m editModel) View() string {
 		s += renderField("Amount: ", m.amountInput) + "\n"
 		s += renderField("Current category: ", editCategoryLabel(m.selected.Category)) + "\n\n"
 		s += "Select category:\n\n"
-		for i, c := range m.categories {
-			line := "  " + c
-			if i == m.categoryCursor {
-				line = focusStyle.Render("> " + c)
-			}
-			s += line + "\n"
-		}
-		newOptionLine := "  [New category]"
-		if m.categoryCursor == len(m.categories) {
-			newOptionLine = focusStyle.Render("> [New category]")
-		}
-		s += newOptionLine + "\n"
-		s += "\n" + mutedStyle.Render("(use ↑/↓ and enter, esc to go back, q to quit)") + "\n"
+		s += m.filter.view(withNewOption(m.categories, "[New category]"), m.categoryCursor)
+		s += menuHelp("back")
 	case editStepCategoryInput:
 		s += renderField("Editing: ", m.selected.ID) + "\n"
 		s += renderField("Date: ", m.dateInput) + "\n"

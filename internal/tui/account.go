@@ -48,6 +48,7 @@ type accountUpdateModel struct {
 
 	accounts []model.Account
 	cursor   int
+	filter   menuFilter
 
 	selectedAccount model.Account
 	amountInput     string
@@ -148,45 +149,41 @@ func (m accountAddModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// isSelectionStep reports whether the step is a menu (account list or Yes/No
-// confirm) rather than free-text entry. On menu steps a bare "q" quits; on the
-// amount step it must be typed into the field.
-func (s accountUpdateStep) isSelectionStep() bool {
-	return s == accountUpdateStepSelect || s == accountUpdateStepConfirm
+func (m accountUpdateModel) labels() []string {
+	labels := make([]string, len(m.accounts))
+	for i, account := range m.accounts {
+		labels[i] = fmt.Sprintf("%s (%s %s)", account.Name, account.Currency, money.Format(account.BalanceMinor))
+	}
+	return labels
 }
 
 func (m accountUpdateModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	previousStep := m.step
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "ctrl+c":
 			return m, tea.Quit
 		case "q":
-			if m.step.isSelectionStep() {
+			if m.step == accountUpdateStepConfirm {
 				return m, tea.Quit
 			}
 		}
 
 		switch m.step {
 		case accountUpdateStepSelect:
+			if m.filter.update(msg, m.labels(), &m.cursor) {
+				return m, nil
+			}
 			switch msg.String() {
-			case "up", "k":
-				if m.cursor > 0 {
-					m.cursor--
-				}
-			case "down", "j":
-				if m.cursor < len(m.accounts)-1 {
-					m.cursor++
-				}
 			case "enter":
-				if len(m.accounts) == 0 {
-					break
-				}
 				m.selectedAccount = m.accounts[m.cursor]
 				m.amountInput = ""
 				m.confirmCursor = 0
 				m.errMessage = ""
 				m.step = accountUpdateStepAmount
+			case "esc":
+				return m, tea.Quit
 			}
 		case accountUpdateStepAmount:
 			switch msg.String() {
@@ -234,6 +231,9 @@ func (m accountUpdateModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 
+	if m.step != previousStep {
+		m.filter = menuFilter{}
+	}
 	return m, nil
 }
 
@@ -271,14 +271,8 @@ func (m accountUpdateModel) View() string {
 	switch m.step {
 	case accountUpdateStepSelect:
 		s += "Select account:\n\n"
-		for i, account := range m.accounts {
-			line := fmt.Sprintf("  %s (%s %s)", account.Name, account.Currency, money.Format(account.BalanceMinor))
-			if i == m.cursor {
-				line = focusStyle.Render(fmt.Sprintf("> %s (%s %s)", account.Name, account.Currency, money.Format(account.BalanceMinor)))
-			}
-			s += line + "\n"
-		}
-		s += "\n" + mutedStyle.Render("(use ↑/↓ and enter, q to quit)") + "\n"
+		s += m.filter.view(m.labels(), m.cursor)
+		s += menuHelp("cancel")
 	case accountUpdateStepAmount:
 		s += renderField("Account: ", m.selectedAccount.Name) + "\n"
 		s += renderField("Currency: ", m.selectedAccount.Currency) + "\n"

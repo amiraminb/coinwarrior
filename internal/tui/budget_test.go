@@ -3,6 +3,8 @@ package tui
 import (
 	"strings"
 	"testing"
+
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 func advanceBudget(m budgetSetModel, keys ...string) budgetSetModel {
@@ -40,7 +42,7 @@ func TestBudgetFormSupportsOverallAndBackNavigation(t *testing.T) {
 		t.Error("All spending must clear the category")
 	}
 	m = advanceBudget(m, "esc")
-	if _, cmd := m.Update(keyPress("q")); !quits(cmd) {
-		t.Error("q must cancel the category picker")
+	if _, cmd := m.Update(tea.KeyMsg{Type: tea.KeyCtrlC}); !quits(cmd) {
+		t.Error("Ctrl+C must cancel the category picker")
 	}
 }

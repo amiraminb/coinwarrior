@@ -39,6 +39,7 @@ type addModel struct {
 	preset map[addStep]bool
 
 	cursor   int
+	filter   menuFilter
 	choices  []string
 	selected string
 
@@ -78,14 +79,11 @@ func (m addModel) Init() tea.Cmd {
 	return nil
 }
 
-// isSelectionStep reports whether the step is a menu (list selection or Yes/No
-// confirm) rather than free-text entry. On menu steps a bare "q" quits; on
-// text steps it must be typed into the field, so the global handler lets it
-// fall through.
-func (s addStep) isSelectionStep() bool {
+// Only confirmation prompts reserve bare "q" for quitting; lists accept it as
+// filter text, and text fields accept it as input.
+func (s addStep) isConfirmationStep() bool {
 	switch s {
-	case stepType, stepCategorySelect, stepCategoryConfirm,
-		stepAccountSelect, stepAccountConfirm, stepTransferToAccountSelect:
+	case stepCategoryConfirm, stepAccountConfirm:
 		return true
 	default:
 		return false
@@ -100,24 +98,21 @@ func (m addModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "ctrl+c":
 			return m, tea.Quit
 		case "q":
-			if m.step.isSelectionStep() {
+			if m.step.isConfirmationStep() {
 				return m, tea.Quit
 			}
 		}
 		switch m.step {
 		case stepType:
+			if m.filter.update(msg, m.choices, &m.cursor) {
+				return m, nil
+			}
 			switch msg.String() {
-			case "up", "k":
-				if m.cursor > 0 {
-					m.cursor--
-				}
-			case "down", "j":
-				if m.cursor < len(m.choices)-1 {
-					m.cursor++
-				}
 			case "enter":
 				m.selected = m.choices[m.cursor]
 				m.step = stepAmount
+			case "esc":
+				return m, tea.Quit
 			}
 		case stepAmount:
 			switch msg.String() {
@@ -158,16 +153,10 @@ func (m addModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 		case stepCategorySelect:
-			maxCursor := len(m.categories)
+			if m.filter.update(msg, withNewOption(m.categories, "[New category]"), &m.categoryCursor) {
+				return m, nil
+			}
 			switch msg.String() {
-			case "up", "k":
-				if m.categoryCursor > 0 {
-					m.categoryCursor--
-				}
-			case "down", "j":
-				if m.categoryCursor < maxCursor {
-					m.categoryCursor++
-				}
 			case "enter":
 				if m.categoryCursor < len(m.categories) {
 					m.categoryInput = m.categories[m.categoryCursor]
@@ -175,6 +164,8 @@ func (m addModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					break
 				}
 				m.step = stepCategoryInput
+			case "esc":
+				m.step = stepDate
 			}
 		case stepCategoryInput:
 			switch msg.String() {
@@ -218,23 +209,10 @@ func (m addModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.step = stepCategoryInput
 			}
 		case stepAccountSelect:
-			maxCursor := len(m.accounts)
-			if m.selected == model.TransactionTypeTransfer {
-				if len(m.accounts) == 0 {
-					maxCursor = 0
-				} else {
-					maxCursor = len(m.accounts) - 1
-				}
+			if m.filter.update(msg, m.accountChoices(), &m.accountCursor) {
+				return m, nil
 			}
 			switch msg.String() {
-			case "up", "k":
-				if m.accountCursor > 0 {
-					m.accountCursor--
-				}
-			case "down", "j":
-				if m.accountCursor < maxCursor {
-					m.accountCursor++
-				}
 			case "enter":
 				if m.accountCursor < len(m.accounts) {
 					m.accountInput = m.accounts[m.accountCursor]
@@ -248,6 +226,12 @@ func (m addModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				if m.selected != model.TransactionTypeTransfer {
 					m.step = stepAccountInput
+				}
+			case "esc":
+				if m.selected == model.TransactionTypeTransfer {
+					m.step = stepDate
+				} else {
+					m.step = stepCategorySelect
 				}
 			}
 		case stepAccountInput:
@@ -293,19 +277,11 @@ func (m addModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.step = stepAccountInput
 			}
 		case stepTransferToAccountSelect:
+			if m.filter.update(msg, m.accounts, &m.accountCursor) {
+				return m, nil
+			}
 			switch msg.String() {
-			case "up", "k":
-				if m.accountCursor > 0 {
-					m.accountCursor--
-				}
-			case "down", "j":
-				if m.accountCursor < len(m.accounts)-1 {
-					m.accountCursor++
-				}
 			case "enter":
-				if len(m.accounts) == 0 {
-					break
-				}
 				candidate := m.accounts[m.accountCursor]
 				if strings.EqualFold(candidate, m.accountInput) {
 					break
@@ -339,6 +315,7 @@ func (m addModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	if m.step != previousStep {
 		m.skipPresetSteps(previousStep)
+		m.filter = menuFilter{}
 	}
 	if m.step == stepDone {
 		return m, tea.Quit
@@ -346,19 +323,20 @@ func (m addModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+func (m addModel) accountChoices() []string {
+	if m.selected == model.TransactionTypeTransfer {
+		return m.accounts
+	}
+	return withNewOption(m.accounts, "[New account]")
+}
+
 func (m addModel) View() string {
 	s := ""
 	switch m.step {
 	case stepType:
 		s += "Select type:\n\n"
-		for i, c := range m.choices {
-			line := "  " + c
-			if i == m.cursor {
-				line = focusStyle.Render("> " + c)
-			}
-			s += line + "\n"
-		}
-		s += "\n" + mutedStyle.Render("(use ↑/↓ and enter, q to quit)") + "\n"
+		s += m.filter.view(m.choices, m.cursor)
+		s += menuHelp("cancel")
 	case stepAmount:
 		s += renderField("Type selected: ", m.selected) + "\n\n"
 		s += renderActiveField("Enter amount: ", m.amountInput) + "\n"
@@ -372,19 +350,8 @@ func (m addModel) View() string {
 		s += renderField("Type selected: ", m.selected) + "\n"
 		s += renderField("Amount: ", m.amountInput) + "\n"
 		s += "Select category:\n\n"
-		for i, c := range m.categories {
-			line := "  " + c
-			if i == m.categoryCursor {
-				line = focusStyle.Render("> " + c)
-			}
-			s += line + "\n"
-		}
-		newOptionLine := "  [New category]"
-		if m.categoryCursor == len(m.categories) {
-			newOptionLine = focusStyle.Render("> [New category]")
-		}
-		s += newOptionLine + "\n"
-		s += "\n" + mutedStyle.Render("(use ↑/↓ and enter, q to quit)") + "\n"
+		s += m.filter.view(withNewOption(m.categories, "[New category]"), m.categoryCursor)
+		s += menuHelp("back")
 	case stepCategoryInput:
 		s += renderField("Type selected: ", m.selected) + "\n"
 		s += renderField("Amount: ", m.amountInput) + "\n"
@@ -414,21 +381,8 @@ func (m addModel) View() string {
 		} else {
 			s += "\nSelect from account:\n\n"
 		}
-		for i, a := range m.accounts {
-			line := "  " + a
-			if i == m.accountCursor {
-				line = focusStyle.Render("> " + a)
-			}
-			s += line + "\n"
-		}
-		if m.selected != model.TransactionTypeTransfer {
-			newOptionLine := "  [New account]"
-			if m.accountCursor == len(m.accounts) {
-				newOptionLine = focusStyle.Render("> [New account]")
-			}
-			s += newOptionLine + "\n"
-		}
-		s += "\n" + mutedStyle.Render("(use ↑/↓ and enter, q to quit)") + "\n"
+		s += m.filter.view(m.accountChoices(), m.accountCursor)
+		s += menuHelp("back")
 	case stepAccountInput:
 		s += renderField("Type selected: ", m.selected) + "\n"
 		s += renderField("Amount: ", m.amountInput) + "\n"
@@ -442,7 +396,9 @@ func (m addModel) View() string {
 		s += renderField("Date: ", m.dateInput) + "\n"
 		s += renderField("From account: ", m.accountInput) + "\n\n"
 		s += "Select to account:\n\n"
-		for i, a := range m.accounts {
+		s += m.filter.header(m.accounts)
+		for _, i := range m.filter.indices(m.accounts) {
+			a := m.accounts[i]
 			line := "  " + a
 			if strings.EqualFold(a, m.accountInput) {
 				line = mutedStyle.Render("  " + a + " (same account)")
@@ -455,7 +411,7 @@ func (m addModel) View() string {
 			}
 			s += line + "\n"
 		}
-		s += "\n" + mutedStyle.Render("(use ↑/↓ and enter, esc to go back, q to quit)") + "\n"
+		s += menuHelp("back")
 	case stepAccountConfirm:
 		s += renderField("Type selected: ", m.selected) + "\n"
 		s += renderField("Amount: ", m.amountInput) + "\n"

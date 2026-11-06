@@ -299,8 +299,16 @@ coinw budget set Travel 2026-12 400 --carryover
 ```
 
 Budget spending counts expense transactions; income and transfers are excluded.
-Overview reports for a full calendar month show category budgets alongside any
-overall limit. A category-filtered overview shows only that category's budget.
+Overview reports for a full calendar month and `coinw budget show` display, per
+currency, **All spending**, **Recurring**, then categories with defined budgets.
+The Recurring row's **BUDGET** is calculated from current recurring expense rules
+scheduled in that month, respecting their start and end dates. **SPENT** counts
+recorded recurring expenses, and **LEFT** is the scheduled cost minus spending.
+It appears even without a saved budget when there are recurring costs or expenses;
+rollover and status are not applicable. Editing or deleting a rule changes the
+scheduled amount, but previously generated expenses still count as spent.
+Recurring spending is also included in the overall and matching category totals.
+A category-filtered overview shows only that category's budget.
 
 ## Supported Report Ranges
 

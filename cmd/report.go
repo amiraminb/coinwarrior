@@ -550,14 +550,7 @@ func printMonthlyBudgetSection(start, end, now time.Time, category string) error
 
 	rows := make([]table.Row, 0, len(summaries))
 	for _, summary := range summaries {
-		rows = append(rows, table.Row{
-			tui.BudgetCategoryLabel(summary.Budget.Category),
-			summary.Budget.Currency,
-			money.Format(summary.Budget.AmountMinor),
-			money.Format(summary.Budget.RolloverMinor),
-			money.Format(summary.SpentMinor),
-			money.Format(summary.LeftMinor),
-		})
+		rows = append(rows, tui.BudgetSummaryRow(summary))
 	}
 
 	tui.RenderTable(

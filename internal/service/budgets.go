@@ -20,6 +20,7 @@ func findBudgetIndex(budgets []model.Budget, monthKey, currency, category string
 
 type BudgetSummary struct {
 	Budget      model.Budget
+	Recurring   bool // A calculated recurring-cost view, not a saved budget.
 	SpentMinor  int64
 	LeftMinor   int64
 	Status      string
@@ -184,7 +185,21 @@ func (s *Service) GetMonthlyBudgetSummaries(monthInput string, now time.Time) ([
 		return nil, err
 	}
 
-	return summarizeBudgetsForMonth(budgets, transactions, month, now)
+	rules, err := s.repo.LoadRecurringRules()
+	if err != nil {
+		return nil, err
+	}
+	summaries, err := summarizeBudgetsForMonth(budgets, transactions, month, now)
+	if err != nil {
+		return nil, err
+	}
+	recurring, err := recurringBudgetSummariesForMonth(summaries, transactions, rules, month)
+	if err != nil {
+		return nil, err
+	}
+	summaries = append(summaries, recurring...)
+	sortBudgetSummaries(summaries)
+	return summaries, nil
 }
 
 func (s *Service) GetPendingBudgetRollovers(targetMonthInput string, now time.Time) ([]BudgetSummary, error) {
@@ -413,6 +428,12 @@ func sortBudgetSummaries(summaries []BudgetSummary) {
 	sort.Slice(summaries, func(i, j int) bool {
 		if summaries[i].Budget.Month == summaries[j].Budget.Month {
 			if summaries[i].Budget.Currency == summaries[j].Budget.Currency {
+				if summaries[i].Recurring != summaries[j].Recurring {
+					if summaries[i].Recurring {
+						return summaries[j].Budget.Category != ""
+					}
+					return summaries[i].Budget.Category == ""
+				}
 				return summaries[i].Budget.Category < summaries[j].Budget.Category
 			}
 			return summaries[i].Budget.Currency < summaries[j].Budget.Currency

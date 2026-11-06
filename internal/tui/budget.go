@@ -7,6 +7,7 @@ import (
 
 	"github.com/amiraminb/coinwarrior/internal/daterange"
 	"github.com/amiraminb/coinwarrior/internal/money"
+	"github.com/amiraminb/coinwarrior/internal/service"
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -356,15 +357,11 @@ func RunBudgetShow(monthInput string) error {
 
 	rows := make([]table.Row, 0, len(summaries))
 	for _, summary := range summaries {
-		rows = append(rows, table.Row{
-			BudgetCategoryLabel(summary.Budget.Category),
-			summary.Budget.Currency,
-			money.Format(summary.Budget.AmountMinor),
-			money.Format(summary.Budget.RolloverMinor),
-			money.Format(summary.SpentMinor),
-			money.Format(summary.LeftMinor),
-			summary.Status,
-		})
+		status := summary.Status
+		if summary.Recurring {
+			status = "-"
+		}
+		rows = append(rows, append(BudgetSummaryRow(summary), status))
 	}
 
 	RenderTable(
@@ -381,6 +378,24 @@ func RunBudgetShow(monthInput string) error {
 	)
 
 	return nil
+}
+
+// BudgetSummaryRow is shared by the overview report and monthly budget display.
+func BudgetSummaryRow(summary service.BudgetSummary) table.Row {
+	label := BudgetCategoryLabel(summary.Budget.Category)
+	rollover := money.Format(summary.Budget.RolloverMinor)
+	if summary.Recurring {
+		label = "Recurring"
+		rollover = "-"
+	}
+	return table.Row{
+		label,
+		summary.Budget.Currency,
+		money.Format(summary.Budget.AmountMinor),
+		rollover,
+		money.Format(summary.SpentMinor),
+		money.Format(summary.LeftMinor),
+	}
 }
 
 func BudgetCategoryLabel(category string) string {

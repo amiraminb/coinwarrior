@@ -294,7 +294,6 @@ func printCategoryTotalsWithBaseline(transactions, shareBase []model.Transaction
 			if tx.Type == model.TransactionTypeExpense {
 				currencyExpense[tx.Currency] += tx.AmountMinor
 				report.expenseByCurrency[tx.Currency] += tx.AmountMinor
-				report.totalExpenseMinor += tx.AmountMinor
 			} else if tx.Type == model.TransactionTypeIncome {
 				currencyIncome[tx.Currency] += tx.AmountMinor
 			}
@@ -309,10 +308,11 @@ func printCategoryTotalsWithBaseline(transactions, shareBase []model.Transaction
 	}
 
 	sort.Slice(categoryReports, func(i, j int) bool {
-		if categoryReports[i].totalExpenseMinor == categoryReports[j].totalExpenseMinor {
+		left, right := strings.ToLower(categoryReports[i].name), strings.ToLower(categoryReports[j].name)
+		if left == right {
 			return categoryReports[i].name < categoryReports[j].name
 		}
-		return categoryReports[i].totalExpenseMinor > categoryReports[j].totalExpenseMinor
+		return left < right
 	})
 
 	ledgerCurrency := dominantCurrency(shareBase)
@@ -589,7 +589,6 @@ type categoryReport struct {
 	items             []model.Transaction
 	totalsByCurrency  map[string]int64
 	expenseByCurrency map[string]int64
-	totalExpenseMinor int64
 }
 
 func formatPercent(part, total int64) string {

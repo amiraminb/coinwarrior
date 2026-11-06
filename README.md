@@ -183,6 +183,8 @@ recomputed within each month rather than carried over from the whole range.
 Without a category filter, every saved category is listed, including the ones
 with no activity, so each month has the same set of rows and a category you spent
 nothing on is visible rather than missing.
+Category totals are sorted alphabetically, ignoring capitalization, in both the
+range totals and per-month tables.
 
 Each per-month table also compares itself to the month immediately before it. Red
 `▲` means the month moved for the worse (more spent, or less earned) and green `▼`

@@ -59,12 +59,12 @@ func TestBudgetCommandsPersistCategoryLimitsAlongsideLegacyBudget(t *testing.T) 
 	output = captureBudgetOutput(t, func() error {
 		return printMonthlyBudgetSection(day(t, "2026-11-01"), day(t, "2026-11-30"), day(t, "2026-11-15"), "Groceries")
 	})
-	if !strings.Contains(output, "Groceries") || strings.Contains(output, "All spending") || strings.Contains(output, "Dining") {
+	if !strings.Contains(output, "Groceries") || strings.Contains(output, "All spending") || strings.Contains(output, "Dining") || strings.Contains(output, "Other spending") {
 		t.Errorf("filtered overview must show only its category budget:\n%s", output)
 	}
 }
 
-func TestBudgetDisplaysRecurringBetweenOverallAndCategories(t *testing.T) {
+func TestBudgetDisplaysCalculatedRowsBetweenOverallAndCategories(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	r := repository.NewFileRepository()
 	oldService, oldTUIService := svc, tui.Svc
@@ -72,9 +72,10 @@ func TestBudgetDisplaysRecurringBetweenOverallAndCategories(t *testing.T) {
 	tui.Svc = svc
 	t.Cleanup(func() { svc, tui.Svc = oldService, oldTUIService })
 	if err := r.SaveBudgets([]model.Budget{
-		{Month: "2026-11", Currency: "CAD", Category: "Dining", AmountMinor: 10000},
-		{Month: "2026-11", Currency: "CAD", AmountMinor: 50000},
+		{Month: "2026-11", Currency: "CAD", Category: "Dining", AmountMinor: 10000, RolloverMinor: 1000},
+		{Month: "2026-11", Currency: "CAD", AmountMinor: 50000, RolloverMinor: -2000},
 		{Month: "2026-11", Currency: "CAD", Category: "Recurring", AmountMinor: 5000},
+		{Month: "2026-11", Currency: "CAD", Category: "Other spending", AmountMinor: 2500},
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -104,18 +105,26 @@ func TestBudgetDisplaysRecurringBetweenOverallAndCategories(t *testing.T) {
 	} {
 		t.Run(display.name, func(t *testing.T) {
 			output := strings.Join(strings.Fields(captureBudgetOutput(t, display.run)), " ")
+			if !strings.Contains(output, "LEFT (NO ROLL)") {
+				t.Errorf("missing remaining budget without rollover column:\n%s", output)
+			}
 			previous := -1
 			for _, row := range []string{
-				"All spending CAD 500.00 0.00 175.00 325.00",
-				"Recurring CAD 200.00 - 150.00 50.00",
-				"Dining CAD 100.00 0.00 25.00 75.00",
-				"Recurring CAD 50.00 0.00 0.00 50.00",
+				"All spending CAD 500.00 -20.00 175.00 305.00 325.00",
+				"Recurring CAD 200.00 - 150.00 50.00 50.00",
+				"Other spending CAD 125.00 -30.00 0.00 95.00 125.00",
+				"Dining CAD 100.00 10.00 25.00 85.00 75.00",
+				"Other spending CAD 25.00 0.00 0.00 25.00 25.00",
+				"Recurring CAD 50.00 0.00 0.00 50.00 50.00",
 			} {
 				index := strings.Index(output, row)
 				if index < 0 || index <= previous {
 					t.Fatalf("missing or out-of-order row %q:\n%s", row, output)
 				}
 				previous = index
+			}
+			if display.name == "budget show" && !strings.Contains(output, "Other spending CAD 125.00 -30.00 0.00 95.00 125.00 -") {
+				t.Errorf("calculated Other spending row must not have a rollover status:\n%s", output)
 			}
 		})
 	}
@@ -124,6 +133,12 @@ func TestBudgetDisplaysRecurringBetweenOverallAndCategories(t *testing.T) {
 	})
 	if strings.Count(output, "Recurring") != 1 || strings.Contains(output, "200.00") {
 		t.Errorf("a category named Recurring must remain distinct from recurring costs:\n%s", output)
+	}
+	output = captureBudgetOutput(t, func() error {
+		return printMonthlyBudgetSection(day(t, "2026-11-01"), day(t, "2026-11-30"), day(t, "2026-11-06"), "Other spending")
+	})
+	if strings.Count(output, "Other spending") != 1 || strings.Contains(output, "125.00") {
+		t.Errorf("a category named Other spending must remain distinct from the calculated remainder:\n%s", output)
 	}
 }
 

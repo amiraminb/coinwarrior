@@ -358,7 +358,7 @@ func RunBudgetShow(monthInput string) error {
 	rows := make([]table.Row, 0, len(summaries))
 	for _, summary := range summaries {
 		status := summary.Status
-		if summary.Recurring {
+		if summary.Recurring || summary.Other {
 			status = "-"
 		}
 		rows = append(rows, append(BudgetSummaryRow(summary), status))
@@ -372,6 +372,7 @@ func RunBudgetShow(monthInput string) error {
 			{Title: "ROLL", Width: 14},
 			{Title: "SPENT", Width: 14},
 			{Title: "LEFT", Width: 14},
+			{Title: "LEFT (NO ROLL)", Width: 16},
 			{Title: "STATUS", Width: 10},
 		},
 		rows,
@@ -387,6 +388,8 @@ func BudgetSummaryRow(summary service.BudgetSummary) table.Row {
 	if summary.Recurring {
 		label = "Recurring"
 		rollover = "-"
+	} else if summary.Other {
+		label = "Other spending"
 	}
 	return table.Row{
 		label,
@@ -395,6 +398,7 @@ func BudgetSummaryRow(summary service.BudgetSummary) table.Row {
 		rollover,
 		money.Format(summary.SpentMinor),
 		money.Format(summary.LeftMinor),
+		money.Format(summary.Budget.AmountMinor - summary.SpentMinor),
 	}
 }
 

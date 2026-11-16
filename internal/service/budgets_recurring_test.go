@@ -47,23 +47,25 @@ func TestMonthlyBudgetsIncludeRecurringCostsAndRecordedExpenses(t *testing.T) {
 	}
 	want := []struct {
 		currency, category   string
-		recurring            bool
+		recurring, other     bool
 		planned, spent, left int64
 	}{
-		{"CAD", "", false, 50000, 11200, 39800},
-		{"CAD", "", true, 11500, 10500, 1000},
-		{"CAD", "Dining", false, 10000, 1200, 8800},
-		{"EUR", "", false, 20000, 0, 20000},
-		{"EUR", "", true, 0, 0, 0},
-		{"GBP", "", true, 0, 300, -300},
-		{"USD", "", true, 2500, 2600, -100},
+		{"CAD", "", false, false, 50000, 11200, 39800},
+		{"CAD", "", true, false, 11500, 10500, 1000},
+		{"CAD", "", false, true, 28500, 0, 29500},
+		{"CAD", "Dining", false, false, 10000, 1200, 8800},
+		{"EUR", "", false, false, 20000, 0, 20000},
+		{"EUR", "", true, false, 0, 0, 0},
+		{"EUR", "", false, true, 20000, 0, 20000},
+		{"GBP", "", true, false, 0, 300, -300},
+		{"USD", "", true, false, 2500, 2600, -100},
 	}
 	if len(summaries) != len(want) {
 		t.Fatalf("got %d summaries, want %d: %+v", len(summaries), len(want), summaries)
 	}
 	for i, expected := range want {
 		got := summaries[i]
-		if got.Budget.Currency != expected.currency || got.Budget.Category != expected.category || got.Recurring != expected.recurring ||
+		if got.Budget.Currency != expected.currency || got.Budget.Category != expected.category || got.Recurring != expected.recurring || got.Other != expected.other ||
 			got.Budget.AmountMinor != expected.planned || got.SpentMinor != expected.spent || got.LeftMinor != expected.left {
 			t.Errorf("row %d = %+v, want %+v", i, got, expected)
 		}

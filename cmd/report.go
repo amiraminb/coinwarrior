@@ -561,6 +561,7 @@ func printMonthlyBudgetSection(start, end, now time.Time, category string) error
 			{Title: "ROLL", Width: 14},
 			{Title: "SPENT", Width: 14},
 			{Title: "LEFT", Width: 14},
+			{Title: "LEFT (NO ROLL)", Width: 16},
 		},
 		rows,
 	)

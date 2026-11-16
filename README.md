@@ -302,7 +302,10 @@ coinw budget set Travel 2026-12 400 --carryover
 
 Budget spending counts expense transactions; income and transfers are excluded.
 Overview reports for a full calendar month and `coinw budget show` display, per
-currency, **All spending**, **Recurring**, then categories with defined budgets.
+currency, **All spending**, **Recurring**, **Other spending**, then categories with
+defined budgets.
+Each row includes **LEFT** (budget plus rollover minus spending) and
+**LEFT (NO ROLL)** (budget minus spending, excluding rollover).
 The Recurring row's **BUDGET** is calculated from current recurring expense rules
 scheduled in that month, respecting their start and end dates. **SPENT** counts
 recorded recurring expenses, and **LEFT** is the scheduled cost minus spending.
@@ -311,6 +314,19 @@ rollover and status are not applicable. Editing or deleting a rule changes the
 scheduled amount, but previously generated expenses still count as spent.
 Recurring spending is also included in the overall and matching category totals.
 A category-filtered overview shows only that category's budget.
+
+**Other spending** appears whenever an overall budget is set for that month and
+currency. Its **BUDGET** is the overall limit minus the Recurring budget and all
+defined category limits. **SPENT** counts only non-recurring expenses in categories
+without a budget, including uncategorized expenses. A recurring expense in a
+budgeted category is excluded once, so overlapping totals cannot double-count it.
+**ROLL** is the overall rollover minus category rollovers, and **LEFT** is
+budget plus rollover minus spending. For example, an overall budget of 4,000,
+recurring costs of 2,037, Food Delivery of 300, and Groceries of 800 leave
+**863** for Other spending.
+The remainder can be negative if recurring and category allocations exceed the
+overall budget.
+This row is calculated automatically and has no independent rollover decision.
 
 ## Supported Report Ranges
 

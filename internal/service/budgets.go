@@ -21,6 +21,7 @@ func findBudgetIndex(budgets []model.Budget, monthKey, currency, category string
 type BudgetSummary struct {
 	Budget      model.Budget
 	Recurring   bool // A calculated recurring-cost view, not a saved budget.
+	Other       bool // The overall budget remaining after recurring and category allocations.
 	SpentMinor  int64
 	LeftMinor   int64
 	Status      string
@@ -198,6 +199,11 @@ func (s *Service) GetMonthlyBudgetSummaries(monthInput string, now time.Time) ([
 		return nil, err
 	}
 	summaries = append(summaries, recurring...)
+	other, err := otherBudgetSummaries(summaries, transactions)
+	if err != nil {
+		return nil, err
+	}
+	summaries = append(summaries, other...)
 	sortBudgetSummaries(summaries)
 	return summaries, nil
 }
@@ -428,11 +434,8 @@ func sortBudgetSummaries(summaries []BudgetSummary) {
 	sort.Slice(summaries, func(i, j int) bool {
 		if summaries[i].Budget.Month == summaries[j].Budget.Month {
 			if summaries[i].Budget.Currency == summaries[j].Budget.Currency {
-				if summaries[i].Recurring != summaries[j].Recurring {
-					if summaries[i].Recurring {
-						return summaries[j].Budget.Category != ""
-					}
-					return summaries[i].Budget.Category == ""
+				if left, right := budgetSummaryOrder(summaries[i]), budgetSummaryOrder(summaries[j]); left != right {
+					return left < right
 				}
 				return summaries[i].Budget.Category < summaries[j].Budget.Category
 			}
@@ -440,6 +443,19 @@ func sortBudgetSummaries(summaries []BudgetSummary) {
 		}
 		return summaries[i].Budget.Month < summaries[j].Budget.Month
 	})
+}
+
+func budgetSummaryOrder(summary BudgetSummary) int {
+	switch {
+	case summary.Recurring:
+		return 1
+	case summary.Other:
+		return 2
+	case summary.Budget.Category == "":
+		return 0
+	default:
+		return 3
+	}
 }
 
 func budgetCarryoverCandidate(budgets []model.Budget, transactions []model.Transaction, targetMonth time.Time, currency, category string, now time.Time) (*BudgetCarryoverCandidate, int, error) {
